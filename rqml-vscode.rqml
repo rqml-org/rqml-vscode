@@ -1,0 +1,567 @@
+<rqml xmlns="https://rqml.org/schema/2.0.1"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="https://rqml.org/schema/2.0.1 https://rqml.org/schema/rqml-2.0.1.xsd"
+      version="2.0.1" docId="DOC-RQML-VSCODE-001" status="draft">
+  <meta>
+    <title>RQML extension for VSCode - Requirements specification</title>
+    <system>RQML extension for Visual Studio Code</system>
+  </meta>
+  <goals>
+    <goal id="GOAL-SE-PRINCIPLES" title="Preserve software engineering rigor" priority="must" status="draft">
+      <statement>Enable proper software engineering principles to remain viable and practical in an era where code is increasingly written by LLMs.</statement>
+      <rationale>As LLMs become primary code generators, there is a risk that foundational practices—requirements traceability, specification-driven development, and systematic verification—are bypassed in favor of speed. RQML provides structure that keeps these principles accessible and enforceable, ensuring that LLM-generated code is grounded in intentional design rather than ad-hoc prompting.</rationale>
+    </goal>
+    <goal id="GOAL-STAKEHOLDER-COMM" title="Facilitate stakeholder communication" priority="must" status="draft">
+      <statement>Aid clear and effective communication among all project stakeholders—developers, product owners, QA, and business representatives—through a shared, structured artifact.</statement>
+      <rationale>Miscommunication between stakeholders is a leading cause of project failure. By centralizing intent, acceptance criteria, and traceability in a machine-readable yet human-reviewable format, RQML becomes a single source of truth that bridges technical and non-technical perspectives.</rationale>
+    </goal>
+    <goal id="GOAL-LLM-CONTEXT" title="Maintain LLM coding context" priority="must" status="draft">
+      <statement>Provide LLMs with a persistent, well-structured context from which to generate and modify code, improving output quality and reducing token consumption over time.</statement>
+      <rationale>LLMs perform better when given clear, consistent context. Without a specification artifact, each coding session starts from scratch or relies on scattered comments and documentation. RQML serves as a durable context anchor—reducing repetitive prompting, minimizing hallucination, and enabling LLMs to produce code that aligns with documented requirements.</rationale>
+    </goal>
+    <qgoal id="QGOAL-CODE-QUALITY" title="Improve generated code quality" priority="should" status="draft">
+      <statement>Achieve measurably higher code quality in LLM-generated outputs when using RQML-driven workflows compared to ad-hoc prompting.</statement>
+      <metric>Reduction in defect density; increased first-pass acceptance of generated code; improved alignment with stated requirements as measured by traceability coverage.</metric>
+    </qgoal>
+    <qgoal id="QGOAL-TOKEN-EFFICIENCY" title="Reduce long-term token usage" priority="should" status="draft">
+      <statement>Lower cumulative token consumption for LLM interactions over the lifecycle of a project by providing reusable, structured context.</statement>
+      <metric>Reduction in average tokens per feature implementation compared to baseline non-RQML workflows; decrease in repeated context-setting prompts.</metric>
+    </qgoal>
+    <goalLink id="GL-001" from="QGOAL-CODE-QUALITY" to="GOAL-LLM-CONTEXT" type="refines"/>
+    <goalLink id="GL-002" from="QGOAL-TOKEN-EFFICIENCY" to="GOAL-LLM-CONTEXT" type="refines"/>
+  </goals>
+  <requirements>
+    <reqPackage id="PKG-UI" title="VS Code UI surfaces">
+      <description>UI requirements for the Activity Bar, Sidebar, Panel, and Status Bar.</description>
+      <req id="REQ-UI-001" type="UXR" title="Activity Bar icon" status="draft" priority="must">
+        <statement>The extension SHALL contribute an RQML icon to the VS Code Activity Bar.</statement>
+        <acceptance>
+          <criterion id="AC-UI-001-01">
+            <then>An RQML icon is visible in the Activity Bar when the extension is installed and enabled.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-002" type="FR" title="Open RQML overview" status="draft" priority="must">
+        <statement>Clicking the Activity Bar RQML icon SHALL open the RQML overview in the VS Code sidebar.</statement>
+        <acceptance>
+          <criterion id="AC-UI-002-01">
+            <when>The user clicks the RQML icon in the Activity Bar.</when>
+            <then>The RQML overview view is displayed in the Sidebar.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-003" type="UXR" title="Sidebar split layout" status="draft" priority="must">
+        <statement>The RQML overview in the Sidebar SHALL be split vertically into an upper and lower region.</statement>
+        <acceptance>
+          <criterion id="AC-UI-003-01">
+            <then>The Sidebar shows two vertically stacked regions within the RQML overview.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-004" type="UXR" title="Resizable split" status="draft" priority="must">
+        <statement>The vertical split in the RQML overview SHALL be resizable by the user.</statement>
+        <acceptance>
+          <criterion id="AC-UI-004-01">
+            <when>The user drags the divider between the upper and lower regions.</when>
+            <then>The sizes of the two regions adjust accordingly.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-005" type="FR" title="Tree view of specification" status="draft" priority="must">
+        <statement>The upper region of the Sidebar overview SHALL display a tree view of the RQML specification.</statement>
+        <acceptance>
+          <criterion id="AC-UI-005-01">
+            <then>The upper region contains a hierarchical tree representing the RQML document structure.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006" type="FR" title="Selection details view" status="draft" priority="must">
+        <statement>The lower region of the Sidebar overview SHALL display a list or detail view for the item selected in the tree view.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006-01">
+            <when>The user selects an item in the tree view.</when>
+            <then>The lower region updates to show list/detail information for the selected item.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006A" type="UXR" title="Show all RQML sections" status="draft" priority="must">
+        <statement>The tree view SHALL display all RQML sections, including sections not present in the spec.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006A-01">
+            <then>Each RQML section appears as a node in the tree view even when the section has no content in the document.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006B" type="UXR" title="Visual distinction for missing sections" status="draft" priority="must">
+        <statement>Sections that are not present in the spec SHALL be visually distinct in the tree view.</statement>
+        <notes>Example: gray text and italic styling.</notes>
+        <acceptance>
+          <criterion id="AC-UI-006B-01">
+            <then>Missing sections are rendered with a distinct visual style from present sections.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006C" type="FR" title="Hover actions for section creation" status="draft" priority="must">
+        <statement>Hovering over a section node in the tree view SHALL reveal icons for creating new items within that section.</statement>
+        <notes>Some sections may support multiple item types; the UI should expose available item types per section.</notes>
+        <acceptance>
+          <criterion id="AC-UI-006C-01">
+            <when>The user hovers over a section node.</when>
+            <then>Creation icons appear on the right side of the section row.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006D" type="FR" title="Edit item in form" status="draft" priority="must">
+        <statement>Double-clicking an individual item in the tree view SHALL open a UI form to edit that item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006D-01">
+            <when>The user double-clicks an item in the tree view.</when>
+            <then>An edit form opens for the selected item.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006E" type="FR" title="Context menu actions" status="draft" priority="must">
+        <statement>Right-clicking (or control-clicking on macOS) an item in the tree view SHALL open a context menu with actions to rename and delete the item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006E-01">
+            <when>The user right-clicks or control-clicks an item in the tree view.</when>
+            <then>A context menu is shown with rename and delete actions.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006F" type="FR" title="Go to definition" status="draft" priority="must">
+        <statement>The tree view context menu SHALL include a "Go to definition" action that navigates to the relevant location in the RQML instance document, opening it in the editor if needed.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006F-01">
+            <when>The user selects "Go to definition" on a tree view item.</when>
+            <then>The RQML instance document opens in the editor (if not already open) and focus moves to the item definition.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006G" type="UXR" title="Tree root label" status="draft" priority="must">
+        <statement>The root node of the tree view SHALL be labeled "RQML Spec".</statement>
+        <acceptance>
+          <criterion id="AC-UI-006G-01">
+            <then>The tree view displays a root node labeled "RQML Spec".</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006H" type="FR" title="Root hover actions" status="draft" priority="must">
+        <statement>Hovering over the root node SHALL display four action icons: Document, Arrow, Grid, and Lightbulb.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006H-01">
+            <when>The user hovers over the tree root node.</when>
+            <then>Four action icons appear on the right side of the root node.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006I" type="FR" title="Root actions behavior" status="draft" priority="must">
+        <statement>The four root action icons SHALL open the following editor views: Document opens a WYSIWYG full-spec view with chapters for each RQML section; Arrow opens a traceability map; Grid opens a requirements-to-test-cases matrix with status coloring; Lightbulb opens an LLM-assisted ideas view for improvements or new features in the spec.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006I-01">
+            <when>The user selects the Document icon.</when>
+            <then>A WYSIWYG editor view of the full spec opens with chapters for each section.</then>
+          </criterion>
+          <criterion id="AC-UI-006I-02">
+            <when>The user selects the Arrow icon.</when>
+            <then>A traceability map view opens in the editor.</then>
+          </criterion>
+          <criterion id="AC-UI-006I-03">
+            <when>The user selects the Grid icon.</when>
+            <then>A requirements-to-test-cases grid opens with red/amber/green status indicators.</then>
+          </criterion>
+          <criterion id="AC-UI-006I-04">
+            <when>The user selects the Lightbulb icon.</when>
+            <then>An LLM-assisted ideas view opens for improvements or new spec features.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-007" type="FR" title="Open detail views" status="draft" priority="should">
+        <statement>Double-clicking an item in the Sidebar overview SHOULD open a detailed view for that item in the editor.</statement>
+        <notes>This behavior may be restricted to a pro tier.</notes>
+        <acceptance>
+          <criterion id="AC-UI-007-01">
+            <when>The user double-clicks an item in the Sidebar overview.</when>
+            <then>A detailed editor view for the item opens, subject to licensing or tier constraints.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-008" type="FR" title="Spec activity panel view" status="draft" priority="must">
+        <statement>The Panel SHALL include a tab named "Spec" that shows activity and changes to the requirements specification.</statement>
+        <acceptance>
+          <criterion id="AC-UI-008-01">
+            <then>The Panel contains a "Spec" tab with a list or timeline of spec activity/changes.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-009" type="FR" title="Nonconformity warnings" status="draft" priority="must">
+        <statement>The "Spec" Panel view SHALL show warnings about nonconformity between the specification and expected structure or rules.</statement>
+        <acceptance>
+          <criterion id="AC-UI-009-01">
+            <when>The specification contains a detectable nonconformity.</when>
+            <then>A warning is shown in the "Spec" Panel view describing the issue.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-013" type="FR" title="Semantic diagnostics" status="draft" priority="must">
+        <statement>The extension SHALL perform semantic diagnostics to detect ambiguous language, missing IDs, and inconsistent priorities, and display them in the Problems panel.</statement>
+        <acceptance>
+          <criterion id="AC-UI-013-01">
+            <when>The RQML spec contains ambiguous language, missing IDs, or inconsistent priorities.</when>
+            <then>Corresponding diagnostics appear in the Problems panel.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-014" type="FR" title="RQML language mode" status="draft" priority="must">
+        <statement>The extension SHALL provide an RQML language mode with syntax highlighting, folding, and XML awareness tailored to RQML.</statement>
+        <acceptance>
+          <criterion id="AC-UI-014-01">
+            <then>RQML files open with an RQML language mode that supports syntax highlighting, folding, and RQML-specific XML awareness.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-010" type="OR" title="Status bar spec indicator" status="draft" priority="must">
+        <statement>The Status Bar SHALL show an indicator with four states: Spec invalid, Spec incomplete, Spec unimplemented, and Spec synced.</statement>
+        <notes>
+          Spec invalid: the RQML spec file is not well-formed XML or not valid against the RQML schema.
+          Spec incomplete: there are unspecced features in the code.
+          Spec unimplemented: parts or all of the spec are not implemented in code.
+          Spec synced: all features in the spec have been implemented in code and are in sync.
+        </notes>
+        <acceptance>
+          <criterion id="AC-UI-010-01">
+            <then>The Status Bar displays a distinct state label matching one of the four defined states.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-011" type="FR" title="Offer spec creation" status="draft" priority="must">
+        <statement>If no RQML spec file is present in the project root, the extension SHALL offer to create one.</statement>
+        <acceptance>
+          <criterion id="AC-UI-011-01">
+            <when>The extension activates in a workspace with no RQML spec file in the project root.</when>
+            <then>The user is prompted with an option to create a new RQML spec file.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-012" type="FR" title="Multiple spec files error" status="draft" priority="must">
+        <statement>If more than one .rqml file exists in the project root, the extension SHALL show an error to the user.</statement>
+        <acceptance>
+          <criterion id="AC-UI-012-01">
+            <when>The extension detects multiple .rqml files in the project root.</when>
+            <then>An error is shown indicating multiple RQML spec files were found.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-AUTH" title="Authentication and Subscription">
+      <description>Requirements for user authentication, login providers, and subscription tiers that gate access to certain features.</description>
+      <req id="REQ-AUTH-001" type="FR" title="GitHub login" status="draft" priority="must">
+        <statement>The extension SHALL allow users to log in using their GitHub account.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-001-01">
+            <when>The user initiates login.</when>
+            <then>The user is presented with a GitHub OAuth flow and can authenticate with their GitHub credentials.</then>
+          </criterion>
+          <criterion id="AC-AUTH-001-02">
+            <when>GitHub authentication succeeds.</when>
+            <then>The user is logged in and their identity is associated with the extension session.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-002" type="FR" title="Extensible authentication" status="draft" priority="should">
+        <statement>The authentication system SHOULD be designed to support additional login providers in the future.</statement>
+        <notes>Potential future providers may include Google, Microsoft, email/password, or SSO. The architecture should not be tightly coupled to GitHub.</notes>
+        <acceptance>
+          <criterion id="AC-AUTH-002-01">
+            <then>The authentication implementation uses an abstraction that allows adding new providers without major refactoring.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-003" type="FR" title="Login state persistence" status="draft" priority="must">
+        <statement>The extension SHALL persist the user's login state across VS Code sessions.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-003-01">
+            <given>A user who has previously logged in.</given>
+            <when>The user reopens VS Code.</when>
+            <then>The user remains logged in without needing to re-authenticate.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-004" type="FR" title="Logout" status="draft" priority="must">
+        <statement>The extension SHALL allow users to log out of their account.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-004-01">
+            <when>The user initiates logout.</when>
+            <then>The user's session is terminated and any stored credentials are cleared.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-005" type="UXR" title="Login UI entry point" status="draft" priority="must">
+        <statement>The extension SHALL provide a visible entry point for login in the RQML sidebar when the user is not logged in.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-005-01">
+            <given>The user is not logged in.</given>
+            <then>A login button or prompt is visible in the RQML sidebar.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-006" type="UXR" title="Logged-in user indicator" status="draft" priority="must">
+        <statement>The extension SHALL display an indicator showing the logged-in user's identity when authenticated.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-006-01">
+            <given>The user is logged in.</given>
+            <then>The user's GitHub username or avatar is visible in the RQML sidebar.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-001" type="FR" title="Subscription tiers" status="draft" priority="must">
+        <statement>The extension SHALL support three subscription tiers: free, pro, and enterprise.</statement>
+        <acceptance>
+          <criterion id="AC-SUB-001-01">
+            <then>The system recognizes and distinguishes between free, pro, and enterprise subscription levels.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-002" type="FR" title="Feature gating" status="draft" priority="must">
+        <statement>The extension SHALL restrict access to certain features based on the user's subscription tier.</statement>
+        <notes>Features requiring login or subscription should gracefully indicate the required tier and offer upgrade paths.</notes>
+        <acceptance>
+          <criterion id="AC-SUB-002-01">
+            <given>A feature requires a pro or enterprise subscription.</given>
+            <when>A user without the required tier attempts to use the feature.</when>
+            <then>The user is informed of the subscription requirement and presented with an option to upgrade.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-003" type="UXR" title="Subscription status display" status="draft" priority="must">
+        <statement>The extension SHALL display the user's current subscription tier when logged in.</statement>
+        <acceptance>
+          <criterion id="AC-SUB-003-01">
+            <given>The user is logged in.</given>
+            <then>The user's subscription tier (free, pro, or enterprise) is visible in the UI.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-004" type="FR" title="Subscription management link" status="draft" priority="should">
+        <statement>The extension SHOULD provide a link or action to manage subscription (upgrade, billing) via an external portal.</statement>
+        <acceptance>
+          <criterion id="AC-SUB-004-01">
+            <when>The user selects the subscription management action.</when>
+            <then>The user is directed to an external subscription management portal.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-CONFIG" title="Configuration and Settings">
+      <description>Requirements for user-configurable settings including API keys, LLM selection, and UI customization.</description>
+      <req id="REQ-CFG-001" type="FR" title="Settings UI" status="draft" priority="must">
+        <statement>The extension SHALL provide a settings screen accessible to the user for configuring extension behavior.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-001-01">
+            <then>A settings screen is accessible from the extension UI.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-002" type="FR" title="API key storage" status="draft" priority="must">
+        <statement>The settings screen SHALL allow users to store API keys required for LLM-powered features.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-002-01">
+            <when>The user enters an API key in the settings.</when>
+            <then>The API key is securely stored and available for LLM feature use.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-003" type="SR" title="Secure API key storage" status="draft" priority="must">
+        <statement>API keys SHALL be stored securely using VS Code's secret storage API.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-003-01">
+            <then>API keys are not stored in plain text and are protected by VS Code's secret storage mechanism.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-004" type="FR" title="LLM provider selection" status="draft" priority="must">
+        <statement>The settings screen SHALL allow users to select which LLM provider to use when multiple providers are available.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-004-01">
+            <given>The user has configured API keys for multiple LLM providers.</given>
+            <then>The settings screen displays a selection control to choose the active LLM provider.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-005" type="FR" title="Color palette selection" status="draft" priority="must">
+        <statement>The settings screen SHALL allow users to select the color palette used in the extension UI.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-005-01">
+            <when>The user selects a different color palette.</when>
+            <then>The extension UI updates to reflect the selected palette.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-006" type="UXR" title="Default color palette" status="draft" priority="must">
+        <statement>The extension SHALL use the following default color palette: Lavender Purple (#8568ab), Carbon Black (#191716), White Smoke (#f5f3f5), Pumpkin Spice (#fc7a1e), Sage Green (#60a561).</statement>
+        <acceptance>
+          <criterion id="AC-CFG-006-01">
+            <given>The user has not customized the color palette.</given>
+            <then>The extension UI uses the default color palette.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-007" type="FR" title="Settings persistence" status="draft" priority="must">
+        <statement>The extension SHALL persist user settings across VS Code sessions.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-007-01">
+            <given>The user has configured settings.</given>
+            <when>The user reopens VS Code.</when>
+            <then>Previously configured settings are retained.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-API" title="External API Integration">
+      <description>Requirements for integration with the external RQML.ai backend API. Implementation deferred to a later phase.</description>
+      <req id="REQ-API-001" type="IR" title="Backend API base URL" status="draft" priority="must">
+        <statement>The extension SHALL use https://rqml.ai/api as the base URL for external API calls.</statement>
+        <notes>Implementation deferred. This requirement establishes the API endpoint for future backend integration.</notes>
+        <acceptance>
+          <criterion id="AC-API-001-01">
+            <then>All external API requests are directed to the https://rqml.ai/api endpoint.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-002" type="FR" title="Pro/enterprise feature API dependency" status="draft" priority="must">
+        <statement>Certain pro-tier and enterprise-tier features SHALL require communication with the external RQML.ai API.</statement>
+        <notes>Implementation deferred. Specific features requiring API access to be defined as they are developed.</notes>
+        <acceptance>
+          <criterion id="AC-API-002-01">
+            <given>A feature is designated as requiring backend API access.</given>
+            <when>The user invokes that feature.</when>
+            <then>The extension communicates with the RQML.ai API to fulfill the request.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-003" type="SR" title="Authenticated API requests" status="draft" priority="must">
+        <statement>API requests to RQML.ai SHALL be authenticated using the user's login credentials or session token.</statement>
+        <notes>Implementation deferred. Authentication mechanism to align with REQ-AUTH requirements.</notes>
+        <acceptance>
+          <criterion id="AC-API-003-01">
+            <given>The user is logged in.</given>
+            <when>The extension makes an API request to RQML.ai.</when>
+            <then>The request includes valid authentication credentials.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-004" type="FR" title="API error handling" status="draft" priority="must">
+        <statement>The extension SHALL gracefully handle API errors including network failures, timeouts, and server errors.</statement>
+        <notes>Implementation deferred.</notes>
+        <acceptance>
+          <criterion id="AC-API-004-01">
+            <when>An API request fails due to network or server error.</when>
+            <then>The user is shown an appropriate error message and the extension remains functional for offline features.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-005" type="FR" title="Offline mode for free features" status="draft" priority="must">
+        <statement>Features available in the free tier SHALL remain functional without API connectivity.</statement>
+        <acceptance>
+          <criterion id="AC-API-005-01">
+            <given>The extension cannot reach the RQML.ai API.</given>
+            <then>Free-tier features continue to work normally.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-EXPORT" title="Document Export">
+      <description>Requirements for exporting the RQML specification as readable documents in various formats.</description>
+      <req id="REQ-EXP-001" type="FR" title="Export to HTML" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as an HTML document.</statement>
+        <notes>Available in the free tier.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-001-01">
+            <when>The user selects the HTML export option.</when>
+            <then>A readable HTML document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-002" type="FR" title="Export to PDF" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as a PDF document.</statement>
+        <notes>Requires pro tier subscription.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-002-01">
+            <given>The user has a pro or enterprise subscription.</given>
+            <when>The user selects the PDF export option.</when>
+            <then>A readable PDF document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-003" type="FR" title="Export to Markdown" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as a Markdown document.</statement>
+        <notes>Requires pro tier subscription.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-003-01">
+            <given>The user has a pro or enterprise subscription.</given>
+            <when>The user selects the Markdown export option.</when>
+            <then>A readable Markdown document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-004" type="FR" title="Export to Word" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as a Microsoft Word document (.docx).</statement>
+        <notes>Requires pro tier subscription.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-004-01">
+            <given>The user has a pro or enterprise subscription.</given>
+            <when>The user selects the Word export option.</when>
+            <then>A readable Word document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-005" type="UXR" title="Export UI access" status="draft" priority="must">
+        <statement>The extension SHALL provide an "Export" action in the context menu of the root node ("RQML Spec") in the specification tree view.</statement>
+        <acceptance>
+          <criterion id="AC-EXP-005-01">
+            <when>The user right-clicks (or control-clicks on macOS) the root node in the tree view.</when>
+            <then>A context menu appears containing an "Export" action.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-006" type="UXR" title="Export format selection" status="draft" priority="must">
+        <statement>When initiating an export, the user SHALL be presented with a selection of available formats based on their subscription tier.</statement>
+        <acceptance>
+          <criterion id="AC-EXP-006-01">
+            <given>The user initiates an export.</given>
+            <then>A format selection is shown, with pro-tier formats visually distinguished or disabled for free-tier users.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+  </requirements>
+  <trace>
+    <traceEdge id="TR-001" from="REQ-UI-007" to="REQ-SUB-002" type="dependsOn">
+      <notes>Detail view access (REQ-UI-007) depends on subscription tier feature gating (REQ-SUB-002) as it may be restricted to pro tier.</notes>
+    </traceEdge>
+    <traceEdge id="TR-002" from="REQ-API-002" to="REQ-SUB-001" type="dependsOn">
+      <notes>API-dependent features (REQ-API-002) depend on subscription tier definitions (REQ-SUB-001) to determine which features require backend access.</notes>
+    </traceEdge>
+    <traceEdge id="TR-003" from="REQ-API-003" to="REQ-AUTH-001" type="dependsOn">
+      <notes>Authenticated API requests (REQ-API-003) depend on GitHub login (REQ-AUTH-001) for user credentials.</notes>
+    </traceEdge>
+    <traceEdge id="TR-004" from="REQ-API-005" to="REQ-SUB-002" type="dependsOn">
+      <notes>Offline mode for free features (REQ-API-005) depends on feature gating (REQ-SUB-002) to distinguish free vs. paid features.</notes>
+    </traceEdge>
+    <traceEdge id="TR-005" from="REQ-EXP-002" to="REQ-SUB-002" type="dependsOn">
+      <notes>PDF export (REQ-EXP-002) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
+    </traceEdge>
+    <traceEdge id="TR-006" from="REQ-EXP-003" to="REQ-SUB-002" type="dependsOn">
+      <notes>Markdown export (REQ-EXP-003) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
+    </traceEdge>
+    <traceEdge id="TR-007" from="REQ-EXP-004" to="REQ-SUB-002" type="dependsOn">
+      <notes>Word export (REQ-EXP-004) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
+    </traceEdge>
+    <traceEdge id="TR-008" from="REQ-EXP-006" to="REQ-SUB-001" type="dependsOn">
+      <notes>Export format selection UI (REQ-EXP-006) depends on subscription tier definitions (REQ-SUB-001) to display available formats.</notes>
+    </traceEdge>
+    <traceEdge id="TR-009" from="REQ-EXP-005" to="REQ-UI-006G" type="dependsOn">
+      <notes>Export UI access (REQ-EXP-005) depends on the tree root node (REQ-UI-006G) as the context menu is attached to it.</notes>
+    </traceEdge>
+  </trace>
+</rqml>

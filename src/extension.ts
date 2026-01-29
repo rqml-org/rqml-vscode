@@ -1,0 +1,160 @@
+// RQML VS Code Extension - Main Entry Point
+// REQ-UI-001: Activity Bar icon
+// REQ-UI-002: Open RQML overview
+// REQ-UI-005: Tree view of specification
+// REQ-UI-006: Selection details view
+// REQ-UI-010: Status bar spec indicator
+// REQ-UI-011: Offer spec creation
+
+import * as vscode from 'vscode';
+import { RqmlTreeDataProvider } from './views/rqmlTreeProvider';
+import { RqmlDetailsProvider } from './views/rqmlDetailsProvider';
+import { getSpecService, SpecStatus } from './services/specService';
+import { registerCommands } from './commands';
+
+let statusBarItem: vscode.StatusBarItem;
+
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  console.log('RQML extension activating...');
+
+  // Initialize services
+  const specService = getSpecService();
+
+  // REQ-UI-005: Create tree view provider
+  const treeProvider = new RqmlTreeDataProvider();
+
+  // REQ-UI-006: Create details view provider
+  const detailsProvider = new RqmlDetailsProvider();
+
+  // Wire up tree selection to details view
+  treeProvider.onDidSelectNode((node) => {
+    detailsProvider.setSelectedNode(node);
+  });
+
+  // Register tree view
+  const treeView = vscode.window.createTreeView('rqmlTree', {
+    treeDataProvider: treeProvider,
+    showCollapseAll: true
+  });
+  context.subscriptions.push(treeView);
+
+  // Register details view
+  const detailsView = vscode.window.createTreeView('rqmlDetails', {
+    treeDataProvider: detailsProvider
+  });
+  context.subscriptions.push(detailsView);
+
+  // Register commands
+  registerCommands(context, treeProvider);
+
+  // REQ-UI-010: Create status bar indicator
+  statusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    100
+  );
+  statusBarItem.command = 'rqml-vscode.showSpecStatus';
+  context.subscriptions.push(statusBarItem);
+
+  // Register status command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rqml-vscode.showSpecStatus', () => {
+      const state = specService.state;
+      if (state.error) {
+        vscode.window.showErrorMessage(`RQML: ${state.error}`);
+      } else if (state.status === 'none') {
+        vscode.window.showInformationMessage(
+          'No RQML spec file found. Would you like to create one?',
+          'Create Spec'
+        ).then(selection => {
+          if (selection === 'Create Spec') {
+            vscode.commands.executeCommand('rqml-vscode.createSpec');
+          }
+        });
+      } else if (state.document) {
+        vscode.window.showInformationMessage(
+          `RQML Spec: ${state.document.docId} (${state.document.status})`
+        );
+      }
+    })
+  );
+
+  // Update status bar on spec changes
+  specService.onDidChangeSpec((state) => {
+    updateStatusBar(state.status, state.error);
+  });
+
+  // Initial load
+  const initialState = await specService.refresh();
+  updateStatusBar(initialState.status, initialState.error);
+
+  // REQ-UI-011: Offer spec creation if no file found
+  if (initialState.status === 'none') {
+    const hasWorkspace = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0;
+    if (hasWorkspace) {
+      const action = await vscode.window.showInformationMessage(
+        'No RQML specification found in this workspace. Would you like to create one?',
+        'Create Spec',
+        'Later'
+      );
+      if (action === 'Create Spec') {
+        await specService.createSpec();
+      }
+    }
+  }
+
+  // REQ-UI-012: Show error if multiple spec files
+  if (initialState.status === 'multiple') {
+    vscode.window.showErrorMessage(
+      `Multiple RQML spec files found in workspace root. Please keep only one .rqml file.`
+    );
+  }
+
+  // Clean up on deactivation
+  context.subscriptions.push({
+    dispose: () => {
+      specService.dispose();
+    }
+  });
+
+  console.log('RQML extension activated successfully');
+}
+
+/**
+ * REQ-UI-010: Update status bar indicator
+ * States: Spec invalid, Spec incomplete, Spec unimplemented, Spec synced
+ */
+function updateStatusBar(status: SpecStatus, error?: string): void {
+  switch (status) {
+    case 'none':
+      statusBarItem.text = '$(circle-slash) No RQML Spec';
+      statusBarItem.tooltip = 'No RQML specification file found. Click to create one.';
+      statusBarItem.backgroundColor = undefined;
+      break;
+
+    case 'multiple':
+      statusBarItem.text = '$(error) RQML Error';
+      statusBarItem.tooltip = error || 'Multiple RQML spec files found';
+      statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+      break;
+
+    case 'invalid':
+      statusBarItem.text = '$(warning) Spec Invalid';
+      statusBarItem.tooltip = error || 'RQML specification is invalid';
+      statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+      break;
+
+    case 'single':
+      // TODO: Implement actual sync status checking
+      // For now, show as "loaded" state
+      statusBarItem.text = '$(check) RQML Spec';
+      statusBarItem.tooltip = 'RQML specification loaded. Click for details.';
+      statusBarItem.backgroundColor = undefined;
+      break;
+  }
+
+  statusBarItem.show();
+}
+
+export function deactivate(): void {
+  // Clean up handled by disposables
+}

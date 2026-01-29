@@ -1,0 +1,187 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "RQML",
+  "scopeName": "text.xml.rqml",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#prolog" },
+    { "include": "#doctype" },
+    { "include": "#cdata" },
+    { "include": "#tags" }
+  ],
+  "repository": {
+    "comments": {
+      "begin": "<!--",
+      "end": "-->",
+      "name": "comment.block.xml.rqml",
+      "captures": {
+        "0": { "name": "punctuation.definition.comment.xml.rqml" }
+      }
+    },
+    "prolog": {
+      "begin": "(<\\?)(xml)",
+      "end": "(\\?>)",
+      "name": "meta.tag.preprocessor.xml.rqml",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml.rqml" },
+        "2": { "name": "entity.name.tag.xml.rqml" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml.rqml" }
+      },
+      "patterns": [
+        { "include": "#attributes" }
+      ]
+    },
+    "doctype": {
+      "begin": "(<!)(DOCTYPE)",
+      "end": "(>)",
+      "name": "meta.tag.sgml.doctype.xml.rqml",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml.rqml" },
+        "2": { "name": "keyword.other.doctype.xml.rqml" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml.rqml" }
+      }
+    },
+    "cdata": {
+      "begin": "<!\\[CDATA\\[",
+      "end": "\\]\\]>",
+      "name": "string.unquoted.cdata.xml.rqml"
+    },
+    "tags": {
+      "patterns": [
+        { "include": "#rqml-root" },
+        { "include": "#rqml-sections" },
+        { "include": "#rqml-items" },
+        { "include": "#generic-tag" }
+      ]
+    },
+    "rqml-root": {
+      "begin": "(<)(rqml)(?=\\s|>|/>)",
+      "end": "(</)(rqml)(>)|(/>)",
+      "name": "meta.tag.rqml.root",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.xml.rqml" },
+        "2": { "name": "entity.name.tag.rqml.root" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.xml.rqml" },
+        "2": { "name": "entity.name.tag.rqml.root" },
+        "3": { "name": "punctuation.definition.tag.end.xml.rqml" },
+        "4": { "name": "punctuation.definition.tag.end.xml.rqml" }
+      },
+      "patterns": [
+        { "include": "#attributes" },
+        { "include": "#tags" }
+      ]
+    },
+    "rqml-sections": {
+      "begin": "(<)(meta|catalogs|domain|goals|scenarios|requirements|behavior|interfaces|verification|trace|governance)(?=\\s|>|/>)",
+      "end": "(</)(\\2)(>)|(/>)",
+      "name": "meta.tag.rqml.section",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.xml.rqml" },
+        "2": { "name": "entity.name.tag.rqml.section" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.xml.rqml" },
+        "2": { "name": "entity.name.tag.rqml.section" },
+        "3": { "name": "punctuation.definition.tag.end.xml.rqml" },
+        "4": { "name": "punctuation.definition.tag.end.xml.rqml" }
+      },
+      "patterns": [
+        { "include": "#attributes" },
+        { "include": "#tags" }
+      ]
+    },
+    "rqml-items": {
+      "begin": "(<)(req|reqPackage|goal|qgoal|obstacle|goalLink|term|actor|stakeholder|constraint|policy|decision|risk|entity|attr|rule|scenario|misuseCase|edgeCase|stateMachine|state|transition|api|endpoint|event|testSuite|testCase|traceEdge|issue|approval|criterion)(?=\\s|>|/>)",
+      "end": "(</)(\\2)(>)|(/>)",
+      "name": "meta.tag.rqml.item",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.xml.rqml" },
+        "2": { "name": "entity.name.tag.rqml.item" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.xml.rqml" },
+        "2": { "name": "entity.name.tag.rqml.item" },
+        "3": { "name": "punctuation.definition.tag.end.xml.rqml" },
+        "4": { "name": "punctuation.definition.tag.end.xml.rqml" }
+      },
+      "patterns": [
+        { "include": "#rqml-attributes" },
+        { "include": "#attributes" },
+        { "include": "#tags" }
+      ]
+    },
+    "rqml-attributes": {
+      "patterns": [
+        {
+          "match": "\\b(id)(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.rqml.id" },
+            "2": { "name": "punctuation.separator.key-value.xml.rqml" }
+          }
+        },
+        {
+          "match": "\\b(type)(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.rqml.type" },
+            "2": { "name": "punctuation.separator.key-value.xml.rqml" }
+          }
+        },
+        {
+          "match": "\\b(status)(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.rqml.status" },
+            "2": { "name": "punctuation.separator.key-value.xml.rqml" }
+          }
+        },
+        {
+          "match": "\\b(priority)(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.rqml.priority" },
+            "2": { "name": "punctuation.separator.key-value.xml.rqml" }
+          }
+        }
+      ]
+    },
+    "generic-tag": {
+      "begin": "(</?)(\\w[\\w\\-]*)",
+      "end": "(/?>)",
+      "name": "meta.tag.xml.rqml",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml.rqml" },
+        "2": { "name": "entity.name.tag.xml.rqml" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.xml.rqml" }
+      },
+      "patterns": [
+        { "include": "#attributes" }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "match": "\\b([\\w\\-:]+)(=)(\"[^\"]*\")",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.xml.rqml" },
+            "2": { "name": "punctuation.separator.key-value.xml.rqml" },
+            "3": { "name": "string.quoted.double.xml.rqml" }
+          }
+        },
+        {
+          "match": "\\b([\\w\\-:]+)(=)('[^']*')",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.xml.rqml" },
+            "2": { "name": "punctuation.separator.key-value.xml.rqml" },
+            "3": { "name": "string.quoted.single.xml.rqml" }
+          }
+        }
+      ]
+    }
+  }
+}

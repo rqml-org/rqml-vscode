@@ -1,0 +1,185 @@
+{
+  "name": "rqml-vscode",
+  "displayName": "rqml-vscode",
+  "description": "RQML for VSCode",
+  "version": "0.0.1",
+  "publisher": "rqml",
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:rqmlTree",
+    "onView:rqmlDetails",
+    "onStartupFinished",
+    "onLanguage:rqml",
+    "onCommand:rqml-vscode.createSpec",
+    "onCommand:rqml-vscode.openDocumentView",
+    "onCommand:rqml-vscode.openTraceView",
+    "onCommand:rqml-vscode.openGridView",
+    "onCommand:rqml-vscode.openIdeasView"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "rqml-vscode.createSpec",
+        "title": "Create RQML Spec"
+      },
+      {
+        "command": "rqml-vscode.openDocumentView",
+        "title": "Open RQML Document",
+        "icon": "$(file)"
+      },
+      {
+        "command": "rqml-vscode.openTraceView",
+        "title": "Open Traceability Map",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "rqml-vscode.openGridView",
+        "title": "Open Requirements Grid",
+        "icon": "$(table)"
+      },
+      {
+        "command": "rqml-vscode.openIdeasView",
+        "title": "Open RQML Ideas",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "rqml-vscode.addItem",
+        "title": "Add RQML Item",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rqml-vscode.renameItem",
+        "title": "Rename"
+      },
+      {
+        "command": "rqml-vscode.deleteItem",
+        "title": "Delete"
+      },
+      {
+        "command": "rqml-vscode.gotoDefinition",
+        "title": "Go to Definition"
+      },
+      {
+        "command": "rqml-vscode.export",
+        "title": "Export Spec..."
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "rqmlExplorer",
+          "title": "REQUIREMENTS",
+          "icon": "./resources/rqml.png"
+        }
+      ]
+    },
+    "views": {
+      "rqmlExplorer": [
+        {
+          "id": "rqmlTree",
+          "name": "Overview"
+        },
+        {
+          "id": "rqmlDetails",
+          "name": "Details"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "rqml-vscode.openDocumentView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@1"
+        },
+        {
+          "command": "rqml-vscode.openTraceView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@2"
+        },
+        {
+          "command": "rqml-vscode.openGridView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@3"
+        },
+        {
+          "command": "rqml-vscode.openIdeasView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@4"
+        },
+        {
+          "command": "rqml-vscode.export",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "export"
+        },
+        {
+          "command": "rqml-vscode.addItem",
+          "when": "view == rqmlTree && (viewItem == rqmlSection || viewItem == rqmlSectionMissing)",
+          "group": "inline"
+        },
+        {
+          "command": "rqml-vscode.gotoDefinition",
+          "when": "view == rqmlTree && viewItem == rqmlItem",
+          "group": "navigation"
+        },
+        {
+          "command": "rqml-vscode.renameItem",
+          "when": "view == rqmlTree && viewItem == rqmlItem",
+          "group": "editing@1"
+        },
+        {
+          "command": "rqml-vscode.deleteItem",
+          "when": "view == rqmlTree && viewItem == rqmlItem",
+          "group": "editing@2"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "rqml",
+        "aliases": [
+          "RQML",
+          "rqml"
+        ],
+        "extensions": [
+          ".rqml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rqml",
+        "scopeName": "text.xml.rqml",
+        "path": "./syntaxes/rqml.tmLanguage.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.1"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.108.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.48.1",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
