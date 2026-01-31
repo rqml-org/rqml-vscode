@@ -1,9 +1,9 @@
 // REQ-UI-006: Selection details view
-// The lower region of the Sidebar shows details for the selected item.
+// The Details region of the Sidebar shows properties for the selected item.
 
 import * as vscode from 'vscode';
 import { TreeNode } from './rqmlTreeProvider';
-import { RqmlItem, RqmlSection, RqmlSectionName } from '../services/rqmlParser';
+import { RqmlItem, RqmlSection, RqmlSectionName, RqmlDocument } from '../services/rqmlParser';
 
 /**
  * Detail item shown in the details view
@@ -23,10 +23,16 @@ export class RqmlDetailsProvider implements vscode.TreeDataProvider<DetailItem> 
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private selectedNode?: TreeNode;
+  private document?: RqmlDocument;
 
   setSelectedNode(node: TreeNode | undefined): void {
     this.selectedNode = node;
     this._onDidChangeTreeData.fire();
+  }
+
+  setDocument(doc: RqmlDocument | undefined): void {
+    this.document = doc;
+    // Document changes don't affect details view (traces moved to separate view)
   }
 
   getTreeItem(element: DetailItem): vscode.TreeItem {

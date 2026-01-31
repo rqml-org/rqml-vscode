@@ -50,37 +50,37 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-003" type="UXR" title="Sidebar split layout" status="draft" priority="must">
-        <statement>The RQML overview in the Sidebar SHALL be split vertically into an upper and lower region.</statement>
+      <req id="REQ-UI-003" type="UXR" title="Sidebar three-region layout" status="draft" priority="must">
+        <statement>The RQML Sidebar SHALL be split vertically into three regions: Overview (top), Details (middle), and Traces (bottom).</statement>
         <acceptance>
           <criterion id="AC-UI-003-01">
-            <then>The Sidebar shows two vertically stacked regions within the RQML overview.</then>
+            <then>The Sidebar shows three vertically stacked regions labeled "Overview", "Details", and "Traces".</then>
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-004" type="UXR" title="Resizable split" status="draft" priority="must">
-        <statement>The vertical split in the RQML overview SHALL be resizable by the user.</statement>
+      <req id="REQ-UI-004" type="UXR" title="Resizable regions" status="draft" priority="must">
+        <statement>The dividers between the three Sidebar regions SHALL be resizable by the user.</statement>
         <acceptance>
           <criterion id="AC-UI-004-01">
-            <when>The user drags the divider between the upper and lower regions.</when>
-            <then>The sizes of the two regions adjust accordingly.</then>
+            <when>The user drags a divider between any two regions.</when>
+            <then>The sizes of the adjacent regions adjust accordingly.</then>
           </criterion>
         </acceptance>
       </req>
       <req id="REQ-UI-005" type="FR" title="Tree view of specification" status="draft" priority="must">
-        <statement>The upper region of the Sidebar overview SHALL display a tree view of the RQML specification.</statement>
+        <statement>The Overview region of the Sidebar SHALL display a tree view of the RQML specification.</statement>
         <acceptance>
           <criterion id="AC-UI-005-01">
-            <then>The upper region contains a hierarchical tree representing the RQML document structure.</then>
+            <then>The Overview region contains a hierarchical tree representing the RQML document structure.</then>
           </criterion>
         </acceptance>
       </req>
       <req id="REQ-UI-006" type="FR" title="Selection details view" status="draft" priority="must">
-        <statement>The lower region of the Sidebar overview SHALL display a list or detail view for the item selected in the tree view.</statement>
+        <statement>The Details region of the Sidebar SHALL display properties and information for the item selected in the tree view.</statement>
         <acceptance>
           <criterion id="AC-UI-006-01">
             <when>The user selects an item in the tree view.</when>
-            <then>The lower region updates to show list/detail information for the selected item.</then>
+            <then>The Details region updates to show property information for the selected item.</then>
           </criterion>
         </acceptance>
       </req>
@@ -176,6 +176,36 @@
           </criterion>
         </acceptance>
       </req>
+      <req id="REQ-UI-006J" type="FR" title="Traces view" status="draft" priority="must">
+        <statement>The Traces region of the Sidebar SHALL display a list of all trace edges that the selected item participates in.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006J-01">
+            <when>The user selects an item in the tree view that has trace edges.</when>
+            <then>The Traces region shows a list of all trace edges where the item is either the source or target.</then>
+          </criterion>
+          <criterion id="AC-UI-006J-02">
+            <then>Each trace entry displays the trace type (e.g., dependsOn, implements, verifies) and the linked item ID.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006K" type="FR" title="Clickable trace IDs" status="draft" priority="must">
+        <statement>Linked item IDs in the Traces view SHALL be clickable to navigate to the related item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006K-01">
+            <when>The user clicks on a linked item ID in the Traces view.</when>
+            <then>The tree view navigates to and selects the clicked item.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006L" type="FR" title="Synchronized view updates" status="draft" priority="must">
+        <statement>When the user navigates via a clickable ID in the Traces view, all three Sidebar views SHALL update to reflect the newly selected item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006L-01">
+            <when>The user clicks a linked item ID in the Traces view.</when>
+            <then>The Overview highlights and reveals the target item, the Details view shows the item's properties, and the Traces view shows the item's trace edges.</then>
+          </criterion>
+        </acceptance>
+      </req>
       <req id="REQ-UI-007" type="FR" title="Open detail views" status="draft" priority="should">
         <statement>Double-clicking an item in the Sidebar overview SHOULD open a detailed view for that item in the editor.</statement>
         <notes>This behavior may be restricted to a pro tier.</notes>
@@ -209,6 +239,19 @@
           <criterion id="AC-UI-013-01">
             <when>The RQML spec contains ambiguous language, missing IDs, or inconsistent priorities.</when>
             <then>Corresponding diagnostics appear in the Problems panel.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-013A" type="FR" title="Real-time validation" status="draft" priority="must">
+        <statement>The extension SHALL validate the RQML specification file upon any change and report validation errors to the Problems panel.</statement>
+        <acceptance>
+          <criterion id="AC-UI-013A-01">
+            <when>The user modifies and saves the RQML spec file.</when>
+            <then>Validation is performed and any errors appear in the Problems panel.</then>
+          </criterion>
+          <criterion id="AC-UI-013A-02">
+            <when>The RQML spec file contains malformed XML.</when>
+            <then>An error diagnostic appears in the Problems panel indicating the XML parse error.</then>
           </criterion>
         </acceptance>
       </req>
@@ -562,6 +605,24 @@
     </traceEdge>
     <traceEdge id="TR-009" from="REQ-EXP-005" to="REQ-UI-006G" type="dependsOn">
       <notes>Export UI access (REQ-EXP-005) depends on the tree root node (REQ-UI-006G) as the context menu is attached to it.</notes>
+    </traceEdge>
+    <traceEdge id="TR-010" from="REQ-UI-006J" to="REQ-UI-003" type="refines">
+      <notes>Traces view (REQ-UI-006J) refines the sidebar layout (REQ-UI-003) by specifying the third region for traceability information.</notes>
+    </traceEdge>
+    <traceEdge id="TR-011" from="REQ-UI-006K" to="REQ-UI-006J" type="dependsOn">
+      <notes>Clickable trace IDs (REQ-UI-006K) depends on the Traces view (REQ-UI-006J) being present in the sidebar.</notes>
+    </traceEdge>
+    <traceEdge id="TR-012" from="REQ-UI-006L" to="REQ-UI-006K" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on clickable IDs in Traces view (REQ-UI-006K) to trigger navigation.</notes>
+    </traceEdge>
+    <traceEdge id="TR-013" from="REQ-UI-006L" to="REQ-UI-005" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on the Overview tree view (REQ-UI-005) to highlight and reveal the target item.</notes>
+    </traceEdge>
+    <traceEdge id="TR-014" from="REQ-UI-006L" to="REQ-UI-006" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on the Details view (REQ-UI-006) to display the target item's properties.</notes>
+    </traceEdge>
+    <traceEdge id="TR-015" from="REQ-UI-006L" to="REQ-UI-006J" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on the Traces view (REQ-UI-006J) to display the target item's trace edges.</notes>
     </traceEdge>
   </trace>
 </rqml>

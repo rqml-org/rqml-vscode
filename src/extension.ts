@@ -9,7 +9,9 @@
 import * as vscode from 'vscode';
 import { RqmlTreeDataProvider } from './views/rqmlTreeProvider';
 import { RqmlDetailsProvider } from './views/rqmlDetailsProvider';
+import { RqmlTracesProvider } from './views/rqmlTracesProvider';
 import { getSpecService, SpecStatus } from './services/specService';
+import { getDiagnosticsService } from './services/diagnosticsService';
 import { registerCommands } from './commands';
 
 let statusBarItem: vscode.StatusBarItem;
@@ -20,15 +22,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initialize services
   const specService = getSpecService();
 
+  // REQ-UI-013A, REQ-UI-013B: Initialize diagnostics service for real-time validation
+  const diagnosticsService = getDiagnosticsService();
+  // Load the XSD schema into memory once
+  await diagnosticsService.loadSchema(context.extensionPath);
+  diagnosticsService.startWatching();
+  context.subscriptions.push(diagnosticsService);
+
   // REQ-UI-005: Create tree view provider
   const treeProvider = new RqmlTreeDataProvider();
 
   // REQ-UI-006: Create details view provider
   const detailsProvider = new RqmlDetailsProvider();
 
-  // Wire up tree selection to details view
+  // REQ-UI-006J: Create traces view provider
+  const tracesProvider = new RqmlTracesProvider();
+
+  // Wire up tree selection to details and traces views
   treeProvider.onDidSelectNode((node) => {
     detailsProvider.setSelectedNode(node);
+    tracesProvider.setSelectedNode(node);
+  });
+
+  // Wire up document changes to details and traces providers
+  specService.onDidChangeSpec((state) => {
+    detailsProvider.setDocument(state.document);
+    tracesProvider.setDocument(state.document);
   });
 
   // Register tree view
@@ -44,8 +63,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
   context.subscriptions.push(detailsView);
 
-  // Register commands
-  registerCommands(context, treeProvider);
+  // REQ-UI-006J: Register traces view
+  const tracesView = vscode.window.createTreeView('rqmlTraces', {
+    treeDataProvider: tracesProvider
+  });
+  context.subscriptions.push(tracesView);
+
+  // Register commands (pass treeView for reveal functionality)
+  registerCommands(context, treeProvider, treeView);
 
   // REQ-UI-010: Create status bar indicator
   statusBarItem = vscode.window.createStatusBarItem(
@@ -86,6 +111,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initial load
   const initialState = await specService.refresh();
   updateStatusBar(initialState.status, initialState.error);
+
+  // REQ-UI-006J: Set initial document for trace lookup
+  detailsProvider.setDocument(initialState.document);
+  tracesProvider.setDocument(initialState.document);
 
   // REQ-UI-011: Offer spec creation if no file found
   if (initialState.status === 'none') {

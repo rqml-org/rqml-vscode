@@ -28,63 +28,68 @@ const SECTION_LABELS: Record<RqmlSectionName, string> = {
   governance: 'Governance'
 };
 
+/** Helper to create a ThemeIcon with neutral foreground color */
+function icon(id: string): vscode.ThemeIcon {
+  return new vscode.ThemeIcon(id, new vscode.ThemeColor('icon.foreground'));
+}
+
 /** Icons for different item types */
 const TYPE_ICONS: Record<string, vscode.ThemeIcon> = {
   // Root
-  root: new vscode.ThemeIcon('book'),
+  root: icon('book'),
 
   // Sections
-  meta: new vscode.ThemeIcon('info'),
-  catalogs: new vscode.ThemeIcon('library'),
-  domain: new vscode.ThemeIcon('symbol-class'),
-  goals: new vscode.ThemeIcon('target'),
-  scenarios: new vscode.ThemeIcon('play-circle'),
-  requirements: new vscode.ThemeIcon('checklist'),
-  behavior: new vscode.ThemeIcon('git-compare'),
-  interfaces: new vscode.ThemeIcon('plug'),
-  verification: new vscode.ThemeIcon('beaker'),
-  trace: new vscode.ThemeIcon('references'),
-  governance: new vscode.ThemeIcon('law'),
+  meta: icon('info'),
+  catalogs: icon('library'),
+  domain: icon('symbol-class'),
+  goals: icon('target'),
+  scenarios: icon('play-circle'),
+  requirements: icon('checklist'),
+  behavior: icon('git-compare'),
+  interfaces: icon('plug'),
+  verification: icon('beaker'),
+  trace: icon('references'),
+  governance: icon('law'),
 
   // Item types
-  reqPackage: new vscode.ThemeIcon('package'),
-  req: new vscode.ThemeIcon('circle-outline'),
-  FR: new vscode.ThemeIcon('symbol-method'),
-  NFR: new vscode.ThemeIcon('dashboard'),
-  IR: new vscode.ThemeIcon('plug'),
-  DR: new vscode.ThemeIcon('database'),
-  SR: new vscode.ThemeIcon('shield'),
-  CR: new vscode.ThemeIcon('lock'),
-  PR: new vscode.ThemeIcon('law'),
-  UXR: new vscode.ThemeIcon('eye'),
-  OR: new vscode.ThemeIcon('server'),
-  goal: new vscode.ThemeIcon('target'),
-  qgoal: new vscode.ThemeIcon('graph'),
-  obstacle: new vscode.ThemeIcon('warning'),
-  goalLink: new vscode.ThemeIcon('arrow-both'),
-  term: new vscode.ThemeIcon('symbol-text'),
-  actor: new vscode.ThemeIcon('person'),
-  stakeholder: new vscode.ThemeIcon('organization'),
-  constraint: new vscode.ThemeIcon('lock'),
-  policy: new vscode.ThemeIcon('law'),
-  decision: new vscode.ThemeIcon('lightbulb'),
-  risk: new vscode.ThemeIcon('warning'),
-  entity: new vscode.ThemeIcon('symbol-class'),
-  rule: new vscode.ThemeIcon('symbol-ruler'),
-  scenario: new vscode.ThemeIcon('play'),
-  misuseCase: new vscode.ThemeIcon('bug'),
-  edgeCase: new vscode.ThemeIcon('symbol-event'),
-  stateMachine: new vscode.ThemeIcon('git-compare'),
-  state: new vscode.ThemeIcon('circle-filled'),
-  transition: new vscode.ThemeIcon('arrow-right'),
-  api: new vscode.ThemeIcon('globe'),
-  endpoint: new vscode.ThemeIcon('link'),
-  event: new vscode.ThemeIcon('zap'),
-  testSuite: new vscode.ThemeIcon('test-view-icon'),
-  testCase: new vscode.ThemeIcon('beaker'),
-  traceEdge: new vscode.ThemeIcon('arrow-both'),
-  issue: new vscode.ThemeIcon('issues'),
-  approval: new vscode.ThemeIcon('verified')
+  reqPackage: icon('package'),
+  req: icon('circle-outline'),
+  FR: icon('symbol-method'),
+  NFR: icon('dashboard'),
+  IR: icon('plug'),
+  DR: icon('database'),
+  SR: icon('shield'),
+  CR: icon('lock'),
+  PR: icon('law'),
+  UXR: icon('eye'),
+  OR: icon('server'),
+  goal: icon('target'),
+  qgoal: icon('graph'),
+  obstacle: icon('warning'),
+  goalLink: icon('arrow-both'),
+  term: icon('symbol-text'),
+  actor: icon('person'),
+  stakeholder: icon('organization'),
+  constraint: icon('lock'),
+  policy: icon('law'),
+  decision: icon('lightbulb'),
+  risk: icon('warning'),
+  entity: icon('symbol-class'),
+  rule: icon('symbol-ruler'),
+  scenario: icon('play'),
+  misuseCase: icon('bug'),
+  edgeCase: icon('symbol-event'),
+  stateMachine: icon('git-compare'),
+  state: icon('circle-filled'),
+  transition: icon('arrow-right'),
+  api: icon('globe'),
+  endpoint: icon('link'),
+  event: icon('zap'),
+  testSuite: icon('test-view-icon'),
+  testCase: icon('beaker'),
+  traceEdge: icon('arrow-both'),
+  issue: icon('issues'),
+  approval: icon('verified')
 };
 
 /** Tree item types */
@@ -131,6 +136,11 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
     return this._selectedNode;
   }
 
+  /** REQ-UI-006J: Get the current document for trace lookup */
+  get currentDocument(): RqmlDocument | undefined {
+    return this.document;
+  }
+
   selectNode(node: TreeNode | undefined): void {
     this._selectedNode = node;
     this._onDidSelectNode.fire(node);
@@ -138,6 +148,53 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+
+  /**
+   * REQ-UI-006K: Find a tree node by item ID.
+   * Searches through all sections and their items.
+   */
+  findNodeByItemId(itemId: string): TreeNode | undefined {
+    if (!this.document) {
+      return undefined;
+    }
+
+    // Search through all sections
+    for (const sectionName of RQML_SECTIONS) {
+      const sectionData = this.document.sections.get(sectionName);
+      if (!sectionData?.present) {
+        continue;
+      }
+
+      // Search items in this section
+      const found = this.findItemInList(sectionData.items, sectionName, itemId);
+      if (found) {
+        return found;
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Recursively search for an item by ID in a list of items.
+   */
+  private findItemInList(items: RqmlItem[], sectionName: RqmlSectionName, itemId: string): TreeNode | undefined {
+    for (const item of items) {
+      if (item.id === itemId) {
+        return this.createItemNode(item);
+      }
+
+      // Check children
+      if (item.children) {
+        const found = this.findItemInList(item.children, sectionName, itemId);
+        if (found) {
+          return found;
+        }
+      }
+    }
+
+    return undefined;
   }
 
   getTreeItem(element: TreeNode): vscode.TreeItem {

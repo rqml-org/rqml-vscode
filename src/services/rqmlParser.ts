@@ -31,6 +31,8 @@ export interface RqmlDocument {
   docId: string;
   status: string;
   sections: Map<RqmlSectionName, RqmlSection>;
+  /** REQ-UI-006J: All trace edges in the document */
+  traceEdges: TraceEdge[];
   raw: unknown;
   uri: vscode.Uri;
 }
@@ -57,6 +59,15 @@ export interface RqmlItem {
   line?: number;
   /** Parent section name */
   section: RqmlSectionName;
+}
+
+/** REQ-UI-006J: Trace edge linking two items */
+export interface TraceEdge {
+  id: string;
+  from: string;
+  to: string;
+  type: string;
+  notes?: string;
 }
 
 /** Type for parsed XML objects */
@@ -94,6 +105,7 @@ export class RqmlParser {
       docId: this.str(rqml['@_docId']) || 'unknown',
       status: this.str(rqml['@_status']) || 'draft',
       sections: new Map(),
+      traceEdges: [],
       raw: rqml,
       uri
     };
@@ -114,6 +126,9 @@ export class RqmlParser {
 
       doc.sections.set(sectionName, section);
     }
+
+    // REQ-UI-006J: Extract trace edges for quick lookup
+    doc.traceEdges = this.extractTraceEdges(rqml);
 
     return doc;
   }
@@ -396,6 +411,32 @@ export class RqmlParser {
     this.extractArrayItems(data, 'traceEdge', 'traceEdge', items, 'trace', sourceText);
   }
 
+  /**
+   * REQ-UI-006J: Extract all trace edges as structured objects for quick lookup.
+   */
+  private extractTraceEdges(rqml: XmlObject): TraceEdge[] {
+    const edges: TraceEdge[] = [];
+    const traceSection = rqml.trace as XmlObject | undefined;
+
+    if (!traceSection) {
+      return edges;
+    }
+
+    const traceEdges = this.toArray(traceSection.traceEdge);
+    for (const edge of traceEdges) {
+      const notes = edge.notes;
+      edges.push({
+        id: this.str(edge['@_id']) || 'unknown',
+        from: this.str(edge['@_from']) || '',
+        to: this.str(edge['@_to']) || '',
+        type: this.str(edge['@_type']) || 'relatedTo',
+        notes: typeof notes === 'string' ? notes : undefined
+      });
+    }
+
+    return edges;
+  }
+
   private extractGovernanceItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
     this.extractArrayItems(data, 'issue', 'issue', items, 'governance', sourceText);
     this.extractArrayItems(data, 'approval', 'approval', items, 'governance', sourceText);
@@ -464,4 +505,22 @@ export function getRqmlParser(): RqmlParser {
     parserInstance = new RqmlParser();
   }
   return parserInstance;
+}
+
+/**
+ * REQ-UI-006J: Get all trace edges that involve a specific item ID.
+ * Returns traces where the item is either the source (from) or target (to).
+ */
+export function getTracesForItem(doc: RqmlDocument, itemId: string): { edge: TraceEdge; direction: 'outgoing' | 'incoming' }[] {
+  const result: { edge: TraceEdge; direction: 'outgoing' | 'incoming' }[] = [];
+
+  for (const edge of doc.traceEdges) {
+    if (edge.from === itemId) {
+      result.push({ edge, direction: 'outgoing' });
+    } else if (edge.to === itemId) {
+      result.push({ edge, direction: 'incoming' });
+    }
+  }
+
+  return result;
 }

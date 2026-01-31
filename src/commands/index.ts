@@ -1,6 +1,8 @@
 // Command implementations for the RQML VS Code extension
 // REQ-UI-006E: Context menu actions (rename, delete)
 // REQ-UI-006F: Go to definition
+// REQ-UI-006K: Clickable trace IDs
+// REQ-UI-006L: Synchronized view updates
 
 import * as vscode from 'vscode';
 import { TreeNode, RqmlTreeDataProvider } from '../views/rqmlTreeProvider';
@@ -11,7 +13,8 @@ import { getSpecService } from '../services/specService';
  */
 export function registerCommands(
   context: vscode.ExtensionContext,
-  treeProvider: RqmlTreeDataProvider
+  treeProvider: RqmlTreeDataProvider,
+  treeView: vscode.TreeView<TreeNode>
 ): void {
   // REQ-UI-011: Create spec command
   context.subscriptions.push(
@@ -24,6 +27,34 @@ export function registerCommands(
   // Select tree node (internal command for details view update)
   context.subscriptions.push(
     vscode.commands.registerCommand('rqml-vscode.selectTreeNode', (node: TreeNode) => {
+      treeProvider.selectNode(node);
+    })
+  );
+
+  // REQ-UI-006K, REQ-UI-006L: Navigate to item by ID
+  // This command finds an item by ID, reveals it in the tree, and updates both views
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rqml-vscode.navigateToItem', async (itemId: string) => {
+      if (!itemId) {
+        return;
+      }
+
+      // Find the node by item ID
+      const node = treeProvider.findNodeByItemId(itemId);
+
+      if (!node) {
+        vscode.window.showWarningMessage(`Item "${itemId}" not found in the specification.`);
+        return;
+      }
+
+      // REQ-UI-006L: Reveal in tree view and select
+      try {
+        await treeView.reveal(node, { select: true, focus: true, expand: true });
+      } catch {
+        // reveal may fail if node is not in tree yet, still update selection
+      }
+
+      // Update selection (this also triggers details view update)
       treeProvider.selectNode(node);
     })
   );
