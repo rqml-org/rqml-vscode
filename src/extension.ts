@@ -12,7 +12,9 @@ import { RqmlDetailsProvider } from './views/rqmlDetailsProvider';
 import { RqmlTracesProvider } from './views/rqmlTracesProvider';
 import { getSpecService, SpecStatus } from './services/specService';
 import { getDiagnosticsService } from './services/diagnosticsService';
+import { getConfigurationService } from './services/configurationService';
 import { registerCommands } from './commands';
+import { registerSettingsCommands } from './commands/settingsCommands';
 
 let statusBarItem: vscode.StatusBarItem;
 
@@ -21,6 +23,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Initialize services
   const specService = getSpecService();
+
+  // REQ-CFG-001 through REQ-CFG-007: Initialize configuration service
+  const configService = getConfigurationService();
+  configService.initialize(context);
+  context.subscriptions.push(configService);
 
   // REQ-UI-013A, REQ-UI-013B: Initialize diagnostics service for real-time validation
   const diagnosticsService = getDiagnosticsService();
@@ -71,6 +78,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Register commands (pass treeView for reveal functionality)
   registerCommands(context, treeProvider, treeView);
+
+  // REQ-CFG-001: Register settings commands
+  registerSettingsCommands(context);
 
   // REQ-UI-010: Create status bar indicator
   statusBarItem = vscode.window.createStatusBarItem(

@@ -3,7 +3,7 @@
   "displayName": "rqml-vscode",
   "description": "RQML for VSCode",
   "version": "0.0.1",
-  "publisher": "rqml",
+  "publisher": "Stakkar",
   "engines": {
     "vscode": "^1.108.1"
   },
@@ -68,6 +68,22 @@
       {
         "command": "rqml-vscode.export",
         "title": "Export Spec..."
+      },
+      {
+        "command": "rqml-vscode.openSettings",
+        "title": "RQML: Open Settings"
+      },
+      {
+        "command": "rqml-vscode.configureApiKey",
+        "title": "RQML: Configure API Key"
+      },
+      {
+        "command": "rqml-vscode.selectLlmProvider",
+        "title": "RQML: Select LLM Provider"
+      },
+      {
+        "command": "rqml-vscode.selectColorPalette",
+        "title": "RQML: Select Color Palette"
       }
     ],
     "viewsContainers": {
@@ -163,7 +179,42 @@
         "scopeName": "text.xml.rqml",
         "path": "./syntaxes/rqml.tmLanguage.json"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "RQML",
+      "properties": {
+        "rqml.llmProvider": {
+          "type": "string",
+          "default": "none",
+          "enum": [
+            "none",
+            "openai",
+            "anthropic",
+            "azure-openai",
+            "ollama"
+          ],
+          "enumDescriptions": [
+            "LLM features disabled",
+            "OpenAI (GPT models)",
+            "Anthropic (Claude models)",
+            "Azure OpenAI Service",
+            "Ollama (local models)"
+          ],
+          "description": "Select the LLM provider for AI-assisted features (Ideas view, requirement generation)."
+        },
+        "rqml.colorPalette": {
+          "type": "string",
+          "default": "rqml-default",
+          "enum": [
+            "rqml-default"
+          ],
+          "enumDescriptions": [
+            "RQML Default (Lavender Purple, Carbon Black, White Smoke, Pumpkin Spice, Sage Green)"
+          ],
+          "description": "Color palette for RQML views and syntax highlighting."
+        }
+      }
+    }
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.11",
