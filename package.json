@@ -112,6 +112,28 @@
       ]
     },
     "menus": {
+      "view/title": [
+        {
+          "command": "rqml-vscode.openDocumentView",
+          "when": "view == rqmlTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "rqml-vscode.openTraceView",
+          "when": "view == rqmlTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "rqml-vscode.openGridView",
+          "when": "view == rqmlTree",
+          "group": "navigation@3"
+        },
+        {
+          "command": "rqml-vscode.openIdeasView",
+          "when": "view == rqmlTree",
+          "group": "navigation@4"
+        }
+      ],
       "view/item/context": [
         {
           "command": "rqml-vscode.openDocumentView",
@@ -219,12 +241,15 @@
   "dependencies": {
     "@xmldom/xmldom": "^0.8.11",
     "fast-xml-parser": "^4.5.1",
-    "xmllint-wasm": "^5.1.0"
+    "xmllint-wasm": "^5.1.0",
+    "zod": "^3.22.0"
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run build:webview",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "build:webview": "node esbuild.js",
+    "watch:webview": "node esbuild.js --watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
@@ -235,6 +260,7 @@
     "@types/vscode": "^1.108.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.19.0",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.1"

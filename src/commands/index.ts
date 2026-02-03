@@ -7,6 +7,14 @@
 import * as vscode from 'vscode';
 import { TreeNode, RqmlTreeDataProvider } from '../views/rqmlTreeProvider';
 import { getSpecService } from '../services/specService';
+import { DocumentViewProvider } from '../webviews/DocumentViewProvider';
+import { TraceGraphViewProvider } from '../webviews/TraceGraphViewProvider';
+import { MatrixViewProvider } from '../webviews/MatrixViewProvider';
+
+// Webview providers (initialized during registration)
+let documentViewProvider: DocumentViewProvider | undefined;
+let traceGraphViewProvider: TraceGraphViewProvider | undefined;
+let matrixViewProvider: MatrixViewProvider | undefined;
 
 /**
  * Register all commands for the extension.
@@ -16,6 +24,19 @@ export function registerCommands(
   treeProvider: RqmlTreeDataProvider,
   treeView: vscode.TreeView<TreeNode>
 ): void {
+  // Initialize webview providers
+  documentViewProvider = new DocumentViewProvider(context.extensionUri);
+  traceGraphViewProvider = new TraceGraphViewProvider(context.extensionUri);
+  matrixViewProvider = new MatrixViewProvider(context.extensionUri);
+
+  // Add providers to subscriptions for cleanup
+  context.subscriptions.push({
+    dispose: () => {
+      documentViewProvider?.dispose();
+      traceGraphViewProvider?.dispose();
+      matrixViewProvider?.dispose();
+    }
+  });
   // REQ-UI-011: Create spec command
   context.subscriptions.push(
     vscode.commands.registerCommand('rqml-vscode.createSpec', async () => {
@@ -103,12 +124,16 @@ export function registerCommands(
         prompt: 'Enter new title',
         value: currentTitle,
         validateInput: (value) => {
-          if (!value.trim()) return 'Title cannot be empty';
+          if (!value.trim()) {
+            return 'Title cannot be empty';
+          }
           return null;
         }
       });
 
-      if (!newTitle || newTitle === currentTitle) return;
+      if (!newTitle || newTitle === currentTitle) {
+        return;
+      }
 
       // TODO: Implement actual XML editing
       // For now, show message about manual editing
@@ -135,7 +160,9 @@ export function registerCommands(
         'Delete'
       );
 
-      if (confirm !== 'Delete') return;
+      if (confirm !== 'Delete') {
+        return;
+      }
 
       // TODO: Implement actual XML editing
       vscode.window.showInformationMessage(
@@ -170,24 +197,24 @@ export function registerCommands(
     })
   );
 
-  // REQ-UI-006I: Open document view (placeholder)
+  // REQ-UI-006I: Open document view
   context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.openDocumentView', () => {
-      vscode.window.showInformationMessage('WYSIWYG document view coming soon.');
+    vscode.commands.registerCommand('rqml-vscode.openDocumentView', async () => {
+      await documentViewProvider?.show();
     })
   );
 
-  // REQ-UI-006I: Open trace view (placeholder)
+  // REQ-UI-006I: Open trace view
   context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.openTraceView', () => {
-      vscode.window.showInformationMessage('Traceability map view coming soon.');
+    vscode.commands.registerCommand('rqml-vscode.openTraceView', async () => {
+      await traceGraphViewProvider?.show();
     })
   );
 
-  // REQ-UI-006I: Open grid view (placeholder)
+  // REQ-UI-006I: Open grid view (requirements matrix)
   context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.openGridView', () => {
-      vscode.window.showInformationMessage('Requirements grid view coming soon.');
+    vscode.commands.registerCommand('rqml-vscode.openGridView', async () => {
+      await matrixViewProvider?.show();
     })
   );
 
@@ -213,7 +240,9 @@ export function registerCommands(
         }
       );
 
-      if (!format) return;
+      if (!format) {
+        return;
+      }
 
       if (format.format !== 'html') {
         // REQ-SUB-002: Feature gating for pro features
