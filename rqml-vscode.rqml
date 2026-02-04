@@ -33,7 +33,7 @@
   <requirements>
     <reqPackage id="PKG-UI" title="VS Code UI surfaces">
       <description>UI requirements for the Activity Bar, Sidebar, Panel, and Status Bar.</description>
-      <req id="REQ-UI-001" type="UXR" title="Activity Bar icon" status="draft" priority="must">
+      <req id="REQ-UI-001" type="UXR" title="Activity Bar icon" status="approved" priority="must">
         <statement>The extension SHALL contribute an RQML icon to the VS Code Activity Bar.</statement>
         <acceptance>
           <criterion id="AC-UI-001-01">
@@ -41,7 +41,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-002" type="FR" title="Open RQML overview" status="draft" priority="must">
+      <req id="REQ-UI-002" type="FR" title="Open RQML overview" status="approved" priority="must">
         <statement>Clicking the Activity Bar RQML icon SHALL open the RQML overview in the VS Code sidebar.</statement>
         <acceptance>
           <criterion id="AC-UI-002-01">
@@ -50,7 +50,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-003" type="UXR" title="Sidebar three-region layout" status="draft" priority="must">
+      <req id="REQ-UI-003" type="UXR" title="Sidebar three-region layout" status="approved" priority="must">
         <statement>The RQML Sidebar SHALL be split vertically into three regions: Overview (top), Details (middle), and Traces (bottom).</statement>
         <acceptance>
           <criterion id="AC-UI-003-01">
@@ -58,7 +58,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-004" type="UXR" title="Resizable regions" status="draft" priority="must">
+      <req id="REQ-UI-004" type="UXR" title="Resizable regions" status="approved" priority="must">
         <statement>The dividers between the three Sidebar regions SHALL be resizable by the user.</statement>
         <acceptance>
           <criterion id="AC-UI-004-01">
@@ -67,7 +67,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-005" type="FR" title="Tree view of specification" status="draft" priority="must">
+      <req id="REQ-UI-005" type="FR" title="Tree view of specification" status="approved" priority="must">
         <statement>The Overview region of the Sidebar SHALL display a tree view of the RQML specification.</statement>
         <acceptance>
           <criterion id="AC-UI-005-01">
@@ -75,7 +75,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006" type="FR" title="Selection details view" status="draft" priority="must">
+      <req id="REQ-UI-006" type="FR" title="Selection details view" status="approved" priority="must">
         <statement>The Details region of the Sidebar SHALL display properties and information for the item selected in the tree view.</statement>
         <acceptance>
           <criterion id="AC-UI-006-01">
@@ -84,7 +84,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006A" type="UXR" title="Show all RQML sections" status="draft" priority="must">
+      <req id="REQ-UI-006A" type="UXR" title="Show all RQML sections" status="approved" priority="must">
         <statement>The tree view SHALL display all RQML sections, including sections not present in the spec.</statement>
         <acceptance>
           <criterion id="AC-UI-006A-01">
@@ -92,7 +92,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006B" type="UXR" title="Visual distinction for missing sections" status="draft" priority="must">
+      <req id="REQ-UI-006B" type="UXR" title="Visual distinction for missing sections" status="approved" priority="must">
         <statement>Sections that are not present in the spec SHALL be visually distinct in the tree view.</statement>
         <notes>Example: gray text and italic styling.</notes>
         <acceptance>
@@ -129,7 +129,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006F" type="FR" title="Go to definition" status="draft" priority="must">
+      <req id="REQ-UI-006F" type="FR" title="Go to definition" status="approved" priority="must">
         <statement>The tree view context menu SHALL include a "Go to definition" action that navigates to the relevant location in the RQML instance document, opening it in the editor if needed.</statement>
         <acceptance>
           <criterion id="AC-UI-006F-01">
@@ -138,7 +138,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006G" type="UXR" title="Tree root label" status="draft" priority="must">
+      <req id="REQ-UI-006G" type="UXR" title="Tree root label" status="approved" priority="must">
         <statement>The root node of the tree view SHALL be labeled "RQML Spec".</statement>
         <acceptance>
           <criterion id="AC-UI-006G-01">
@@ -146,16 +146,15 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006H" type="FR" title="Root hover actions" status="draft" priority="must">
-        <statement>Hovering over the root node SHALL display four action icons: Document, Arrow, Grid, and Lightbulb.</statement>
+      <req id="REQ-UI-006H" type="FR" title="View title toolbar actions" status="approved" priority="must">
+        <statement>The Overview view title bar SHALL display four action icons: Document, Graph, Grid, and Lightbulb.</statement>
         <acceptance>
           <criterion id="AC-UI-006H-01">
-            <when>The user hovers over the tree root node.</when>
-            <then>Four action icons appear on the right side of the root node.</then>
+            <then>Four action icons appear in the Overview view's title bar (view/title menu).</then>
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006I" type="FR" title="Root actions behavior" status="draft" priority="must">
+      <req id="REQ-UI-006I" type="FR" title="Root actions behavior" status="approved" priority="must">
         <statement>The four root action icons SHALL open the following editor views: Document opens a WYSIWYG full-spec view with chapters for each RQML section; Arrow opens a traceability map; Grid opens a requirements-to-test-cases matrix with status coloring; Lightbulb opens an LLM-assisted ideas view for improvements or new features in the spec.</statement>
         <acceptance>
           <criterion id="AC-UI-006I-01">
@@ -176,7 +175,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006J" type="FR" title="Traces view" status="draft" priority="must">
+      <req id="REQ-UI-006J" type="FR" title="Traces view" status="approved" priority="must">
         <statement>The Traces region of the Sidebar SHALL display a list of all trace edges that the selected item participates in.</statement>
         <acceptance>
           <criterion id="AC-UI-006J-01">
@@ -188,7 +187,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006K" type="FR" title="Clickable trace IDs" status="draft" priority="must">
+      <req id="REQ-UI-006K" type="FR" title="Clickable trace IDs" status="approved" priority="must">
         <statement>Linked item IDs in the Traces view SHALL be clickable to navigate to the related item.</statement>
         <acceptance>
           <criterion id="AC-UI-006K-01">
@@ -197,7 +196,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-006L" type="FR" title="Synchronized view updates" status="draft" priority="must">
+      <req id="REQ-UI-006L" type="FR" title="Synchronized view updates" status="approved" priority="must">
         <statement>When the user navigates via a clickable ID in the Traces view, all three Sidebar views SHALL update to reflect the newly selected item.</statement>
         <acceptance>
           <criterion id="AC-UI-006L-01">
@@ -242,7 +241,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-013A" type="FR" title="Real-time validation" status="draft" priority="must">
+      <req id="REQ-UI-013A" type="FR" title="Real-time validation" status="approved" priority="must">
         <statement>The extension SHALL validate the RQML specification file upon any change and report validation errors to the Problems panel.</statement>
         <acceptance>
           <criterion id="AC-UI-013A-01">
@@ -255,7 +254,19 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-014" type="FR" title="RQML language mode" status="draft" priority="must">
+      <req id="REQ-UI-013B" type="FR" title="XSD schema validation" status="approved" priority="must">
+        <statement>The extension SHALL validate the RQML specification file against the RQML XSD schema and report schema validation errors to the Problems panel.</statement>
+        <acceptance>
+          <criterion id="AC-UI-013B-01">
+            <when>The RQML spec file contains elements or attributes not conforming to the RQML schema.</when>
+            <then>A schema validation error appears in the Problems panel with the line number and description of the violation.</then>
+          </criterion>
+          <criterion id="AC-UI-013B-02">
+            <then>The XSD schema is loaded once into memory at extension activation for efficient validation.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-014" type="FR" title="RQML language mode" status="approved" priority="must">
         <statement>The extension SHALL provide an RQML language mode with syntax highlighting, folding, and XML awareness tailored to RQML.</statement>
         <acceptance>
           <criterion id="AC-UI-014-01">
@@ -263,7 +274,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-010" type="OR" title="Status bar spec indicator" status="draft" priority="must">
+      <req id="REQ-UI-010" type="OR" title="Status bar spec indicator" status="approved" priority="must">
         <statement>The Status Bar SHALL show an indicator with four states: Spec invalid, Spec incomplete, Spec unimplemented, and Spec synced.</statement>
         <notes>
           Spec invalid: the RQML spec file is not well-formed XML or not valid against the RQML schema.
@@ -277,7 +288,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-011" type="FR" title="Offer spec creation" status="draft" priority="must">
+      <req id="REQ-UI-011" type="FR" title="Offer spec creation" status="approved" priority="must">
         <statement>If no RQML spec file is present in the project root, the extension SHALL offer to create one.</statement>
         <acceptance>
           <criterion id="AC-UI-011-01">
@@ -286,7 +297,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-012" type="FR" title="Multiple spec files error" status="draft" priority="must">
+      <req id="REQ-UI-012" type="FR" title="Multiple spec files error" status="approved" priority="must">
         <statement>If more than one .rqml file exists in the project root, the extension SHALL show an error to the user.</statement>
         <acceptance>
           <criterion id="AC-UI-012-01">
@@ -397,7 +408,7 @@
     </reqPackage>
     <reqPackage id="PKG-CONFIG" title="Configuration and Settings">
       <description>Requirements for user-configurable settings including API keys, LLM selection, and UI customization.</description>
-      <req id="REQ-CFG-001" type="FR" title="Settings UI" status="draft" priority="must">
+      <req id="REQ-CFG-001" type="FR" title="Settings UI" status="approved" priority="must">
         <statement>The extension SHALL provide a settings screen accessible to the user for configuring extension behavior.</statement>
         <acceptance>
           <criterion id="AC-CFG-001-01">
@@ -405,7 +416,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-002" type="FR" title="API key storage" status="draft" priority="must">
+      <req id="REQ-CFG-002" type="FR" title="API key storage" status="approved" priority="must">
         <statement>The settings screen SHALL allow users to store API keys required for LLM-powered features.</statement>
         <acceptance>
           <criterion id="AC-CFG-002-01">
@@ -414,7 +425,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-003" type="SR" title="Secure API key storage" status="draft" priority="must">
+      <req id="REQ-CFG-003" type="SR" title="Secure API key storage" status="approved" priority="must">
         <statement>API keys SHALL be stored securely using VS Code's secret storage API.</statement>
         <acceptance>
           <criterion id="AC-CFG-003-01">
@@ -422,7 +433,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-004" type="FR" title="LLM provider selection" status="draft" priority="must">
+      <req id="REQ-CFG-004" type="FR" title="LLM provider selection" status="approved" priority="must">
         <statement>The settings screen SHALL allow users to select which LLM provider to use when multiple providers are available.</statement>
         <acceptance>
           <criterion id="AC-CFG-004-01">
@@ -431,7 +442,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-005" type="FR" title="Color palette selection" status="draft" priority="must">
+      <req id="REQ-CFG-005" type="FR" title="Color palette selection" status="approved" priority="must">
         <statement>The settings screen SHALL allow users to select the color palette used in the extension UI.</statement>
         <acceptance>
           <criterion id="AC-CFG-005-01">
@@ -440,7 +451,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-006" type="UXR" title="Default color palette" status="draft" priority="must">
+      <req id="REQ-CFG-006" type="UXR" title="Default color palette" status="approved" priority="must">
         <statement>The extension SHALL use the following default color palette: Lavender Purple (#8568ab), Carbon Black (#191716), White Smoke (#f5f3f5), Pumpkin Spice (#fc7a1e), Sage Green (#60a561).</statement>
         <acceptance>
           <criterion id="AC-CFG-006-01">
@@ -449,7 +460,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-007" type="FR" title="Settings persistence" status="draft" priority="must">
+      <req id="REQ-CFG-007" type="FR" title="Settings persistence" status="approved" priority="must">
         <statement>The extension SHALL persist user settings across VS Code sessions.</statement>
         <acceptance>
           <criterion id="AC-CFG-007-01">
