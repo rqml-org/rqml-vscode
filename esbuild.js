@@ -45,6 +45,11 @@ const webviews = [
     entry: 'webview-ui/src/matrix/index.tsx',
     outfile: 'dist/matrix.js',
   },
+  {
+    name: 'agent',
+    entry: 'webview-ui/src/agent/index.tsx',
+    outfile: 'dist/agent.js',
+  },
 ];
 
 async function build() {

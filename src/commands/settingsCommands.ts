@@ -1,7 +1,6 @@
 // REQ-CFG-001: Settings UI commands
 // REQ-CFG-002: API key management commands
 // REQ-CFG-004: LLM provider selection
-// REQ-CFG-005: Color palette selection
 
 import * as vscode from 'vscode';
 import { getConfigurationService } from '../services/configurationService';
@@ -120,28 +119,4 @@ export function registerSettingsCommands(context: vscode.ExtensionContext): void
     })
   );
 
-  // REQ-CFG-005: Select color palette
-  context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.selectColorPalette', async () => {
-      const currentId = configService.getColorPaletteId();
-      const palettes = configService.getAvailablePalettes();
-
-      const items = palettes.map(p => ({
-        id: p.id,
-        label: p.name,
-        description: p.id === currentId ? '(current)' : undefined,
-        detail: `Primary: ${p.colors.primary}, Accent: ${p.colors.accent}`
-      }));
-
-      const selection = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select color palette for RQML views',
-        title: 'RQML: Select Color Palette'
-      });
-
-      if (selection) {
-        await configService.setColorPaletteId(selection.id);
-        vscode.window.showInformationMessage(`Color palette changed to "${selection.label}".`);
-      }
-    })
-  );
 }

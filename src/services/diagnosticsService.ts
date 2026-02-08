@@ -502,7 +502,9 @@ export class DiagnosticsService {
    * Find the line number where an ID appears.
    */
   private findLineNumber(text: string, id: string | undefined): number | undefined {
-    if (!id) return undefined;
+    if (!id) {
+      return undefined;
+    }
 
     const pattern = new RegExp(`id=["']${this.escapeRegex(id)}["']`);
     const lines = text.split('\n');
@@ -521,13 +523,19 @@ export class DiagnosticsService {
   }
 
   private str(value: unknown): string | undefined {
-    if (value === undefined || value === null) return undefined;
+    if (value === undefined || value === null) {
+      return undefined;
+    }
     return String(value);
   }
 
   private toArray(value: unknown): XmlObject[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value as XmlObject[];
+    if (!value) {
+      return [];
+    }
+    if (Array.isArray(value)) {
+      return value as XmlObject[];
+    }
     return [value as XmlObject];
   }
 

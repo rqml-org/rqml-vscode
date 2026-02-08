@@ -2,16 +2,17 @@
 // REQ-CFG-002: API key storage
 // REQ-CFG-003: Secure API key storage via SecretStorage
 // REQ-CFG-004: LLM provider selection
-// REQ-CFG-005: Color palette selection
+// REQ-CFG-005: VS Code theme integration (no custom palettes)
 // REQ-CFG-007: Settings persistence
+// REQ-CFG-008 through REQ-CFG-012: LLM endpoint management
+// REQ-AGT-013, REQ-AGT-014: Strictness levels
 
 import * as vscode from 'vscode';
 import {
   LlmProvider,
-  ColorPalette,
   SecretKey,
-  DEFAULT_COLOR_PALETTE,
-  COLOR_PALETTES,
+  LlmEndpoint,
+  StrictnessLevel,
   CONFIGURATION_SECTION
 } from '../types/configuration';
 
@@ -28,11 +29,6 @@ export class ConfigurationService {
 
   private secretStorage: vscode.SecretStorage | undefined;
   private disposables: vscode.Disposable[] = [];
-
-  // Built-in color palettes
-  private readonly colorPalettes: Map<string, ColorPalette> = new Map(
-    COLOR_PALETTES.map(p => [p.id, p])
-  );
 
   constructor() {
     // Listen for workspace configuration changes
@@ -67,38 +63,6 @@ export class ConfigurationService {
    */
   async setLlmProvider(provider: LlmProvider): Promise<void> {
     await this.setConfig('llmProvider', provider);
-  }
-
-  /**
-   * REQ-CFG-005: Get current color palette ID
-   */
-  getColorPaletteId(): string {
-    return this.getConfig<string>('colorPalette', DEFAULT_COLOR_PALETTE.id);
-  }
-
-  /**
-   * REQ-CFG-005, REQ-CFG-006: Get current color palette object
-   */
-  getColorPalette(): ColorPalette {
-    const id = this.getColorPaletteId();
-    return this.colorPalettes.get(id) || DEFAULT_COLOR_PALETTE;
-  }
-
-  /**
-   * REQ-CFG-005: Set color palette
-   */
-  async setColorPaletteId(paletteId: string): Promise<void> {
-    if (!this.colorPalettes.has(paletteId)) {
-      throw new Error(`Unknown color palette: ${paletteId}`);
-    }
-    await this.setConfig('colorPalette', paletteId);
-  }
-
-  /**
-   * Get all available color palettes
-   */
-  getAvailablePalettes(): ColorPalette[] {
-    return Array.from(this.colorPalettes.values());
   }
 
   // ========== Secrets (SecretStorage API) ==========
@@ -178,6 +142,111 @@ export class ConfigurationService {
     }
   }
 
+  // ========== LLM Endpoints (REQ-CFG-008 through REQ-CFG-012) ==========
+
+  private _onDidChangeEndpoints = new vscode.EventEmitter<void>();
+  readonly onDidChangeEndpoints = this._onDidChangeEndpoints.event;
+
+  /**
+   * REQ-CFG-008: Get all configured LLM endpoints
+   */
+  getEndpoints(): LlmEndpoint[] {
+    return this.getConfig<LlmEndpoint[]>('llmEndpoints', []);
+  }
+
+  /**
+   * REQ-CFG-010: Get the active endpoint ID
+   */
+  getActiveEndpointId(): string {
+    return this.getConfig<string>('activeEndpointId', '');
+  }
+
+  /**
+   * REQ-CFG-010: Get the active endpoint configuration
+   */
+  getActiveEndpoint(): LlmEndpoint | undefined {
+    const id = this.getActiveEndpointId();
+    if (!id) return undefined;
+    return this.getEndpoints().find(e => e.id === id);
+  }
+
+  /**
+   * REQ-CFG-010: Set the active endpoint
+   */
+  async setActiveEndpointId(id: string): Promise<void> {
+    await this.setConfig('activeEndpointId', id);
+    this._onDidChangeEndpoints.fire();
+  }
+
+  /**
+   * REQ-CFG-012: Add a new LLM endpoint
+   */
+  async addEndpoint(endpoint: LlmEndpoint, apiKey: string): Promise<void> {
+    if (!this.secretStorage) {
+      throw new Error('ConfigurationService not initialized.');
+    }
+    const endpoints = this.getEndpoints();
+    endpoints.push(endpoint);
+    await this.setConfig('llmEndpoints', endpoints);
+    // Store API key securely, keyed by endpoint ID
+    await this.secretStorage.store(`endpoint-key-${endpoint.id}`, apiKey);
+    this._onDidChangeEndpoints.fire();
+  }
+
+  /**
+   * REQ-CFG-011: Remove an LLM endpoint
+   */
+  async removeEndpoint(endpointId: string): Promise<void> {
+    if (!this.secretStorage) {
+      throw new Error('ConfigurationService not initialized.');
+    }
+    const endpoints = this.getEndpoints().filter(e => e.id !== endpointId);
+    await this.setConfig('llmEndpoints', endpoints);
+    // Delete associated API key
+    await this.secretStorage.delete(`endpoint-key-${endpointId}`);
+    // If the removed endpoint was active, clear the active selection
+    if (this.getActiveEndpointId() === endpointId) {
+      await this.setConfig('activeEndpointId', '');
+    }
+    this._onDidChangeEndpoints.fire();
+  }
+
+  /**
+   * REQ-CFG-009: Get API key for a specific endpoint (full value, for LLM calls)
+   */
+  async getEndpointApiKey(endpointId: string): Promise<string | undefined> {
+    if (!this.secretStorage) {
+      throw new Error('ConfigurationService not initialized.');
+    }
+    return this.secretStorage.get(`endpoint-key-${endpointId}`);
+  }
+
+  /**
+   * REQ-CFG-009: Get masked API key for display
+   */
+  async getEndpointApiKeyMasked(endpointId: string): Promise<string> {
+    const key = await this.getEndpointApiKey(endpointId);
+    if (!key) return '(no key)';
+    if (key.length <= 4) return '••••';
+    return '••••••••' + key.slice(-4);
+  }
+
+  // ========== Strictness (REQ-AGT-013, REQ-AGT-014) ==========
+
+  /**
+   * REQ-AGT-013: Get configured strictness from settings
+   */
+  getStrictnessSetting(): StrictnessLevel | '' {
+    return this.getConfig<StrictnessLevel | ''>('agentStrictness', '');
+  }
+
+  /**
+   * REQ-AGT-013: Set strictness level
+   */
+  async setStrictnessSetting(level: StrictnessLevel | ''): Promise<void> {
+    await this.setConfig('agentStrictness', level);
+  }
+
   // ========== Helper Methods ==========
 
   private getConfig<T>(key: string, defaultValue: T): T {
@@ -193,6 +262,7 @@ export class ConfigurationService {
   dispose(): void {
     this._onDidChangeConfiguration.dispose();
     this._onDidChangeSecrets.dispose();
+    this._onDidChangeEndpoints.dispose();
     this.disposables.forEach(d => d.dispose());
   }
 }

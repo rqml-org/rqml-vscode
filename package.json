@@ -13,6 +13,7 @@
   "activationEvents": [
     "onView:rqmlTree",
     "onView:rqmlDetails",
+    "onView:rqmlAgent",
     "onStartupFinished",
     "onLanguage:rqml",
     "onCommand:rqml-vscode.createSpec",
@@ -82,8 +83,18 @@
         "title": "RQML: Select LLM Provider"
       },
       {
-        "command": "rqml-vscode.selectColorPalette",
-        "title": "RQML: Select Color Palette"
+        "command": "rqml-vscode.addLlmEndpoint",
+        "title": "RQML: Add LLM Endpoint",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rqml-vscode.removeLlmEndpoint",
+        "title": "RQML: Remove LLM Endpoint",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "rqml-vscode.selectActiveEndpoint",
+        "title": "RQML: Select Active LLM Endpoint"
       }
     ],
     "viewsContainers": {
@@ -91,6 +102,13 @@
         {
           "id": "rqmlExplorer",
           "title": "REQUIREMENTS",
+          "icon": "./resources/rqml.png"
+        }
+      ],
+      "panel": [
+        {
+          "id": "rqmlPanel",
+          "title": "RQML",
           "icon": "./resources/rqml.png"
         }
       ]
@@ -108,6 +126,13 @@
         {
           "id": "rqmlTraces",
           "name": "Traces"
+        }
+      ],
+      "rqmlPanel": [
+        {
+          "id": "rqmlAgent",
+          "name": "RQML AGENT",
+          "type": "webview"
         }
       ]
     },
@@ -224,22 +249,68 @@
           ],
           "description": "Select the LLM provider for AI-assisted features (Ideas view, requirement generation)."
         },
-        "rqml.colorPalette": {
+        "rqml.agentStrictness": {
           "type": "string",
-          "default": "rqml-default",
+          "default": "",
           "enum": [
-            "rqml-default"
+            "",
+            "relaxed",
+            "standard",
+            "strict",
+            "certified"
           ],
           "enumDescriptions": [
-            "RQML Default (Lavender Purple, Carbon Black, White Smoke, Pumpkin Spice, Sage Green)"
+            "Use AGENTS.md setting or default to 'standard'",
+            "Prototyping. Spec is advisory. Quick iteration allowed.",
+            "Production default. Spec-first for features. Core traces required.",
+            "Full traceability. All behaviour specified. No ghost features.",
+            "Regulated/safety-critical. Audit-grade traces with metadata."
           ],
-          "description": "Color palette for RQML views and syntax highlighting."
+          "description": "Strictness level for the RQML Agent. Overrides AGENTS.md if set."
+        },
+        "rqml.llmEndpoints": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for this endpoint"
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["openai", "anthropic", "azure-openai", "google"],
+                "description": "LLM provider"
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name for this endpoint"
+              },
+              "model": {
+                "type": "string",
+                "description": "Model identifier (e.g., gpt-4o, claude-sonnet-4-5-20250929)"
+              }
+            },
+            "required": ["id", "provider", "name"]
+          },
+          "description": "Configured LLM endpoints for the RQML Agent."
+        },
+        "rqml.activeEndpointId": {
+          "type": "string",
+          "default": "",
+          "description": "ID of the currently active LLM endpoint."
         }
       }
     }
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.38",
+    "@ai-sdk/azure": "^3.0.27",
+    "@ai-sdk/google": "^3.0.22",
+    "@ai-sdk/openai": "^3.0.26",
     "@xmldom/xmldom": "^0.8.11",
+    "ai": "^6.0.77",
     "fast-xml-parser": "^4.5.1",
     "xmllint-wasm": "^5.1.0",
     "zod": "^3.22.0"

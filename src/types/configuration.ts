@@ -1,4 +1,5 @@
-// REQ-CFG-004, REQ-CFG-005, REQ-CFG-006: Configuration types for RQML extension
+// REQ-CFG-004: Configuration types for RQML extension
+// REQ-CFG-005: VS Code theme integration (no custom palettes)
 
 /**
  * REQ-CFG-004: Supported LLM providers
@@ -15,42 +16,19 @@ export type SecretKey =
   | 'azure-openai-endpoint';
 
 /**
- * REQ-CFG-005, REQ-CFG-006: Color palette configuration
+ * REQ-AGT-013: Strictness levels for agent behaviour
  */
-export interface ColorPalette {
+export type StrictnessLevel = 'relaxed' | 'standard' | 'strict' | 'certified';
+
+/**
+ * REQ-CFG-008: LLM endpoint configuration
+ */
+export interface LlmEndpoint {
   id: string;
+  provider: 'openai' | 'anthropic' | 'azure-openai' | 'google';
   name: string;
-  colors: {
-    primary: string;
-    secondary: string;
-    background: string;
-    accent: string;
-    success: string;
-  };
+  model?: string;
 }
-
-/**
- * REQ-CFG-006: Default RQML color palette
- * Colors: Lavender Purple, Carbon Black, White Smoke, Pumpkin Spice, Sage Green
- */
-export const DEFAULT_COLOR_PALETTE: ColorPalette = {
-  id: 'rqml-default',
-  name: 'RQML Default',
-  colors: {
-    primary: '#8568ab',    // Lavender Purple
-    secondary: '#191716',  // Carbon Black
-    background: '#f5f3f5', // White Smoke
-    accent: '#fc7a1e',     // Pumpkin Spice
-    success: '#60a561'     // Sage Green
-  }
-};
-
-/**
- * All available color palettes
- */
-export const COLOR_PALETTES: ColorPalette[] = [
-  DEFAULT_COLOR_PALETTE
-];
 
 /**
  * Configuration section name in VS Code settings

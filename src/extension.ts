@@ -5,6 +5,7 @@
 // REQ-UI-006: Selection details view
 // REQ-UI-010: Status bar spec indicator
 // REQ-UI-011: Offer spec creation
+// REQ-AGT-001: Agent panel tab
 
 import * as vscode from 'vscode';
 import { RqmlTreeDataProvider } from './views/rqmlTreeProvider';
@@ -13,8 +14,11 @@ import { RqmlTracesProvider } from './views/rqmlTracesProvider';
 import { getSpecService, SpecStatus } from './services/specService';
 import { getDiagnosticsService } from './services/diagnosticsService';
 import { getConfigurationService } from './services/configurationService';
+import { getAgentService } from './services/agentService';
 import { registerCommands } from './commands';
 import { registerSettingsCommands } from './commands/settingsCommands';
+import { registerAgentCommands } from './commands/agentCommands';
+import { AgentViewProvider } from './webviews/AgentViewProvider';
 
 let statusBarItem: vscode.StatusBarItem;
 
@@ -81,6 +85,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // REQ-CFG-001: Register settings commands
   registerSettingsCommands(context);
+
+  // REQ-CFG-008 through REQ-CFG-012: Register agent/endpoint commands
+  registerAgentCommands(context);
+
+  // REQ-AGT-001: Register RQML Agent panel (webview view in panel area)
+  const agentService = getAgentService();
+  agentService.initialize(context.extensionPath);
+  context.subscriptions.push(agentService);
+
+  const agentViewProvider = new AgentViewProvider(context.extensionUri);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(AgentViewProvider.viewType, agentViewProvider)
+  );
+  context.subscriptions.push(agentViewProvider);
 
   // REQ-UI-010: Create status bar indicator
   statusBarItem = vscode.window.createStatusBarItem(
