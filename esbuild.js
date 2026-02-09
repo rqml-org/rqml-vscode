@@ -47,7 +47,7 @@ const webviews = [
   },
   {
     name: 'agent',
-    entry: 'webview-ui/src/agent/index.tsx',
+    entry: 'webview-ui/src/agent/index.ts',
     outfile: 'dist/agent.js',
   },
 ];

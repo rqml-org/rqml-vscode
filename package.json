@@ -108,7 +108,7 @@
       "panel": [
         {
           "id": "rqmlPanel",
-          "title": "RQML",
+          "title": "RQML AGENT",
           "icon": "./resources/rqml.png"
         }
       ]
