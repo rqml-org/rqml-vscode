@@ -1,4 +1,5 @@
 // REQ-AGT-001 through REQ-AGT-014: RQML Agent Service
+// REQ-CMD-001: Slash command dispatch
 // Core service managing conversations, LLM calls, monitoring, and change proposals.
 
 import * as vscode from 'vscode';
@@ -8,7 +9,9 @@ import { streamText, type ModelMessage } from 'ai';
 import { getLlmService } from './llmService';
 import { getSpecService } from './specService';
 import { getConfigurationService } from './configurationService';
+import { getDiagnosticsService } from './diagnosticsService';
 import type { StrictnessLevel } from '../types/configuration';
+import { createCommandRegistry, type CommandRegistry, type CommandContext } from '../commands/slashCommands';
 
 /** Message sent to the webview */
 export interface AgentWebviewMessage {
@@ -45,8 +48,12 @@ export class AgentService {
   private conversationHistory: ModelMessage[] = [];
   private pendingChanges = new Map<string, ProposedChange>();
   private autoApprove = false;
+  private lastStreamContent = '';
   private extensionPath: string = '';
   private schemaContent: string | undefined;
+
+  // REQ-CMD-001: Slash command registry
+  private _commandRegistry: CommandRegistry | undefined;
 
   // REQ-AGT-004, REQ-AGT-005: File watchers
   private rqmlWatcher: vscode.FileSystemWatcher | undefined;
@@ -61,8 +68,17 @@ export class AgentService {
    */
   initialize(extensionPath: string): void {
     this.extensionPath = extensionPath;
+    this._commandRegistry = createCommandRegistry();
     this.loadSchema();
     this.setupFileWatchers();
+  }
+
+  /** REQ-CMD-001: Access the command registry (for autocomplete, palette integration) */
+  get commandRegistry(): CommandRegistry {
+    if (!this._commandRegistry) {
+      this._commandRegistry = createCommandRegistry();
+    }
+    return this._commandRegistry;
   }
 
   /**
@@ -133,9 +149,22 @@ export class AgentService {
   }
 
   /**
-   * REQ-AGT-002: Handle user message from the prompt input
+   * REQ-AGT-002, REQ-CMD-001: Handle user message from the prompt input.
+   * Slash commands are intercepted before the LLM readiness check.
    */
   async handleUserMessage(text: string): Promise<void> {
+    // REQ-CMD-001: Intercept slash commands before LLM check
+    if (text.trimStart().startsWith('/')) {
+      const parsed = this.commandRegistry.parse(text);
+      if (parsed) {
+        const ctx = this.buildCommandContext();
+        await this.commandRegistry.execute(parsed, ctx);
+        // Signal completion so the webview can clear spinner and show prompt
+        this._onDidReceiveMessage.fire({ type: 'commandDone', payload: {} });
+        return;
+      }
+    }
+
     const llmService = getLlmService();
 
     if (!(await llmService.isReady())) {
@@ -184,6 +213,9 @@ export class AgentService {
 
       // Parse final response for change proposals
       const change = this.extractChangeProposal(fullContent);
+
+      // Store for offerCopy
+      this.lastStreamContent = fullContent;
 
       // Add to conversation history
       this.conversationHistory.push({ role: 'assistant', content: fullContent });
@@ -490,6 +522,63 @@ export class AgentService {
         provider: endpoint?.provider,
       }
     });
+  }
+
+  /**
+   * REQ-CMD-001: Build a CommandContext for slash command execution
+   */
+  private buildCommandContext(): CommandContext {
+    return {
+      reply: (content: string) => {
+        this._onDidReceiveMessage.fire({
+          type: 'commandResponse',
+          payload: { id: crypto.randomUUID(), content }
+        });
+      },
+      system: (content: string) => {
+        this._onDidReceiveMessage.fire({
+          type: 'systemMessage',
+          payload: { content }
+        });
+      },
+      streamPrompt: async (prompt: string) => {
+        this.conversationHistory.push({ role: 'user', content: prompt });
+        await this.streamResponse();
+      },
+      offerCopy: () => {
+        // Extract fenced code block content, or fall back to full response
+        const content = this.lastStreamContent;
+        const codeBlockMatch = content.match(/```[\w]*\n([\s\S]*?)```/);
+        const copyText = codeBlockMatch ? codeBlockMatch[1].trim() : content;
+        this._onDidReceiveMessage.fire({
+          type: 'showCopyLink',
+          payload: { content: copyText },
+        });
+      },
+      services: {
+        spec: getSpecService(),
+        diagnostics: getDiagnosticsService(),
+        config: getConfigurationService(),
+        llm: getLlmService(),
+        agent: this,
+      },
+    };
+  }
+
+  /** REQ-CMD-005: Clear conversation history */
+  clearConversation(): void {
+    this.conversationHistory = [];
+    this.pendingChanges.clear();
+  }
+
+  /** Whether the conversation has prior messages (used by /cmd to detect if /plan has run) */
+  hasConversationHistory(): boolean {
+    return this.conversationHistory.length > 0;
+  }
+
+  /** Fire a message to the webview (used by command handlers) */
+  fireMessage(msg: AgentWebviewMessage): void {
+    this._onDidReceiveMessage.fire(msg);
   }
 
   dispose(): void {

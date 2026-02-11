@@ -813,6 +813,232 @@
         </acceptance>
       </req>
     </reqPackage>
+    <reqPackage id="PKG-CMD" title="Agent Slash Commands">
+      <description>Slash commands exposed through the RQML Agent prompt. Commands use a terminal-style syntax (/command [args] [--flags]) and are entered in the agent panel's text input.</description>
+      <req id="REQ-CMD-001" type="FR" title="Slash command interface" status="draft" priority="must">
+        <statement>The agent SHALL recognise input beginning with "/" as a slash command, parse the command name and any arguments or flags, and execute the corresponding handler. Unrecognised commands SHALL produce an error message listing similar valid commands.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-001-01">
+            <when>The user submits input beginning with "/" followed by a valid command name.</when>
+            <then>The agent executes the corresponding command handler rather than sending the input to the LLM as a free-text prompt.</then>
+          </criterion>
+          <criterion id="AC-CMD-001-02">
+            <when>The user submits an unrecognised slash command.</when>
+            <then>The agent displays an error message and suggests similar valid commands.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-002" type="UXR" title="Command autocomplete" status="draft" priority="must">
+        <statement>The agent prompt input SHALL provide autocomplete suggestions for command names and, where applicable, command arguments as the user types.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-002-01">
+            <when>The user types "/" in the prompt input.</when>
+            <then>A list of available commands is shown as autocomplete suggestions.</then>
+          </criterion>
+          <criterion id="AC-CMD-002-02">
+            <when>The user continues typing after "/".</when>
+            <then>The autocomplete list is filtered to matching commands.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-003" type="UXR" title="Clickable output references" status="draft" priority="must">
+        <statement>Command output that references requirement IDs, file paths, or diagnostic entries SHALL render those references as clickable links that navigate to the corresponding location.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-003-01">
+            <when>Command output contains a requirement ID (e.g., REQ-014).</when>
+            <then>The ID is rendered as a clickable link that opens and navigates to the requirement in the editor.</then>
+          </criterion>
+          <criterion id="AC-CMD-003-02">
+            <when>Command output contains a file path or code location.</when>
+            <then>The path is rendered as a clickable link that opens the file at the relevant location.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-004" type="FR" title="Help and discovery commands" status="draft" priority="must">
+        <statement>The agent SHALL provide help and discovery commands: /help [command] to display usage information for a specific or all commands, /? as an alias for /help, /commands to list all available commands, and /about to display extension metadata and active runtime configuration.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-004-01">
+            <when>The user runs /help without arguments.</when>
+            <then>A summary of all available commands is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-004-02">
+            <when>The user runs /help with a command name argument.</when>
+            <then>Detailed usage information for that specific command is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-004-03">
+            <when>The user runs /about.</when>
+            <then>Extension version, active workspace, RQML file path, and active provider/model are displayed.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-005" type="FR" title="Session management commands" status="draft" priority="must">
+        <statement>The agent SHALL provide session management commands: /clear to reset the chat transcript while preserving settings, /new [name] to start a named session, /compact [goal] to summarise the conversation into working memory, and /export [md|json] to export the session transcript and artifacts.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-005-01">
+            <when>The user runs /clear.</when>
+            <then>The conversation history is cleared and agent settings are preserved.</then>
+          </criterion>
+          <criterion id="AC-CMD-005-02">
+            <when>The user runs /new.</when>
+            <then>A new agent session is started with an empty conversation history.</then>
+          </criterion>
+          <criterion id="AC-CMD-005-03">
+            <when>The user runs /compact.</when>
+            <then>The conversation is summarised into a compact working memory that preserves key context while reducing token usage.</then>
+          </criterion>
+          <criterion id="AC-CMD-005-04">
+            <when>The user runs /export md or /export json.</when>
+            <then>The session transcript and key artifacts are exported in the requested format.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-006" type="FR" title="Provider and model management commands" status="draft" priority="must">
+        <statement>The agent SHALL provide provider-agnostic LLM management commands: /providers to list configured providers and connection status, /provider use to set the active provider, /models to list available models, /model use to set the active model, /keys to show key status without exposing secrets, /key set and /key unset to manage API keys via Secret Storage, /key test to verify connectivity, and /llm to show a one-line active configuration summary.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-006-01">
+            <when>The user runs /providers.</when>
+            <then>All configured providers are listed with their connection status, key presence, and any last error.</then>
+          </criterion>
+          <criterion id="AC-CMD-006-02">
+            <when>The user runs /key set with a provider name.</when>
+            <then>The user is prompted to enter an API key, which is stored securely in VS Code Secret Storage.</then>
+          </criterion>
+          <criterion id="AC-CMD-006-03">
+            <when>The user runs /key test.</when>
+            <then>A minimal connectivity test is performed against the active (or specified) provider and the result is reported.</then>
+          </criterion>
+          <criterion id="AC-CMD-006-04">
+            <when>The user runs /keys.</when>
+            <then>Key status is displayed for all providers without revealing any secret values.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-007" type="FR" title="Spec quality and health commands" status="draft" priority="must">
+        <statement>The agent SHALL provide spec quality commands: /status [--full] as the flagship quality assessment showing an overall score, schema validity, structure, requirement quality, traceability, and sync status; /lint [--fix] [--rules] to run lint rules with optional auto-fix; /validate [--schema] to validate against the XSD schema and emit diagnostics; and /score to show the scoring breakdown.</statement>
+        <notes>The /status command output includes: overall quality score (0–100) with grade, schema validity, structural completeness, requirement quality metrics (ambiguity, testability, acceptance criteria coverage), traceability coverage, spec-code drift summary, and timestamps. The --full flag adds prioritised issues, suggestions, and jump targets.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-007-01">
+            <when>The user runs /status.</when>
+            <then>A quality assessment summary is displayed including a score, schema validity, and sync status.</then>
+          </criterion>
+          <criterion id="AC-CMD-007-02">
+            <when>The user runs /status --full.</when>
+            <then>The summary is extended with prioritised issues grouped by category, suggestions, and clickable jump targets.</then>
+          </criterion>
+          <criterion id="AC-CMD-007-03">
+            <when>The user runs /validate.</when>
+            <then>The RQML file is validated against the XSD schema, diagnostics are emitted to the Problems panel, and a summary is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-007-04">
+            <when>The user runs /lint --fix.</when>
+            <then>Lint rules are executed and safe auto-fixes are applied to the RQML spec after user confirmation.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-008" type="FR" title="Sync and traceability commands" status="draft" priority="must">
+        <statement>The agent SHALL provide spec-code sync and traceability commands: /sync status [--full] to report drift between spec and code, /sync scan to rebuild the code index, /trace to show implementation and test evidence for a requirement, /link and /unlink to manage trace links, and /diff to show changes since a baseline.</statement>
+        <notes>Drift signals include: requirements with no code references, code paths with no requirement, stale tests versus acceptance criteria, and changed code hotspots since last spec update.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-008-01">
+            <when>The user runs /sync status.</when>
+            <then>A drift report is displayed identifying unimplemented requirements and unspecified code.</then>
+          </criterion>
+          <criterion id="AC-CMD-008-02">
+            <when>The user runs /trace with a requirement ID.</when>
+            <then>Implementation and test evidence for the requirement is displayed; if missing, candidate files/functions are suggested.</then>
+          </criterion>
+          <criterion id="AC-CMD-008-03">
+            <when>The user runs /link with a requirement ID and target.</when>
+            <then>A trace link is added or updated for the requirement.</then>
+          </criterion>
+          <criterion id="AC-CMD-008-04">
+            <when>The user runs /diff spec.</when>
+            <then>Changes to the spec since the last baseline or snapshot are displayed.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-009" type="FR" title="Implementation planning command" status="draft" priority="must">
+        <statement>The agent SHALL provide a /plan command that analyses the current spec, reports whether it is implementation-ready, identifies blocking issues with recommended fixes, and produces a staged implementation plan with goals, inputs, expected outputs, verification steps, and trace expectations for each stage.</statement>
+        <notes>The /plan command supports --full for detailed output and --focus to restrict analysis to a specific area or requirement. The agent stores the latest plan internally for use by the /cmd command.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-009-01">
+            <when>The user runs /plan.</when>
+            <then>A readiness verdict (READY or NOT READY) is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-009-02">
+            <given>The spec is not implementation-ready.</given>
+            <when>The user runs /plan.</when>
+            <then>Specific blocking issues are listed, each with a recommended fix describing what to change in the spec.</then>
+          </criterion>
+          <criterion id="AC-CMD-009-03">
+            <when>The user runs /plan and the spec is ready (or has only warnings).</when>
+            <then>A numbered staged implementation plan is displayed where each stage includes goal, inputs, expected outputs, verification steps, and trace expectations.</then>
+          </criterion>
+          <criterion id="AC-CMD-009-04">
+            <when>The user runs /plan --focus with a requirement ID or area name.</when>
+            <then>The plan is scoped to the specified area rather than the full spec.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-010" type="FR" title="Coding agent command generation" status="draft" priority="must">
+        <statement>The agent SHALL provide a /cmd command that generates generic, copy-pasteable instructions for external coding agents based on the latest /plan output. The output SHALL include three blocks: an agent prompt with structured instructions, a context-to-load list of files and directories, and a verification block with commands to run.</statement>
+        <notes>The /cmd command supports two modes: /cmd next (default) generates instructions for the next incomplete stage, and /cmd all generates instructions for every stage of the plan. Output is designed to work across terminal agents (Claude Code, Codex CLI), IDE agents (Copilot Chat, Cursor), and web agents.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-010-01">
+            <when>The user runs /cmd (or /cmd next).</when>
+            <then>Instructions are generated for the next incomplete stage of the current plan, including AGENT PROMPT, CONTEXT TO LOAD, and VERIFY blocks.</then>
+          </criterion>
+          <criterion id="AC-CMD-010-02">
+            <when>The user runs /cmd all.</when>
+            <then>Instructions are generated for every stage of the plan in order, each with AGENT PROMPT, CONTEXT TO LOAD, and VERIFY blocks.</then>
+          </criterion>
+          <criterion id="AC-CMD-010-03">
+            <when>The user runs /cmd without a prior /plan.</when>
+            <then>The agent notifies the user that no plan exists and suggests running /plan first.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-011" type="FR" title="Diagnostics and troubleshooting commands" status="draft" priority="must">
+        <statement>The agent SHALL provide diagnostics commands: /doctor to check extension health (schema availability, validator engine, provider connectivity, workspace permissions, indexing status), /logs [--tail N] to display redacted extension logs, and /feedback to open the issue reporting flow.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-011-01">
+            <when>The user runs /doctor.</when>
+            <then>A health report is displayed covering schema, validator, provider, permissions, and indexing status.</then>
+          </criterion>
+          <criterion id="AC-CMD-011-02">
+            <when>The user runs /logs.</when>
+            <then>Recent extension and agent logs are displayed with secrets redacted.</then>
+          </criterion>
+          <criterion id="AC-CMD-011-03">
+            <when>The user runs /feedback.</when>
+            <then>The feedback or issue reporting flow is opened.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-012" type="FR" title="Command Palette access" status="draft" priority="must">
+        <statement>Agent slash commands that perform standalone operations SHALL also be registered as VS Code extension commands accessible through the Command Palette (Shift+Cmd+P / Ctrl+Shift+P). Commands that require arguments SHALL collect them via VS Code quick-pick or input-box prompts when invoked from the palette. Output SHALL be displayed in the agent panel.</statement>
+        <notes>Commands suitable for the Command Palette include: /status, /validate, /lint, /score, /sync status, /sync scan, /plan, /cmd, /doctor, /about, /clear, /new, /export, /providers, /keys, /key test, and /feedback. Session-bound conversational commands such as /compact and /trace with complex arguments may be excluded. All palette commands SHALL use the "RQML:" prefix in their title (e.g., "RQML: Status", "RQML: Validate", "RQML: Plan").</notes>
+        <acceptance>
+          <criterion id="AC-CMD-012-01">
+            <when>The user opens the Command Palette and types "RQML".</when>
+            <then>All registered RQML agent commands appear in the filtered results.</then>
+          </criterion>
+          <criterion id="AC-CMD-012-02">
+            <when>The user invokes an agent command from the Command Palette.</when>
+            <then>The command executes identically to its slash-command counterpart and output appears in the agent panel.</then>
+          </criterion>
+          <criterion id="AC-CMD-012-03">
+            <given>A command requires arguments (e.g., /trace requires a REQ-ID).</given>
+            <when>The user invokes the command from the Command Palette.</when>
+            <then>VS Code prompts for the required arguments via quick-pick or input-box before executing.</then>
+          </criterion>
+          <criterion id="AC-CMD-012-04">
+            <when>The agent panel is not visible and a command is invoked from the Command Palette.</when>
+            <then>The agent panel is automatically opened to display the command output.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
   </requirements>
   <trace>
     <traceEdge id="TR-001" from="REQ-UI-007" to="REQ-SUB-002" type="dependsOn">
@@ -922,6 +1148,54 @@
     </traceEdge>
     <traceEdge id="TR-036" from="REQ-AGT-013" to="REQ-CFG-001" type="dependsOn">
       <notes>Strictness level setting (REQ-AGT-013) depends on the settings UI (REQ-CFG-001) to present the selector.</notes>
+    </traceEdge>
+    <traceEdge id="TR-037" from="REQ-CMD-001" to="REQ-AGT-001" type="dependsOn">
+      <notes>Slash command interface (REQ-CMD-001) depends on the agent panel tab (REQ-AGT-001) to host the prompt input where commands are entered.</notes>
+    </traceEdge>
+    <traceEdge id="TR-038" from="REQ-CMD-001" to="REQ-AGT-002" type="dependsOn">
+      <notes>Slash command interface (REQ-CMD-001) depends on prompt input (REQ-AGT-002) as the mechanism through which commands are submitted.</notes>
+    </traceEdge>
+    <traceEdge id="TR-039" from="REQ-CMD-006" to="REQ-CFG-008" type="dependsOn">
+      <notes>Provider and model management commands (REQ-CMD-006) depend on the LLM endpoint list (REQ-CFG-008) for the underlying endpoint configuration.</notes>
+    </traceEdge>
+    <traceEdge id="TR-040" from="REQ-CMD-006" to="REQ-CFG-003" type="dependsOn">
+      <notes>Provider and model management commands (REQ-CMD-006) depend on secure API key storage (REQ-CFG-003) for /key set and /key unset operations.</notes>
+    </traceEdge>
+    <traceEdge id="TR-041" from="REQ-CMD-007" to="REQ-AGT-006" type="dependsOn">
+      <notes>Spec quality commands (REQ-CMD-007) depend on quality assessment (REQ-AGT-006) for the underlying analysis capability.</notes>
+    </traceEdge>
+    <traceEdge id="TR-042" from="REQ-CMD-007" to="REQ-UI-013B" type="dependsOn">
+      <notes>Spec quality commands (REQ-CMD-007) depend on XSD schema validation (REQ-UI-013B) for the /validate command.</notes>
+    </traceEdge>
+    <traceEdge id="TR-043" from="REQ-CMD-008" to="REQ-AGT-010" type="dependsOn">
+      <notes>Sync and traceability commands (REQ-CMD-008) depend on spec-code sync commentary (REQ-AGT-010) for the underlying drift analysis.</notes>
+    </traceEdge>
+    <traceEdge id="TR-044" from="REQ-CMD-008" to="REQ-AGT-004" type="dependsOn">
+      <notes>Sync and traceability commands (REQ-CMD-008) depend on RQML file change monitoring (REQ-AGT-004) for tracking spec changes.</notes>
+    </traceEdge>
+    <traceEdge id="TR-045" from="REQ-CMD-008" to="REQ-AGT-005" type="dependsOn">
+      <notes>Sync and traceability commands (REQ-CMD-008) depend on codebase change monitoring (REQ-AGT-005) for tracking code changes.</notes>
+    </traceEdge>
+    <traceEdge id="TR-046" from="REQ-CMD-009" to="REQ-AGT-003" type="dependsOn">
+      <notes>Implementation planning command (REQ-CMD-009) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM analysis of the spec.</notes>
+    </traceEdge>
+    <traceEdge id="TR-047" from="REQ-CMD-010" to="REQ-CMD-009" type="dependsOn">
+      <notes>Coding agent command generation (REQ-CMD-010) depends on implementation planning (REQ-CMD-009) as /cmd generates instructions from the latest /plan output.</notes>
+    </traceEdge>
+    <traceEdge id="TR-048" from="REQ-CMD-009" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Implementation planning (REQ-CMD-009) satisfies the goal of preserving software engineering rigor by enforcing spec-first planning before code generation.</notes>
+    </traceEdge>
+    <traceEdge id="TR-049" from="REQ-CMD-010" to="GOAL-LLM-CONTEXT" type="satisfies">
+      <notes>Coding agent command generation (REQ-CMD-010) satisfies the goal of maintaining LLM coding context by providing structured, spec-derived prompts to coding agents.</notes>
+    </traceEdge>
+    <traceEdge id="TR-050" from="REQ-CMD-007" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Spec quality commands (REQ-CMD-007) satisfy the goal of preserving software engineering rigor by providing quality assessment and linting of the specification.</notes>
+    </traceEdge>
+    <traceEdge id="TR-051" from="REQ-CMD-012" to="REQ-CMD-001" type="dependsOn">
+      <notes>Command Palette access (REQ-CMD-012) depends on the slash command interface (REQ-CMD-001) as palette commands delegate to the same handlers.</notes>
+    </traceEdge>
+    <traceEdge id="TR-052" from="REQ-CMD-012" to="REQ-AGT-001" type="dependsOn">
+      <notes>Command Palette access (REQ-CMD-012) depends on the agent panel tab (REQ-AGT-001) as the output destination for palette-invoked commands.</notes>
     </traceEdge>
   </trace>
 </rqml>

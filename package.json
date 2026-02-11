@@ -95,6 +95,58 @@
       {
         "command": "rqml-vscode.selectActiveEndpoint",
         "title": "RQML: Select Active LLM Endpoint"
+      },
+      {
+        "command": "rqml-vscode.slashHelp",
+        "title": "RQML: Help (Agent Commands)"
+      },
+      {
+        "command": "rqml-vscode.slashStatus",
+        "title": "RQML: Status"
+      },
+      {
+        "command": "rqml-vscode.slashStatusFull",
+        "title": "RQML: Status (Full Assessment)"
+      },
+      {
+        "command": "rqml-vscode.slashValidate",
+        "title": "RQML: Validate Spec"
+      },
+      {
+        "command": "rqml-vscode.slashLint",
+        "title": "RQML: Lint Spec"
+      },
+      {
+        "command": "rqml-vscode.slashScore",
+        "title": "RQML: Score Spec"
+      },
+      {
+        "command": "rqml-vscode.slashSync",
+        "title": "RQML: Sync Status"
+      },
+      {
+        "command": "rqml-vscode.slashSyncScan",
+        "title": "RQML: Sync Scan (Deep)"
+      },
+      {
+        "command": "rqml-vscode.slashPlan",
+        "title": "RQML: Plan Implementation"
+      },
+      {
+        "command": "rqml-vscode.slashProviders",
+        "title": "RQML: List Providers"
+      },
+      {
+        "command": "rqml-vscode.slashLlm",
+        "title": "RQML: LLM Status"
+      },
+      {
+        "command": "rqml-vscode.slashDoctor",
+        "title": "RQML: Doctor (Health Check)"
+      },
+      {
+        "command": "rqml-vscode.slashAbout",
+        "title": "RQML: About"
       }
     ],
     "viewsContainers": {

@@ -18,6 +18,7 @@ import { getAgentService } from './services/agentService';
 import { registerCommands } from './commands';
 import { registerSettingsCommands } from './commands/settingsCommands';
 import { registerAgentCommands } from './commands/agentCommands';
+import { registerSlashPaletteCommands } from './commands/slashPaletteCommands';
 import { AgentViewProvider } from './webviews/AgentViewProvider';
 
 let statusBarItem: vscode.StatusBarItem;
@@ -99,6 +100,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.registerWebviewViewProvider(AgentViewProvider.viewType, agentViewProvider)
   );
   context.subscriptions.push(agentViewProvider);
+
+  // REQ-CMD-012: Register slash commands in Command Palette
+  registerSlashPaletteCommands(context);
 
   // REQ-UI-010: Create status bar indicator
   statusBarItem = vscode.window.createStatusBarItem(

@@ -7,6 +7,7 @@
 import * as vscode from 'vscode';
 import { getWebviewContent } from './shared/getWebviewContent';
 import { getAgentService } from '../services/agentService';
+import { getSpecService } from '../services/specService';
 
 /**
  * WebviewViewProvider for the RQML Agent panel tab.
@@ -57,6 +58,19 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
       })
     );
 
+    // Send terminal font settings on init and watch for changes
+    this.sendTerminalFontSettings();
+    this.disposables.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('terminal.integrated.fontSize') ||
+            e.affectsConfiguration('terminal.integrated.lineHeight') ||
+            e.affectsConfiguration('terminal.integrated.fontFamily') ||
+            e.affectsConfiguration('editor.fontFamily')) {
+          this.sendTerminalFontSettings();
+        }
+      })
+    );
+
     webviewView.onDidDispose(() => {
       this.disposables.forEach(d => d.dispose());
       this.disposables = [];
@@ -103,7 +117,74 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         await agentService.sendEndpointStatus();
         break;
       }
+      case 'requestCommandList': {
+        // REQ-CMD-002: Send command names to webview for autocomplete
+        const names = agentService.commandRegistry.getAllNames();
+        this.postToWebview({ type: 'commandList', payload: { names } });
+        break;
+      }
+      case 'navigateToRequirement': {
+        // REQ-CMD-003: Navigate to a requirement ID in the spec file
+        const { id } = message.payload as { id: string };
+        await this.navigateToRequirement(id);
+        break;
+      }
+      case 'copyToClipboard': {
+        const { content } = message.payload as { content: string };
+        await vscode.env.clipboard.writeText(content);
+        vscode.window.setStatusBarMessage('Copied to clipboard.', 3000);
+        break;
+      }
     }
+  }
+
+  /**
+   * REQ-CMD-003: Navigate to a requirement by ID in the spec file
+   */
+  private async navigateToRequirement(id: string): Promise<void> {
+    const specService = getSpecService();
+    const state = specService.state;
+    if (!state.document?.uri) return;
+
+    // Find the line number for this ID by searching the document text
+    try {
+      const textDoc = await vscode.workspace.openTextDocument(state.document.uri);
+      const text = textDoc.getText();
+      // Search for id="<id>" pattern in the XML
+      const pattern = new RegExp(`id=["']${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`);
+      const match = pattern.exec(text);
+
+      if (match) {
+        const pos = textDoc.positionAt(match.index);
+        const range = new vscode.Range(pos, pos);
+        await vscode.window.showTextDocument(textDoc, {
+          selection: range,
+          preserveFocus: false,
+        });
+      } else {
+        // Fallback: just open the file
+        await vscode.window.showTextDocument(textDoc);
+      }
+    } catch {
+      // Silently fail if we can't navigate
+    }
+  }
+
+  /**
+   * Send terminal font settings from VS Code config to the webview.
+   */
+  private sendTerminalFontSettings(): void {
+    const termConfig = vscode.workspace.getConfiguration('terminal.integrated');
+    const editorConfig = vscode.workspace.getConfiguration('editor');
+    const fontSize = termConfig.get<number>('fontSize', 14);
+    const lineHeight = termConfig.get<number>('lineHeight', 1);
+    // terminal.integrated.fontFamily falls back to editor.fontFamily
+    const fontFamily = termConfig.get<string>('fontFamily', '')
+      || editorConfig.get<string>('fontFamily', '');
+    this.postToWebview({
+      type: 'terminalFontSettings',
+      payload: { fontSize, lineHeight, fontFamily },
+    });
   }
 
   dispose(): void {
