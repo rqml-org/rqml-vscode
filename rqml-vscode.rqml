@@ -1039,6 +1039,227 @@
         </acceptance>
       </req>
     </reqPackage>
+    <reqPackage id="PKG-MODEL" title="Model Catalog and Selection">
+      <description>A curated, extensible catalog of LLM models with metadata, a provider-grouped QuickPick selection UI, Vercel AI SDK routing, and failure handling. The catalog adds model-level granularity on top of the existing endpoint-level configuration (PKG-CONFIG) and exposes model management through agent slash commands (PKG-CMD).</description>
+      <req id="REQ-MDL-001" type="FR" title="Default model catalog" status="draft" priority="must">
+        <statement>The extension SHALL ship a built-in catalog of known LLM models organised by provider. Each catalog entry SHALL include: model ID (the identifier passed to the provider SDK), display name, provider key, capabilities list (e.g., chat, code, vision, function-calling), context window size (in tokens), and a recommended flag indicating whether the model is a suggested default.</statement>
+        <notes>The catalog SHALL include entries for at least OpenAI, Anthropic, Google, and Azure OpenAI providers at initial release. The catalog is a static data structure bundled with the extension and updated with extension releases.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-001-01">
+            <then>The extension contains a built-in catalog data structure with model entries for OpenAI, Anthropic, Google, and Azure OpenAI providers.</then>
+          </criterion>
+          <criterion id="AC-MDL-001-02">
+            <then>Each catalog entry contains the fields: modelId, displayName, provider, capabilities, contextWindow, and recommended.</then>
+          </criterion>
+          <criterion id="AC-MDL-001-03">
+            <then>At least one model per supported provider has the recommended flag set to true.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-002" type="FR" title="User model customisations" status="draft" priority="must">
+        <statement>Users SHALL be able to customise the model catalog by: (a) adding custom model entries not present in the default catalog, (b) hiding or removing default catalog entries so they do not appear in the model picker, and (c) overriding metadata fields (display name, capabilities, context window) of default entries. User customisations SHALL be persisted in VS Code settings and merged with the default catalog at runtime.</statement>
+        <notes>Custom models require at minimum a modelId and provider. The merge strategy is: user additions are appended, user hides remove entries from the effective catalog, and user overrides replace individual fields on default entries.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-002-01">
+            <when>The user adds a custom model entry via settings.</when>
+            <then>The custom model appears in the effective catalog and is available in the model picker.</then>
+          </criterion>
+          <criterion id="AC-MDL-002-02">
+            <when>The user hides a default catalog entry via settings.</when>
+            <then>The hidden model no longer appears in the model picker.</then>
+          </criterion>
+          <criterion id="AC-MDL-002-03">
+            <when>The user overrides a metadata field on a default catalog entry.</when>
+            <then>The overridden value is used in place of the default value throughout the extension.</then>
+          </criterion>
+          <criterion id="AC-MDL-002-04">
+            <given>The user has added custom models, hidden defaults, and overridden metadata.</given>
+            <when>The user restarts VS Code.</when>
+            <then>All customisations are retained and the effective catalog reflects them.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-003" type="UXR" title="QuickPick model picker" status="draft" priority="must">
+        <statement>The extension SHALL provide a VS Code QuickPick-based model picker that displays available models grouped by provider. The currently selected model SHALL be visually highlighted. Each item in the picker SHALL show the model display name, model ID, context window size, and capability badges. The picker SHALL support type-ahead filtering.</statement>
+        <notes>The QuickPick picker is invoked from the /model use command (when called without arguments), the Command Palette ("RQML: Select Model"), and the settings UI. Provider groups are rendered as QuickPick separators.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-003-01">
+            <when>The user invokes the model picker.</when>
+            <then>A VS Code QuickPick dialog appears showing models grouped by provider with separator labels.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-02">
+            <then>The currently active model is highlighted or marked with a check icon in the picker.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-03">
+            <then>Each picker item displays the model display name, model ID, context window size, and capability badges.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-04">
+            <when>The user types in the QuickPick search field.</when>
+            <then>The list is filtered by matching against model display name, model ID, and provider name.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-05">
+            <when>The user selects a model from the picker.</when>
+            <then>The selected model becomes the active model for the active endpoint.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-004" type="FR" title="Model selection persistence" status="draft" priority="must">
+        <statement>The selected model for each configured endpoint SHALL be persisted in VS Code settings so that the selection survives across VS Code sessions. When no model is explicitly selected for an endpoint, the extension SHALL use the recommended model for that endpoint's provider.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-004-01">
+            <given>The user has selected a model for the active endpoint.</given>
+            <when>The user restarts VS Code.</when>
+            <then>The previously selected model remains active for that endpoint.</then>
+          </criterion>
+          <criterion id="AC-MDL-004-02">
+            <given>No model has been explicitly selected for an endpoint.</given>
+            <when>The extension resolves the model for that endpoint.</when>
+            <then>The recommended model for the endpoint's provider is used as the default.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-005" type="IR" title="Vercel AI SDK model routing" status="draft" priority="must">
+        <statement>The extension SHALL translate a model catalog entry into the correct Vercel AI SDK provider function call. The routing logic SHALL use the catalog entry's provider key to select the SDK provider factory (e.g., createOpenAI, createAnthropic, createGoogleGenerativeAI) and the catalog entry's modelId as the argument to the factory-returned function. The routing SHALL support all providers present in the default catalog.</statement>
+        <notes>This requirement refines the existing Vercel AI SDK integration (REQ-AGT-003) by making the model selection catalog-driven rather than relying on a free-form model string or hardcoded defaults. The existing LlmService.createModel method is the primary integration point.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-005-01">
+            <given>The user has selected a model from the catalog.</given>
+            <when>The extension creates a language model for LLM communication.</when>
+            <then>The correct Vercel AI SDK provider factory is invoked with the catalog entry's modelId.</then>
+          </criterion>
+          <criterion id="AC-MDL-005-02">
+            <given>The user selects an OpenAI model with modelId "gpt-4o".</given>
+            <then>The extension calls createOpenAI({apiKey}).('gpt-4o') via the Vercel AI SDK.</then>
+          </criterion>
+          <criterion id="AC-MDL-005-03">
+            <given>The user selects an Anthropic model with modelId "claude-sonnet-4-5-20250929".</given>
+            <then>The extension calls createAnthropic({apiKey}).('claude-sonnet-4-5-20250929') via the Vercel AI SDK.</then>
+          </criterion>
+          <criterion id="AC-MDL-005-04">
+            <then>Adding a new provider to the catalog requires only a new provider-to-factory mapping in the routing configuration, not changes to the routing logic itself.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-006" type="FR" title="Model unavailability error handling" status="draft" priority="must">
+        <statement>When a selected model is unavailable (API error, model deprecated, rate-limited, or network failure), the extension SHALL display a clear error message identifying the model and failure reason, suggest alternative models from the same provider in the catalog, and offer to switch to an alternative.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-006-01">
+            <when>An LLM request fails due to model unavailability.</when>
+            <then>An error message is displayed identifying the model name, the failure reason, and a list of alternative models from the same provider.</then>
+          </criterion>
+          <criterion id="AC-MDL-006-02">
+            <when>An error message suggests alternative models.</when>
+            <then>The user can select an alternative directly from the error notification to switch the active model.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-007" type="FR" title="Fallback model" status="draft" priority="should">
+        <statement>The extension SHOULD support an optional fallback model per endpoint. When configured and the primary model fails, the extension SHALL automatically retry the request with the fallback model and notify the user that a fallback was used.</statement>
+        <notes>Fallback is opt-in. It can be configured per endpoint in VS Code settings. If no fallback is configured, the extension follows the standard error handling of REQ-MDL-006.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-007-01">
+            <given>A fallback model is configured for the active endpoint.</given>
+            <when>The primary model fails.</when>
+            <then>The extension retries the request with the fallback model and displays a notification indicating the fallback was used.</then>
+          </criterion>
+          <criterion id="AC-MDL-007-02">
+            <given>No fallback model is configured.</given>
+            <when>The primary model fails.</when>
+            <then>Standard error handling (REQ-MDL-006) applies without automatic retry.</then>
+          </criterion>
+          <criterion id="AC-MDL-007-03">
+            <given>A fallback model is configured.</given>
+            <when>Both the primary and fallback models fail.</when>
+            <then>An error is shown indicating both models failed, with the failure reasons for each.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-008" type="FR" title="/models catalog command" status="draft" priority="must">
+        <statement>The /models slash command SHALL list all models in the effective catalog (default entries merged with user customisations) for the active endpoint's provider. The output SHALL group models by provider, mark the currently active model, and display the model ID, display name, context window, and capabilities for each entry.</statement>
+        <notes>This requirement refines the existing /models command defined in REQ-CMD-006. The current implementation only shows the active endpoint's model string; this requirement upgrades it to show the full catalog for the active provider.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-008-01">
+            <when>The user runs /models.</when>
+            <then>All models for the active endpoint's provider are listed with model ID, display name, context window, and capabilities.</then>
+          </criterion>
+          <criterion id="AC-MDL-008-02">
+            <then>The currently active model is marked with an indicator (e.g., asterisk or "active" label).</then>
+          </criterion>
+          <criterion id="AC-MDL-008-03">
+            <when>The user runs /models with a --all flag.</when>
+            <then>Models for all providers in the catalog are listed, grouped by provider.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-009" type="FR" title="/model use command" status="draft" priority="must">
+        <statement>The /model use slash command SHALL set the active model for the current endpoint. When called with a model name or ID argument, it SHALL match against the effective catalog and set the active model. When called without arguments, it SHALL open the QuickPick model picker (REQ-MDL-003).</statement>
+        <notes>This requirement refines the existing /model use command defined in REQ-CMD-006. Model matching should be case-insensitive and support partial matches with disambiguation when multiple matches exist.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-009-01">
+            <when>The user runs /model use gpt-4o.</when>
+            <then>The model matching "gpt-4o" in the catalog becomes the active model for the current endpoint.</then>
+          </criterion>
+          <criterion id="AC-MDL-009-02">
+            <when>The user runs /model use without arguments.</when>
+            <then>The QuickPick model picker opens for interactive selection.</then>
+          </criterion>
+          <criterion id="AC-MDL-009-03">
+            <when>The user runs /model use with an ambiguous partial name matching multiple models.</when>
+            <then>A disambiguation prompt is shown listing the matching models.</then>
+          </criterion>
+          <criterion id="AC-MDL-009-04">
+            <when>The user runs /model use with a name that matches no catalog entry.</when>
+            <then>An error message is shown with suggestions for similar model names.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-010" type="FR" title="/model test connectivity command" status="draft" priority="may">
+        <statement>The /model test slash command MAY be provided to verify connectivity and model availability. When invoked, the command SHALL send a minimal test request to the active (or specified) model and report success or failure with latency, model confirmation, and any error details.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-010-01">
+            <when>The user runs /model test.</when>
+            <then>A minimal request is sent to the active model and the result is displayed including success/failure status and response latency.</then>
+          </criterion>
+          <criterion id="AC-MDL-010-02">
+            <when>The user runs /model test with a model name argument.</when>
+            <then>The test targets the specified model rather than the active model.</then>
+          </criterion>
+          <criterion id="AC-MDL-010-03">
+            <when>The connectivity test fails.</when>
+            <then>The error message includes the failure reason and suggests checking the API key, network connection, and model availability.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-011" type="FR" title="Command Palette model commands" status="draft" priority="must">
+        <statement>Model catalog operations SHALL be accessible via the VS Code Command Palette. The following commands SHALL be registered: "RQML: Select Model" (opens the QuickPick picker), "RQML: List Models" (shows catalog in the agent panel), and "RQML: Test Model" (runs the connectivity test). Commands requiring arguments SHALL collect them via quick-pick or input-box prompts.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-011-01">
+            <when>The user opens the Command Palette and types "RQML: Select Model".</when>
+            <then>The QuickPick model picker opens.</then>
+          </criterion>
+          <criterion id="AC-MDL-011-02">
+            <when>The user opens the Command Palette and types "RQML: List Models".</when>
+            <then>The model catalog listing is displayed in the agent panel.</then>
+          </criterion>
+          <criterion id="AC-MDL-011-03">
+            <when>The user opens the Command Palette and types "RQML: Test Model".</when>
+            <then>The model connectivity test runs for the active model and output appears in the agent panel.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-012" type="FR" title="Catalog extensibility" status="draft" priority="should">
+        <statement>The model catalog architecture SHOULD be designed so that adding support for a new LLM provider requires only: (a) adding catalog entries for the provider's models, and (b) registering a provider-to-SDK-factory mapping. No changes to the catalog merging logic, QuickPick UI, or persistence layer SHALL be required when adding a new provider.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-012-01">
+            <then>The catalog data structure uses a provider key that is not hard-coded to a fixed set of providers.</then>
+          </criterion>
+          <criterion id="AC-MDL-012-02">
+            <given>A developer adds a new provider's models to the default catalog and registers an SDK factory mapping.</given>
+            <then>The new provider's models appear in the QuickPick picker, /models output, and SDK routing without any changes to those subsystems.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
   </requirements>
   <trace>
     <traceEdge id="TR-001" from="REQ-UI-007" to="REQ-SUB-002" type="dependsOn">
@@ -1196,6 +1417,97 @@
     </traceEdge>
     <traceEdge id="TR-052" from="REQ-CMD-012" to="REQ-AGT-001" type="dependsOn">
       <notes>Command Palette access (REQ-CMD-012) depends on the agent panel tab (REQ-AGT-001) as the output destination for palette-invoked commands.</notes>
+    </traceEdge>
+    <!-- PKG-MODEL trace edges -->
+    <traceEdge id="TR-053" from="REQ-MDL-001" to="REQ-CFG-004" type="refines">
+      <notes>The default model catalog (REQ-MDL-001) refines LLM provider selection (REQ-CFG-004) by adding model-level granularity within each provider.</notes>
+    </traceEdge>
+    <traceEdge id="TR-054" from="REQ-MDL-002" to="REQ-MDL-001" type="dependsOn">
+      <notes>User model customisations (REQ-MDL-002) depend on the default model catalog (REQ-MDL-001) as the base to merge against.</notes>
+    </traceEdge>
+    <traceEdge id="TR-055" from="REQ-MDL-002" to="REQ-CFG-007" type="dependsOn">
+      <notes>User model customisations (REQ-MDL-002) depend on settings persistence (REQ-CFG-007) to survive across sessions.</notes>
+    </traceEdge>
+    <traceEdge id="TR-056" from="REQ-MDL-003" to="REQ-MDL-001" type="dependsOn">
+      <notes>The QuickPick model picker (REQ-MDL-003) depends on the default model catalog (REQ-MDL-001) for the list of models to display.</notes>
+    </traceEdge>
+    <traceEdge id="TR-057" from="REQ-MDL-003" to="REQ-MDL-002" type="dependsOn">
+      <notes>The QuickPick model picker (REQ-MDL-003) depends on user customisations (REQ-MDL-002) for the effective catalog (merged defaults + overrides).</notes>
+    </traceEdge>
+    <traceEdge id="TR-058" from="REQ-MDL-003" to="REQ-CFG-010" type="dependsOn">
+      <notes>The QuickPick model picker (REQ-MDL-003) depends on active endpoint selection (REQ-CFG-010) to scope displayed models by provider and highlight the active model.</notes>
+    </traceEdge>
+    <traceEdge id="TR-059" from="REQ-MDL-004" to="REQ-CFG-007" type="dependsOn">
+      <notes>Model selection persistence (REQ-MDL-004) depends on settings persistence (REQ-CFG-007) for the underlying storage mechanism.</notes>
+    </traceEdge>
+    <traceEdge id="TR-060" from="REQ-MDL-004" to="REQ-CFG-010" type="dependsOn">
+      <notes>Model selection persistence (REQ-MDL-004) depends on active endpoint selection (REQ-CFG-010) because model selection is scoped per endpoint.</notes>
+    </traceEdge>
+    <traceEdge id="TR-061" from="REQ-MDL-004" to="REQ-MDL-001" type="dependsOn">
+      <notes>Model selection persistence (REQ-MDL-004) depends on the default catalog (REQ-MDL-001) for recommended-model fallback when no explicit selection exists.</notes>
+    </traceEdge>
+    <traceEdge id="TR-062" from="REQ-MDL-005" to="REQ-AGT-003" type="refines">
+      <notes>Vercel AI SDK model routing (REQ-MDL-005) refines the existing Vercel AI SDK integration (REQ-AGT-003) by making model resolution catalog-driven rather than free-form.</notes>
+    </traceEdge>
+    <traceEdge id="TR-063" from="REQ-MDL-005" to="REQ-MDL-001" type="dependsOn">
+      <notes>Vercel AI SDK model routing (REQ-MDL-005) depends on the default model catalog (REQ-MDL-001) for the provider-to-factory mapping and model metadata.</notes>
+    </traceEdge>
+    <traceEdge id="TR-064" from="REQ-MDL-005" to="REQ-MDL-004" type="dependsOn">
+      <notes>Vercel AI SDK model routing (REQ-MDL-005) depends on model selection persistence (REQ-MDL-004) to know which model is active.</notes>
+    </traceEdge>
+    <traceEdge id="TR-065" from="REQ-MDL-006" to="REQ-MDL-005" type="dependsOn">
+      <notes>Model unavailability error handling (REQ-MDL-006) depends on Vercel AI SDK model routing (REQ-MDL-005) as the point where failures are detected.</notes>
+    </traceEdge>
+    <traceEdge id="TR-066" from="REQ-MDL-006" to="REQ-MDL-001" type="dependsOn">
+      <notes>Model unavailability error handling (REQ-MDL-006) depends on the default catalog (REQ-MDL-001) to suggest alternative models from the same provider.</notes>
+    </traceEdge>
+    <traceEdge id="TR-067" from="REQ-MDL-007" to="REQ-MDL-006" type="refines">
+      <notes>Fallback model (REQ-MDL-007) refines error handling (REQ-MDL-006) by adding automatic retry with a preconfigured alternative before surfacing the error.</notes>
+    </traceEdge>
+    <traceEdge id="TR-068" from="REQ-MDL-007" to="REQ-MDL-005" type="dependsOn">
+      <notes>Fallback model (REQ-MDL-007) depends on Vercel AI SDK model routing (REQ-MDL-005) to route the retry request through the correct provider factory.</notes>
+    </traceEdge>
+    <traceEdge id="TR-069" from="REQ-MDL-007" to="REQ-CFG-007" type="dependsOn">
+      <notes>Fallback model configuration (REQ-MDL-007) depends on settings persistence (REQ-CFG-007) to store the fallback model selection per endpoint.</notes>
+    </traceEdge>
+    <traceEdge id="TR-070" from="REQ-MDL-008" to="REQ-CMD-006" type="refines">
+      <notes>The /models catalog command (REQ-MDL-008) refines the existing /models command in REQ-CMD-006 by upgrading it from single-model display to full catalog listing.</notes>
+    </traceEdge>
+    <traceEdge id="TR-071" from="REQ-MDL-008" to="REQ-MDL-001" type="dependsOn">
+      <notes>The /models catalog command (REQ-MDL-008) depends on the default catalog (REQ-MDL-001) for model data to display.</notes>
+    </traceEdge>
+    <traceEdge id="TR-072" from="REQ-MDL-008" to="REQ-MDL-002" type="dependsOn">
+      <notes>The /models catalog command (REQ-MDL-008) depends on user customisations (REQ-MDL-002) to show the effective catalog.</notes>
+    </traceEdge>
+    <traceEdge id="TR-073" from="REQ-MDL-009" to="REQ-CMD-006" type="refines">
+      <notes>The /model use command (REQ-MDL-009) refines the existing /model use command in REQ-CMD-006 by adding catalog-based matching and QuickPick fallback.</notes>
+    </traceEdge>
+    <traceEdge id="TR-074" from="REQ-MDL-009" to="REQ-MDL-003" type="dependsOn">
+      <notes>The /model use command (REQ-MDL-009) depends on the QuickPick model picker (REQ-MDL-003) for the no-argument interactive selection flow.</notes>
+    </traceEdge>
+    <traceEdge id="TR-075" from="REQ-MDL-009" to="REQ-MDL-004" type="dependsOn">
+      <notes>The /model use command (REQ-MDL-009) depends on model selection persistence (REQ-MDL-004) to save the user's choice.</notes>
+    </traceEdge>
+    <traceEdge id="TR-076" from="REQ-MDL-010" to="REQ-MDL-005" type="dependsOn">
+      <notes>The /model test command (REQ-MDL-010) depends on Vercel AI SDK model routing (REQ-MDL-005) to send the test request through the correct provider.</notes>
+    </traceEdge>
+    <traceEdge id="TR-077" from="REQ-MDL-010" to="REQ-CMD-006" type="refines">
+      <notes>The /model test command (REQ-MDL-010) refines the provider and model management command group (REQ-CMD-006) by adding a model-level connectivity test beyond the existing /key test.</notes>
+    </traceEdge>
+    <traceEdge id="TR-078" from="REQ-MDL-011" to="REQ-CMD-012" type="dependsOn">
+      <notes>Command Palette model commands (REQ-MDL-011) depend on the Command Palette access framework (REQ-CMD-012) for registration and argument collection.</notes>
+    </traceEdge>
+    <traceEdge id="TR-079" from="REQ-MDL-011" to="REQ-MDL-003" type="dependsOn">
+      <notes>The "RQML: Select Model" palette command (REQ-MDL-011) depends on the QuickPick model picker (REQ-MDL-003) for the selection UI.</notes>
+    </traceEdge>
+    <traceEdge id="TR-080" from="REQ-MDL-011" to="REQ-AGT-001" type="dependsOn">
+      <notes>Command Palette model commands (REQ-MDL-011) depend on the agent panel tab (REQ-AGT-001) as the output destination for list and test commands.</notes>
+    </traceEdge>
+    <traceEdge id="TR-081" from="REQ-MDL-012" to="REQ-MDL-001" type="constrains">
+      <notes>Catalog extensibility (REQ-MDL-012) constrains the default model catalog design (REQ-MDL-001) by requiring the data structure and provider key to not be hard-coded to a fixed set.</notes>
+    </traceEdge>
+    <traceEdge id="TR-082" from="REQ-MDL-012" to="REQ-MDL-005" type="constrains">
+      <notes>Catalog extensibility (REQ-MDL-012) constrains Vercel AI SDK model routing (REQ-MDL-005) by requiring the provider-to-factory mapping to be configuration-driven rather than hard-coded.</notes>
     </traceEdge>
   </trace>
 </rqml>

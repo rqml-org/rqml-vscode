@@ -2,6 +2,7 @@
 
 import * as vscode from 'vscode';
 import type { SlashCommand, ParsedCommand, CommandContext } from '../types';
+import { getModelCatalogService } from '../../../services/modelCatalogService';
 
 export function createProviderCommands(): SlashCommand[] {
   const providersCommand: SlashCommand = {
@@ -70,23 +71,6 @@ export function createProviderCommands(): SlashCommand[] {
       } else {
         ctx.reply('No active endpoint. Use `/providers` to list or `/provider use <name>` to select.');
       }
-    },
-  };
-
-  const modelsCommand: SlashCommand = {
-    name: 'models',
-    description: 'Show available model for the active endpoint',
-    category: 'provider',
-
-    async execute(_parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      const config = ctx.services.config;
-      const active = config.getActiveEndpoint();
-      if (!active) {
-        ctx.reply('No active endpoint configured.');
-        return;
-      }
-
-      ctx.reply(`Active endpoint: **${active.name}** (${active.provider})\nModel: \`${active.model || 'default'}\``);
     },
   };
 
@@ -168,7 +152,9 @@ export function createProviderCommands(): SlashCommand[] {
 
       const lines: string[] = [];
       if (active) {
-        lines.push(`**${active.name}** (${active.provider}${active.model ? ` / ${active.model}` : ''})`);
+        const catalogService = getModelCatalogService();
+        const modelId = catalogService.getSelectedModelId(active);
+        lines.push(`**${active.name}** (${active.provider} / ${modelId})`);
         lines.push(`Status: ${ready ? 'ready' : 'not ready'}`);
       } else {
         lines.push('No LLM endpoint configured.');
@@ -178,5 +164,5 @@ export function createProviderCommands(): SlashCommand[] {
     },
   };
 
-  return [providersCommand, providerCommand, modelsCommand, keysCommand, llmCommand];
+  return [providersCommand, providerCommand, keysCommand, llmCommand];
 }

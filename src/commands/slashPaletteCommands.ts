@@ -4,6 +4,8 @@
 
 import * as vscode from 'vscode';
 import { getAgentService } from '../services/agentService';
+import { getModelCatalogService } from '../services/modelCatalogService';
+import { getConfigurationService } from '../services/configurationService';
 
 /**
  * Map of palette command ID → slash command string to dispatch.
@@ -23,6 +25,8 @@ const PALETTE_COMMANDS: Array<{ id: string; slash: string }> = [
   { id: 'rqml-vscode.slashLlm',        slash: '/llm' },
   { id: 'rqml-vscode.slashDoctor',     slash: '/doctor' },
   { id: 'rqml-vscode.slashAbout',      slash: '/about' },
+  { id: 'rqml-vscode.slashModels',     slash: '/models' },
+  { id: 'rqml-vscode.slashModelTest',  slash: '/model test' },
 ];
 
 /**
@@ -41,4 +45,22 @@ export function registerSlashPaletteCommands(context: vscode.ExtensionContext): 
       })
     );
   }
+
+  // REQ-MDL-011 AC-MDL-011-01: "RQML: Select Model" — opens QuickPick directly
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rqml-vscode.selectModel', async () => {
+      const configService = getConfigurationService();
+      const catalogService = getModelCatalogService();
+      const endpoint = configService.getActiveEndpoint();
+      if (!endpoint) {
+        vscode.window.showWarningMessage('No active LLM endpoint configured.');
+        return;
+      }
+      const picked = await catalogService.showModelPicker(endpoint);
+      if (picked) {
+        await catalogService.setSelectedModelId(endpoint.id, picked.modelId);
+        vscode.window.showInformationMessage(`Switched to model: ${picked.displayName}`);
+      }
+    })
+  );
 }

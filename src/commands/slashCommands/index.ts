@@ -9,6 +9,7 @@ import { createSyncCommands } from './handlers/sync';
 import { createPlanCommands } from './handlers/plan';
 import { createCmdCommands } from './handlers/cmd';
 import { createDiagnosticsCommands } from './handlers/diagnostics';
+import { createModelCommands } from './handlers/model';
 
 /**
  * Create and populate the command registry with all slash commands.
@@ -53,6 +54,11 @@ export function createCommandRegistry(): CommandRegistry {
 
   // REQ-CMD-011: Diagnostics
   for (const cmd of createDiagnosticsCommands()) {
+    registry.register(cmd);
+  }
+
+  // REQ-MDL-008, REQ-MDL-009, REQ-MDL-010: Model catalog commands
+  for (const cmd of createModelCommands()) {
     registry.register(cmd);
   }
 

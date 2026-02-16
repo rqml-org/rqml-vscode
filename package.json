@@ -147,6 +147,18 @@
       {
         "command": "rqml-vscode.slashAbout",
         "title": "RQML: About"
+      },
+      {
+        "command": "rqml-vscode.slashModels",
+        "title": "RQML: List Models"
+      },
+      {
+        "command": "rqml-vscode.selectModel",
+        "title": "RQML: Select Model"
+      },
+      {
+        "command": "rqml-vscode.slashModelTest",
+        "title": "RQML: Test Model"
       }
     ],
     "viewsContainers": {
@@ -352,6 +364,80 @@
           "type": "string",
           "default": "",
           "description": "ID of the currently active LLM endpoint."
+        },
+        "rqml.modelSelections": {
+          "type": "object",
+          "default": {},
+          "description": "Selected model per endpoint. Keys are endpoint IDs, values are model IDs.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "rqml.modelCatalog.customModels": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "modelId": {
+                "type": "string",
+                "description": "Model identifier passed to the provider SDK"
+              },
+              "provider": {
+                "type": "string",
+                "description": "Provider key (e.g. openai, anthropic, google)"
+              },
+              "displayName": {
+                "type": "string",
+                "description": "Human-readable display name"
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["chat", "code", "vision", "function-calling", "reasoning"]
+                }
+              },
+              "contextWindow": {
+                "type": "number",
+                "description": "Context window size in tokens"
+              }
+            },
+            "required": ["modelId", "provider"]
+          },
+          "description": "Custom models added to the catalog by the user."
+        },
+        "rqml.modelCatalog.hiddenModels": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Model IDs hidden from the catalog (format: provider/modelId)."
+        },
+        "rqml.modelCatalog.overrides": {
+          "type": "object",
+          "default": {},
+          "description": "Metadata overrides for default catalog entries. Keys are provider/modelId.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "displayName": { "type": "string" },
+              "capabilities": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "contextWindow": { "type": "number" }
+            }
+          }
+        },
+        "rqml.modelCatalog.fallbackModels": {
+          "type": "object",
+          "default": {},
+          "description": "Optional fallback model per endpoint. Keys are endpoint IDs, values are model IDs.",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     }
