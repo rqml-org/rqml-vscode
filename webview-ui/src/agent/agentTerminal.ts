@@ -160,13 +160,15 @@ export function createAgentTerminal(container: HTMLElement): void {
       }
 
       case 'endpointStatus': {
-        const { configured, name, provider } = msg.payload as {
+        const { configured, name, model } = msg.payload as {
           configured: boolean;
           name?: string;
           provider?: string;
+          model?: string;
         };
         if (configured) {
-          terminal.writeln(`${DIM}Endpoint: ${name} (${provider})${RESET}`);
+          const display = model || 'no model selected';
+          terminal.writeln(`${DIM}Model: ${display} (${name})${RESET}`);
           terminal.writeln('');
           inputHandler.setConfigured();
           inputHandler.showPrompt();

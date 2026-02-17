@@ -4,6 +4,10 @@
   "description": "RQML for VSCode",
   "version": "0.0.1",
   "publisher": "Stakkar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stakkar/rqml-vscode"
+  },
   "engines": {
     "vscode": "^1.108.1"
   },

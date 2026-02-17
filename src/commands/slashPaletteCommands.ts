@@ -58,8 +58,7 @@ export function registerSlashPaletteCommands(context: vscode.ExtensionContext): 
       }
       const picked = await catalogService.showModelPicker(endpoint);
       if (picked) {
-        await catalogService.setSelectedModelId(endpoint.id, picked.modelId);
-        vscode.window.showInformationMessage(`Switched to model: ${picked.displayName}`);
+        vscode.window.showInformationMessage(`Switched to model: ${picked.displayName} (${picked.provider})`);
       }
     })
   );

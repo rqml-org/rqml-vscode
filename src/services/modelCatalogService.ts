@@ -155,9 +155,14 @@ export class ModelCatalogService {
     const config = vscode.workspace.getConfiguration(CONFIGURATION_SECTION);
     const selections = config.get<Record<string, string>>('modelSelections', {});
 
-    // Check per-endpoint selection
-    if (selections[endpoint.id]) {
-      return selections[endpoint.id];
+    // Check per-endpoint selection — validate it belongs to this endpoint's provider
+    const stored = selections[endpoint.id];
+    if (stored) {
+      const entry = this.findModel(stored);
+      if (!entry || entry.provider === endpoint.provider) {
+        return stored;
+      }
+      // Stored model belongs to a different provider; ignore it
     }
 
     // Check endpoint.model (legacy field)
@@ -178,6 +183,15 @@ export class ModelCatalogService {
     const selections = { ...config.get<Record<string, string>>('modelSelections', {}) };
     selections[endpointId] = modelId;
     await config.update('modelSelections', selections, vscode.ConfigurationTarget.Global);
+  }
+
+  /**
+   * Select a model entry, switching the active endpoint if the model's provider
+   * differs from the current endpoint.
+   */
+  async selectModelEntry(entry: ModelCatalogEntry, currentEndpoint: LlmEndpoint): Promise<void> {
+    const target = await this.resolveEndpointForProvider(entry.provider, currentEndpoint);
+    await this.setSelectedModelId(target.id, entry.modelId);
   }
 
   /**
@@ -231,7 +245,9 @@ export class ModelCatalogService {
 
   /**
    * REQ-MDL-003: Show a VS Code QuickPick model picker.
-   * Shows all models from all providers, grouped by provider with separators.
+   * Shows all models from available providers, grouped by provider with separators.
+   * If the picked model belongs to a different provider, the active endpoint is
+   * switched automatically and the selection stored against the new endpoint.
    * Returns the selected model entry, or undefined if cancelled.
    */
   async showModelPicker(endpoint: LlmEndpoint): Promise<ModelCatalogEntry | undefined> {
@@ -278,7 +294,38 @@ export class ModelCatalogService {
       matchOnDetail: true,
     });
 
-    return (picked as { entry?: ModelCatalogEntry })?.entry;
+    const pickedEntry = (picked as { entry?: ModelCatalogEntry })?.entry;
+    if (!pickedEntry) return undefined;
+
+    await this.selectModelEntry(pickedEntry, endpoint);
+    return pickedEntry;
+  }
+
+  /**
+   * Find (or keep) an endpoint matching the given provider.
+   * If the current endpoint already matches, returns it.
+   * Otherwise finds the first keyed endpoint for the provider and switches to it.
+   */
+  private async resolveEndpointForProvider(
+    provider: string,
+    currentEndpoint: LlmEndpoint
+  ): Promise<LlmEndpoint> {
+    if (currentEndpoint.provider === provider) return currentEndpoint;
+
+    const configService = getConfigurationService();
+    const endpoints = configService.getEndpoints();
+    for (const ep of endpoints) {
+      if (ep.provider === provider) {
+        const key = await configService.getEndpointApiKey(ep.id);
+        if (key) {
+          await configService.setActiveEndpointId(ep.id);
+          return ep;
+        }
+      }
+    }
+
+    // Shouldn't happen if getAvailableCatalog filtered correctly, but fallback
+    return currentEndpoint;
   }
 
   // ========== Error Handling Helpers (REQ-MDL-006) ==========

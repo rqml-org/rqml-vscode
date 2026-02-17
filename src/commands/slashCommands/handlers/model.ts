@@ -109,8 +109,7 @@ export function createModelCommands(): SlashCommand[] {
           // REQ-MDL-009 AC-MDL-009-02: Open QuickPick when no argument
           const picked = await catalogService.showModelPicker(endpoint);
           if (picked) {
-            await catalogService.setSelectedModelId(endpoint.id, picked.modelId);
-            ctx.reply(`Switched to model **${picked.displayName}** (\`${picked.modelId}\`).`);
+            ctx.reply(`Switched to model **${picked.displayName}** (\`${picked.modelId}\`, ${picked.provider}).`);
           }
           return;
         }
@@ -120,7 +119,7 @@ export function createModelCommands(): SlashCommand[] {
         const lower = query.toLowerCase();
         const exact = available.find(e => e.modelId.toLowerCase() === lower);
         if (exact) {
-          await catalogService.setSelectedModelId(endpoint.id, exact.modelId);
+          await catalogService.selectModelEntry(exact, endpoint);
           ctx.reply(`Switched to model **${exact.displayName}** (\`${exact.modelId}\`, ${exact.provider}).`);
           return;
         }
@@ -131,7 +130,7 @@ export function createModelCommands(): SlashCommand[] {
                e.displayName.toLowerCase().includes(lower)
         );
         if (matches.length === 1) {
-          await catalogService.setSelectedModelId(endpoint.id, matches[0].modelId);
+          await catalogService.selectModelEntry(matches[0], endpoint);
           ctx.reply(`Switched to model **${matches[0].displayName}** (\`${matches[0].modelId}\`, ${matches[0].provider}).`);
           return;
         }

@@ -514,12 +514,20 @@ export class AgentService {
     const endpoint = configService.getActiveEndpoint();
     const isReady = await getLlmService().isReady();
 
+    let modelId: string | undefined;
+    if (endpoint) {
+      const { getModelCatalogService } = await import('./modelCatalogService.js');
+      const catalogService = getModelCatalogService();
+      modelId = catalogService.getSelectedModelId(endpoint);
+    }
+
     this._onDidReceiveMessage.fire({
       type: 'endpointStatus',
       payload: {
         configured: isReady,
         name: endpoint?.name,
         provider: endpoint?.provider,
+        model: modelId,
       }
     });
   }
