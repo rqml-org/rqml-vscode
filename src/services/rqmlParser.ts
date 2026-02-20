@@ -64,10 +64,16 @@ export interface RqmlItem {
 /** REQ-UI-006J: Trace edge linking two items */
 export interface TraceEdge {
   id: string;
+  /** Resolved local ID of the source (empty string for external/doc refs) */
   from: string;
+  /** Resolved local ID of the target (empty string for external/doc refs) */
   to: string;
   type: string;
   notes?: string;
+  /** Full from endpoint for display (URI for external/doc refs) */
+  fromDisplay?: string;
+  /** Full to endpoint for display (URI for external/doc refs) */
+  toDisplay?: string;
 }
 
 /** Type for parsed XML objects */
@@ -408,11 +414,12 @@ export class RqmlParser {
   }
 
   private extractTraceItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    this.extractArrayItems(data, 'traceEdge', 'traceEdge', items, 'trace', sourceText);
+    this.extractArrayItems(data, 'edge', 'edge', items, 'trace', sourceText);
   }
 
   /**
    * REQ-UI-006J: Extract all trace edges as structured objects for quick lookup.
+   * Supports RQML 2.1.0 structured endpoints: edge/from/locator/{local|doc|external}
    */
   private extractTraceEdges(rqml: XmlObject): TraceEdge[] {
     const edges: TraceEdge[] = [];
@@ -422,19 +429,58 @@ export class RqmlParser {
       return edges;
     }
 
-    const traceEdges = this.toArray(traceSection.traceEdge);
-    for (const edge of traceEdges) {
+    const edgeElements = this.toArray(traceSection.edge);
+    for (const edge of edgeElements) {
       const notes = edge.notes;
+      const { id: fromId, display: fromDisplay } = this.resolveEndpoint(edge.from as XmlObject | undefined);
+      const { id: toId, display: toDisplay } = this.resolveEndpoint(edge.to as XmlObject | undefined);
       edges.push({
         id: this.str(edge['@_id']) || 'unknown',
-        from: this.str(edge['@_from']) || '',
-        to: this.str(edge['@_to']) || '',
+        from: fromId,
+        to: toId,
         type: this.str(edge['@_type']) || 'relatedTo',
-        notes: typeof notes === 'string' ? notes : undefined
+        notes: typeof notes === 'string' ? notes : undefined,
+        fromDisplay: fromDisplay !== fromId ? fromDisplay : undefined,
+        toDisplay: toDisplay !== toId ? toDisplay : undefined,
       });
     }
 
     return edges;
+  }
+
+  /**
+   * Resolve a trace endpoint (from/to) to a local ID and display string.
+   * Handles: local (id), doc (uri + id), external (uri).
+   */
+  private resolveEndpoint(endpoint: XmlObject | undefined): { id: string; display: string } {
+    if (!endpoint) return { id: '', display: '' };
+
+    const locator = endpoint.locator as XmlObject | undefined;
+    if (!locator) return { id: '', display: '' };
+
+    // Local reference: <local id="REQ-001"/>
+    const local = locator.local as XmlObject | undefined;
+    if (local) {
+      const id = this.str(local['@_id']) || '';
+      return { id, display: id };
+    }
+
+    // Document reference: <doc uri="..." id="REQ-001"/>
+    const doc = locator.doc as XmlObject | undefined;
+    if (doc) {
+      const id = this.str(doc['@_id']) || '';
+      const uri = this.str(doc['@_uri']) || '';
+      return { id: '', display: uri ? `${uri}#${id}` : id };
+    }
+
+    // External reference: <external uri="..."/>
+    const ext = locator.external as XmlObject | undefined;
+    if (ext) {
+      const uri = this.str(ext['@_uri']) || '';
+      return { id: '', display: uri };
+    }
+
+    return { id: '', display: '' };
   }
 
   private extractGovernanceItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {

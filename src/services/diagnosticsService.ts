@@ -4,11 +4,11 @@
 // Validates RQML files and reports errors to the Problems panel.
 
 import * as vscode from 'vscode';
-import * as path from 'path';
 import * as fs from 'fs';
 import { XMLParser } from 'fast-xml-parser';
 import { DOMParser } from '@xmldom/xmldom';
 import { validateXML } from 'xmllint-wasm';
+import { getXsdPath, isXsdAvailable } from './xsdVersions';
 
 /** Type for parsed XML objects */
 type XmlObject = Record<string, unknown>;
@@ -29,9 +29,11 @@ export class DiagnosticsService {
   private parser: XMLParser;
   private disposables: vscode.Disposable[] = [];
 
-  /** Cached XSD schema content - loaded once and kept in memory */
+  /** Cached XSD schema content */
   private schemaContent: string | undefined;
   private schemaLoadError: string | undefined;
+  private schemaVersion: string | undefined;
+  private extensionPath: string = '';
 
   constructor() {
     this.diagnosticCollection = vscode.languages.createDiagnosticCollection('rqml');
@@ -45,17 +47,35 @@ export class DiagnosticsService {
   }
 
   /**
-   * Load the RQML XSD schema into memory.
-   * Called once during initialization.
+   * Store the extension path for version-aware schema loading.
    */
   async loadSchema(extensionPath: string): Promise<void> {
+    this.extensionPath = extensionPath;
+  }
+
+  /**
+   * REQ-UI-011A: Load the XSD schema for a specific version.
+   * Skips reload if the same version is already cached.
+   */
+  private loadSchemaForVersion(version: string): void {
+    if (this.schemaVersion === version && this.schemaContent) return;
+
+    if (!isXsdAvailable(this.extensionPath, version)) {
+      this.schemaContent = undefined;
+      this.schemaLoadError = `XSD schema for version ${version} not found`;
+      this.schemaVersion = undefined;
+      return;
+    }
+
     try {
-      const schemaPath = path.join(extensionPath, 'rqml-2.0.1.xsd');
+      const schemaPath = getXsdPath(this.extensionPath, version);
       this.schemaContent = fs.readFileSync(schemaPath, 'utf-8');
-      console.log('RQML schema loaded successfully');
+      this.schemaVersion = version;
+      this.schemaLoadError = undefined;
     } catch (error) {
       this.schemaLoadError = error instanceof Error ? error.message : 'Failed to load schema';
-      console.error('Failed to load RQML schema:', this.schemaLoadError);
+      this.schemaContent = undefined;
+      this.schemaVersion = undefined;
     }
   }
 
@@ -119,6 +139,12 @@ export class DiagnosticsService {
     const diagnostics: vscode.Diagnostic[] = [];
     const text = document.getText();
 
+    // REQ-UI-011A: Extract version from document and load matching schema
+    if (this.extensionPath) {
+      const docVersion = this.extractRqmlVersion(text) || '2.1.0';
+      this.loadSchemaForVersion(docVersion);
+    }
+
     // REQ-UI-013A: XML well-formedness validation
     const xmlDiagnostics = this.validateXml(text, document);
     diagnostics.push(...xmlDiagnostics);
@@ -173,7 +199,7 @@ export class DiagnosticsService {
     try {
       const result = await validateXML({
         xml: { fileName: 'document.rqml', contents: text },
-        schema: { fileName: 'rqml-2.0.1.xsd', contents: this.schemaContent }
+        schema: { fileName: `rqml-${this.schemaVersion || '2.1.0'}.xsd`, contents: this.schemaContent }
       });
 
       if (!result.valid && result.errors) {
@@ -328,15 +354,17 @@ export class DiagnosticsService {
       }
     });
 
-    // Validate trace edges - check for broken references
+    // Validate trace edges - check for broken local references
     const traceSection = rqml.trace as XmlObject | undefined;
     if (traceSection) {
-      const traceEdges = this.toArray(traceSection.traceEdge);
+      const traceEdges = this.toArray(traceSection.edge);
       for (const edge of traceEdges) {
         const edgeId = this.str(edge['@_id']);
-        const fromId = this.str(edge['@_from']);
-        const toId = this.str(edge['@_to']);
         const edgeLine = this.findLineNumber(text, edgeId);
+
+        // Extract local IDs from structured endpoints
+        const fromId = this.resolveLocalId(edge.from as XmlObject | undefined);
+        const toId = this.resolveLocalId(edge.to as XmlObject | undefined);
 
         if (fromId && !allIds.has(fromId)) {
           const range = this.getRangeForLine(document, edgeLine || 0);
@@ -446,26 +474,26 @@ export class DiagnosticsService {
     document: vscode.TextDocument,
     diagnostics: vscode.Diagnostic[]
   ): void {
-    // Check trace edges have from and to
+    // Check trace edges have from and to endpoints
     const traceSection = rqml.trace as XmlObject | undefined;
     if (traceSection) {
-      const traceEdges = this.toArray(traceSection.traceEdge);
+      const traceEdges = this.toArray(traceSection.edge);
       for (const edge of traceEdges) {
         const edgeId = this.str(edge['@_id']) || 'unknown';
         const line = this.findLineNumber(text, edgeId);
         const range = this.getRangeForLine(document, line || 0);
 
-        if (!edge['@_from']) {
+        if (!edge.from) {
           diagnostics.push(new vscode.Diagnostic(
             range,
-            `Trace edge "${edgeId}" missing required "from" attribute`,
+            `Trace edge "${edgeId}" missing required "from" endpoint`,
             vscode.DiagnosticSeverity.Error
           ));
         }
-        if (!edge['@_to']) {
+        if (!edge.to) {
           diagnostics.push(new vscode.Diagnostic(
             range,
-            `Trace edge "${edgeId}" missing required "to" attribute`,
+            `Trace edge "${edgeId}" missing required "to" endpoint`,
             vscode.DiagnosticSeverity.Error
           ));
         }
@@ -516,6 +544,33 @@ export class DiagnosticsService {
     }
 
     return undefined;
+  }
+
+  /**
+   * Resolve a local ID from a structured trace endpoint (from/to → locator → local).
+   * Returns undefined for doc/external refs (not validatable locally).
+   */
+  private resolveLocalId(endpoint: XmlObject | undefined): string | undefined {
+    if (!endpoint) return undefined;
+    const locator = endpoint.locator as XmlObject | undefined;
+    if (!locator) return undefined;
+    const local = locator.local as XmlObject | undefined;
+    if (!local) return undefined;
+    return this.str(local['@_id']);
+  }
+
+  /**
+   * Extract the version attribute from the root <rqml> element using an XML parser.
+   * More robust than regex — handles multiline attributes, comments, and CDATA.
+   */
+  private extractRqmlVersion(text: string): string | undefined {
+    try {
+      const parsed = this.parser.parse(text) as XmlObject;
+      const rqml = parsed.rqml as XmlObject | undefined;
+      return rqml ? this.str(rqml['@_version']) : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private escapeRegex(str: string): string {

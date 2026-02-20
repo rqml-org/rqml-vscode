@@ -11,7 +11,7 @@ import * as vscode from 'vscode';
 import { RqmlTreeDataProvider } from './views/rqmlTreeProvider';
 import { RqmlDetailsProvider } from './views/rqmlDetailsProvider';
 import { RqmlTracesProvider } from './views/rqmlTracesProvider';
-import { getSpecService, SpecStatus } from './services/specService';
+import { getSpecService, type SpecState } from './services/specService';
 import { getDiagnosticsService } from './services/diagnosticsService';
 import { getConfigurationService } from './services/configurationService';
 import { getAgentService } from './services/agentService';
@@ -121,28 +121,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       } else if (state.status === 'none') {
         vscode.window.showInformationMessage(
           'No RQML spec file found. Would you like to create one?',
-          'Create Spec'
+          'Init Spec'
         ).then(selection => {
-          if (selection === 'Create Spec') {
-            vscode.commands.executeCommand('rqml-vscode.createSpec');
+          if (selection === 'Init Spec') {
+            vscode.commands.executeCommand('rqml-vscode.initSpec');
           }
         });
+      } else if (state.document && state.xsdAvailable === false) {
+        vscode.window.showWarningMessage(
+          `RQML Spec loaded (v${state.document.version}), but schema rqml-${state.xsdVersion}.xsd not found. XSD validation is disabled.`
+        );
       } else if (state.document) {
         vscode.window.showInformationMessage(
-          `RQML Spec: ${state.document.docId} (${state.document.status})`
+          `RQML Spec: ${state.document.docId} (v${state.document.version}, ${state.document.status})`
         );
       }
     })
   );
 
+  // Initialize spec service with extension path for XSD resolution
+  specService.initialize(context.extensionPath);
+
   // Update status bar on spec changes
   specService.onDidChangeSpec((state) => {
-    updateStatusBar(state.status, state.error);
+    updateStatusBar(state);
   });
 
   // Initial load
   const initialState = await specService.refresh();
-  updateStatusBar(initialState.status, initialState.error);
+  updateStatusBar(initialState);
 
   // REQ-UI-006J: Set initial document for trace lookup
   detailsProvider.setDocument(initialState.document);
@@ -154,11 +161,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (hasWorkspace) {
       const action = await vscode.window.showInformationMessage(
         'No RQML specification found in this workspace. Would you like to create one?',
-        'Create Spec',
+        'Init Spec',
         'Later'
       );
-      if (action === 'Create Spec') {
-        await specService.createSpec();
+      if (action === 'Init Spec') {
+        await specService.initSpec();
       }
     }
   }
@@ -184,8 +191,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
  * REQ-UI-010: Update status bar indicator
  * States: Spec invalid, Spec incomplete, Spec unimplemented, Spec synced
  */
-function updateStatusBar(status: SpecStatus, error?: string): void {
-  switch (status) {
+function updateStatusBar(state: SpecState): void {
+  switch (state.status) {
     case 'none':
       statusBarItem.text = '$(circle-slash) No RQML Spec';
       statusBarItem.tooltip = 'No RQML specification file found. Click to create one.';
@@ -194,22 +201,26 @@ function updateStatusBar(status: SpecStatus, error?: string): void {
 
     case 'multiple':
       statusBarItem.text = '$(error) RQML Error';
-      statusBarItem.tooltip = error || 'Multiple RQML spec files found';
+      statusBarItem.tooltip = state.error || 'Multiple RQML spec files found';
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
       break;
 
     case 'invalid':
       statusBarItem.text = '$(warning) Spec Invalid';
-      statusBarItem.tooltip = error || 'RQML specification is invalid';
+      statusBarItem.tooltip = state.error || 'RQML specification is invalid';
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
       break;
 
     case 'single':
-      // TODO: Implement actual sync status checking
-      // For now, show as "loaded" state
-      statusBarItem.text = '$(check) RQML Spec';
-      statusBarItem.tooltip = 'RQML specification loaded. Click for details.';
-      statusBarItem.backgroundColor = undefined;
+      if (state.xsdAvailable === false) {
+        statusBarItem.text = '$(warning) RQML Spec';
+        statusBarItem.tooltip = `Schema rqml-${state.xsdVersion}.xsd not available. XSD validation disabled.`;
+        statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+      } else {
+        statusBarItem.text = '$(check) RQML Spec';
+        statusBarItem.tooltip = 'RQML specification loaded. Click for details.';
+        statusBarItem.backgroundColor = undefined;
+      }
       break;
   }
 

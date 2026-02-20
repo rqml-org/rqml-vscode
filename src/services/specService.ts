@@ -4,6 +4,7 @@
 
 import * as vscode from 'vscode';
 import { RqmlDocument, getRqmlParser } from './rqmlParser';
+import { isXsdAvailable, getLatestXsdVersion } from './xsdVersions';
 
 export type SpecStatus = 'none' | 'single' | 'multiple' | 'invalid';
 
@@ -12,6 +13,10 @@ export interface SpecState {
   document?: RqmlDocument;
   files: vscode.Uri[];
   error?: string;
+  /** Whether the matching XSD schema file is available for the document's version */
+  xsdAvailable?: boolean;
+  /** The RQML version from the document's root element */
+  xsdVersion?: string;
 }
 
 /**
@@ -24,6 +29,7 @@ export class SpecService {
   private _state: SpecState = { status: 'none', files: [] };
   private watcher?: vscode.FileSystemWatcher;
   private disposables: vscode.Disposable[] = [];
+  private extensionPath: string = '';
 
   constructor() {
     // Watch for .rqml file changes
@@ -33,6 +39,10 @@ export class SpecService {
     this.disposables.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => this.refresh())
     );
+  }
+
+  initialize(extensionPath: string): void {
+    this.extensionPath = extensionPath;
   }
 
   get state(): SpecState {
@@ -102,10 +112,16 @@ export class SpecService {
       const parser = getRqmlParser();
       const document = await parser.parseFile(files[0]);
 
+      const xsdAvail = this.extensionPath
+        ? isXsdAvailable(this.extensionPath, document.version)
+        : true;
+
       this._state = {
         status: 'single',
         files,
-        document
+        document,
+        xsdAvailable: xsdAvail,
+        xsdVersion: document.version,
       };
     } catch (err) {
       this._state = {
@@ -120,9 +136,10 @@ export class SpecService {
   }
 
   /**
-   * Create a new RQML spec file with a basic template.
+   * Initialize a new RQML spec file with a multi-step input flow.
+   * Prompts for filename, docId, and title — each with sensible defaults.
    */
-  async createSpec(): Promise<vscode.Uri | undefined> {
+  async initSpec(): Promise<vscode.Uri | undefined> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       vscode.window.showErrorMessage('No workspace folder open. Please open a folder first.');
@@ -130,20 +147,22 @@ export class SpecService {
     }
 
     const rootUri = workspaceFolders[0].uri;
+    const projectName = rootUri.fsPath.split('/').pop() || 'Project';
 
-    // Ask for file name
-    const fileName = await vscode.window.showInputBox({
-      prompt: 'Enter the name for the RQML spec file',
-      value: 'requirements.rqml',
+    // Step 1: Filename (without extension)
+    const baseName = await vscode.window.showInputBox({
+      title: 'RQML: Init Spec (1/3)',
+      prompt: 'Filename (the .rqml extension is added automatically)',
+      value: 'requirements',
       validateInput: (value) => {
-        if (!value) return 'File name is required';
-        if (!value.endsWith('.rqml')) return 'File must have .rqml extension';
+        if (!value.trim()) return 'Filename is required';
+        if (/[/\\:*?"<>|]/.test(value)) return 'Filename contains invalid characters';
         return null;
       }
     });
+    if (baseName === undefined) return undefined;
 
-    if (!fileName) return undefined;
-
+    const fileName = baseName.endsWith('.rqml') ? baseName : `${baseName}.rqml`;
     const fileUri = vscode.Uri.joinPath(rootUri, fileName);
 
     // Check if file already exists
@@ -155,16 +174,42 @@ export class SpecService {
       // File doesn't exist, good to create
     }
 
-    // Get project name from folder
-    const projectName = rootUri.fsPath.split('/').pop() || 'Project';
+    // Step 2: Document ID
+    const defaultDocId = `DOC-${projectName.toUpperCase().replace(/[^A-Z0-9]/g, '-')}-001`;
+    const docId = await vscode.window.showInputBox({
+      title: 'RQML: Init Spec (2/3)',
+      prompt: 'Document ID',
+      value: defaultDocId,
+      validateInput: (value) => {
+        if (!value.trim()) return 'Document ID is required';
+        return null;
+      }
+    });
+    if (docId === undefined) return undefined;
+
+    // Step 3: Title
+    const defaultTitle = `${projectName} — Requirements Specification`;
+    const title = await vscode.window.showInputBox({
+      title: 'RQML: Init Spec (3/3)',
+      prompt: 'Specification title',
+      value: defaultTitle,
+      validateInput: (value) => {
+        if (!value.trim()) return 'Title is required';
+        return null;
+      }
+    });
+    if (title === undefined) return undefined;
+
+    // REQ-UI-011 AC-UI-011-02: Use the most recent available XSD version
+    const version = (this.extensionPath && getLatestXsdVersion(this.extensionPath)) || '2.1.0';
 
     const template = `<?xml version="1.0" encoding="UTF-8"?>
-<rqml xmlns="https://rqml.org/schema/2.0.1"
+<rqml xmlns="https://rqml.org/schema/${version}"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:schemaLocation="https://rqml.org/schema/2.0.1 https://rqml.org/schema/rqml-2.0.1.xsd"
-      version="2.0.1" docId="DOC-${projectName.toUpperCase().replace(/[^A-Z0-9]/g, '-')}-001" status="draft">
+      xsi:schemaLocation="https://rqml.org/schema/${version} https://rqml.org/schema/rqml-${version}.xsd"
+      version="${version}" docId="${docId}" status="draft">
   <meta>
-    <title>${projectName} - Requirements Specification</title>
+    <title>${title}</title>
     <system>${projectName}</system>
   </meta>
   <requirements>

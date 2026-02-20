@@ -289,16 +289,33 @@
         </acceptance>
       </req>
       <req id="REQ-UI-011" type="FR" title="Offer spec creation" status="approved" priority="must">
-        <statement>If no RQML spec file is present in the project root, the extension SHALL offer to create one.</statement>
+        <statement>If no RQML spec file is present in the project root, the extension SHALL offer to create one. The default filename SHALL be requirements.rqml and the default version SHALL be the most recent XSD schema version available in the extension.</statement>
         <acceptance>
           <criterion id="AC-UI-011-01">
             <when>The extension activates in a workspace with no RQML spec file in the project root.</when>
             <then>The user is prompted with an option to create a new RQML spec file.</then>
           </criterion>
+          <criterion id="AC-UI-011-02">
+            <when>The user confirms creation without changing the filename.</when>
+            <then>The created file is named requirements.rqml and uses the most recent available XSD version in the xmlns, schemaLocation, and version attributes.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-011A" type="FR" title="Version-aware XSD loading" status="draft" priority="must">
+        <statement>When a single RQML spec file is loaded, the extension SHALL read the version attribute from the root rqml element and load the matching XSD schema from resources/xsd/rqml-{version}.xsd. If the matching XSD is not available, the extension SHALL show a warning in the sidebar tree view and status bar, and XSD-based validation SHALL be skipped.</statement>
+        <acceptance>
+          <criterion id="AC-UI-011A-01">
+            <when>A single .rqml file with version="X.Y.Z" is found at the workspace root.</when>
+            <then>The extension loads resources/xsd/rqml-X.Y.Z.xsd for validation and agent schema context.</then>
+          </criterion>
+          <criterion id="AC-UI-011A-02">
+            <when>The matching XSD file does not exist in resources/xsd/.</when>
+            <then>A warning node appears in the sidebar tree view reading "Schema rqml-X.Y.Z.xsd not available", the status bar shows a warning state, and XSD-based validation is skipped.</then>
+          </criterion>
         </acceptance>
       </req>
       <req id="REQ-UI-012" type="FR" title="Multiple spec files error" status="approved" priority="must">
-        <statement>If more than one .rqml file exists in the project root, the extension SHALL show an error to the user.</statement>
+        <statement>If more than one .rqml file exists in the project root, the extension SHALL show an error to the user and leave the resolution to the user, who should remove the extra .rqml files.</statement>
         <acceptance>
           <criterion id="AC-UI-012-01">
             <when>The extension detects multiple .rqml files in the project root.</when>
@@ -1508,6 +1525,12 @@
     </traceEdge>
     <traceEdge id="TR-082" from="REQ-MDL-012" to="REQ-MDL-005" type="constrains">
       <notes>Catalog extensibility (REQ-MDL-012) constrains Vercel AI SDK model routing (REQ-MDL-005) by requiring the provider-to-factory mapping to be configuration-driven rather than hard-coded.</notes>
+    </traceEdge>
+    <traceEdge id="TR-083" from="REQ-UI-011A" to="REQ-UI-013B" type="dependsOn">
+      <notes>Version-aware XSD loading (REQ-UI-011A) provides the correct schema for XSD schema validation (REQ-UI-013B).</notes>
+    </traceEdge>
+    <traceEdge id="TR-084" from="REQ-UI-011A" to="REQ-AGT-012" type="dependsOn">
+      <notes>Version-aware XSD loading (REQ-UI-011A) provides the correct schema for agent XSD conformance (REQ-AGT-012).</notes>
     </traceEdge>
   </trace>
 </rqml>

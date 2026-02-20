@@ -28,72 +28,78 @@ const SECTION_LABELS: Record<RqmlSectionName, string> = {
   governance: 'Governance'
 };
 
-/** Helper to create a ThemeIcon with neutral foreground color */
-function icon(id: string): vscode.ThemeIcon {
-  return new vscode.ThemeIcon(id, new vscode.ThemeColor('icon.foreground'));
-}
-
-/** Icons for different item types */
-const TYPE_ICONS: Record<string, vscode.ThemeIcon> = {
+/** Codicon IDs for each node/item type */
+const TYPE_ICON_IDS: Record<string, string> = {
   // Root
-  root: icon('book'),
+  root: 'book',
 
   // Sections
-  meta: icon('info'),
-  catalogs: icon('library'),
-  domain: icon('symbol-class'),
-  goals: icon('target'),
-  scenarios: icon('play-circle'),
-  requirements: icon('checklist'),
-  behavior: icon('git-compare'),
-  interfaces: icon('plug'),
-  verification: icon('beaker'),
-  trace: icon('references'),
-  governance: icon('law'),
+  meta: 'info',
+  catalogs: 'library',
+  domain: 'symbol-class',
+  goals: 'target',
+  scenarios: 'play-circle',
+  requirements: 'checklist',
+  behavior: 'git-compare',
+  interfaces: 'plug',
+  verification: 'beaker',
+  trace: 'references',
+  governance: 'law',
 
   // Item types
-  reqPackage: icon('package'),
-  req: icon('circle-outline'),
-  FR: icon('symbol-method'),
-  NFR: icon('dashboard'),
-  IR: icon('plug'),
-  DR: icon('database'),
-  SR: icon('shield'),
-  CR: icon('lock'),
-  PR: icon('law'),
-  UXR: icon('eye'),
-  OR: icon('server'),
-  goal: icon('target'),
-  qgoal: icon('graph'),
-  obstacle: icon('warning'),
-  goalLink: icon('arrow-both'),
-  term: icon('symbol-text'),
-  actor: icon('person'),
-  stakeholder: icon('organization'),
-  constraint: icon('lock'),
-  policy: icon('law'),
-  decision: icon('lightbulb'),
-  risk: icon('warning'),
-  entity: icon('symbol-class'),
-  rule: icon('symbol-ruler'),
-  scenario: icon('play'),
-  misuseCase: icon('bug'),
-  edgeCase: icon('symbol-event'),
-  stateMachine: icon('git-compare'),
-  state: icon('circle-filled'),
-  transition: icon('arrow-right'),
-  api: icon('globe'),
-  endpoint: icon('link'),
-  event: icon('zap'),
-  testSuite: icon('test-view-icon'),
-  testCase: icon('beaker'),
-  traceEdge: icon('arrow-both'),
-  issue: icon('issues'),
-  approval: icon('verified')
+  reqPackage: 'package',
+  req: 'circle-outline',
+  FR: 'symbol-method',
+  NFR: 'dashboard',
+  IR: 'plug',
+  DR: 'database',
+  SR: 'shield',
+  CR: 'lock',
+  PR: 'law',
+  UXR: 'eye',
+  OR: 'server',
+  goal: 'target',
+  qgoal: 'graph',
+  obstacle: 'warning',
+  goalLink: 'arrow-both',
+  term: 'symbol-text',
+  actor: 'person',
+  stakeholder: 'organization',
+  constraint: 'lock',
+  policy: 'law',
+  decision: 'lightbulb',
+  risk: 'warning',
+  entity: 'symbol-class',
+  rule: 'symbol-ruler',
+  scenario: 'play',
+  misuseCase: 'bug',
+  edgeCase: 'symbol-event',
+  stateMachine: 'git-compare',
+  state: 'circle-filled',
+  transition: 'arrow-right',
+  api: 'globe',
+  endpoint: 'link',
+  event: 'zap',
+  testSuite: 'test-view-icon',
+  testCase: 'beaker',
+  edge: 'arrow-both',
+  issue: 'issues',
+  approval: 'verified',
+};
+
+/** Default icon color (neutral foreground) */
+const DEFAULT_ICON_COLOR = new vscode.ThemeColor('icon.foreground');
+
+/** Status-based icon colors (defined in contributes.colors) */
+const STATUS_COLORS: Record<string, vscode.ThemeColor> = {
+  draft: new vscode.ThemeColor('rqml.statusDraft'),
+  review: new vscode.ThemeColor('rqml.statusReview'),
+  approved: new vscode.ThemeColor('rqml.statusApproved'),
+  deprecated: new vscode.ThemeColor('rqml.statusDeprecated'),
 };
 
 /** Tree item types */
-export type TreeNodeType = 'root' | 'section' | 'item';
+export type TreeNodeType = 'root' | 'section' | 'item' | 'message';
 
 /** Tree node data */
 export interface TreeNode {
@@ -207,6 +213,13 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
     item.contextValue = this.getContextValue(element);
     item.iconPath = this.getIcon(element);
 
+    // Message nodes (e.g. XSD warning)
+    if (element.type === 'message') {
+      item.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('editorWarning.foreground'));
+      item.contextValue = 'rqmlMessage';
+      return item;
+    }
+
     // REQ-UI-006B: Visual distinction for missing sections
     if (element.missing) {
       item.description = '(not defined)';
@@ -235,9 +248,18 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
       return [this.createRootNode()];
     }
 
-    // Under root: show all sections
+    // Under root: show all sections (with XSD warning if needed)
     if (element.type === 'root') {
-      return this.createSectionNodes();
+      const children: TreeNode[] = [];
+      if (this.specState?.status === 'single' && this.specState.xsdAvailable === false) {
+        children.push({
+          type: 'message',
+          label: `Schema rqml-${this.specState.xsdVersion}.xsd not available`,
+          id: 'xsd-warning',
+        });
+      }
+      children.push(...this.createSectionNodes());
+      return children;
     }
 
     // Under section: show items in that section
@@ -338,6 +360,10 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   private getCollapsibleState(node: TreeNode): vscode.TreeItemCollapsibleState {
+    if (node.type === 'message') {
+      return vscode.TreeItemCollapsibleState.None;
+    }
+
     if (node.type === 'root') {
       return vscode.TreeItemCollapsibleState.Expanded;
     }
@@ -370,23 +396,23 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   private getIcon(node: TreeNode): vscode.ThemeIcon | undefined {
+    let iconId: string | undefined;
+    let color: vscode.ThemeColor = DEFAULT_ICON_COLOR;
+
     if (node.type === 'root') {
-      return TYPE_ICONS.root;
-    }
-
-    if (node.type === 'section' && node.section) {
-      return TYPE_ICONS[node.section];
-    }
-
-    if (node.type === 'item' && node.item) {
-      // First try the specific requirement type (FR, NFR, etc.)
-      if (TYPE_ICONS[node.item.type]) {
-        return TYPE_ICONS[node.item.type];
+      iconId = TYPE_ICON_IDS.root;
+    } else if (node.type === 'section' && node.section) {
+      iconId = TYPE_ICON_IDS[node.section];
+    } else if (node.type === 'item' && node.item) {
+      iconId = TYPE_ICON_IDS[node.item.type] ?? TYPE_ICON_IDS.req;
+      // Color by status attribute
+      const status = node.item.status?.toLowerCase();
+      if (status && STATUS_COLORS[status]) {
+        color = STATUS_COLORS[status];
       }
-      return TYPE_ICONS.req;
     }
 
-    return undefined;
+    return iconId ? new vscode.ThemeIcon(iconId, color) : undefined;
   }
 
   private getTooltip(node: TreeNode): string {

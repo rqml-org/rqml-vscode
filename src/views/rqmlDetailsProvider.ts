@@ -53,6 +53,15 @@ export class RqmlDetailsProvider implements vscode.TreeDataProvider<DetailItem> 
 
     item.contextValue = 'detailItem';
 
+    // REQ-UI-006F: Clicking a detail item opens the source definition
+    if (this.selectedNode?.type === 'item' && this.selectedNode.item?.line) {
+      item.command = {
+        command: 'rqml-vscode.gotoDefinition',
+        title: 'Go to Definition',
+        arguments: [this.selectedNode]
+      };
+    }
+
     return item;
   }
 

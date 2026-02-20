@@ -20,7 +20,7 @@
     "onView:rqmlAgent",
     "onStartupFinished",
     "onLanguage:rqml",
-    "onCommand:rqml-vscode.createSpec",
+    "onCommand:rqml-vscode.initSpec",
     "onCommand:rqml-vscode.openDocumentView",
     "onCommand:rqml-vscode.openTraceView",
     "onCommand:rqml-vscode.openGridView",
@@ -28,10 +28,52 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "colors": [
+      {
+        "id": "rqml.statusDraft",
+        "description": "Icon color for RQML elements with draft status",
+        "defaults": {
+          "dark": "#e2b714",
+          "light": "#b8860b",
+          "highContrast": "#ffd700",
+          "highContrastLight": "#8b6914"
+        }
+      },
+      {
+        "id": "rqml.statusReview",
+        "description": "Icon color for RQML elements with review status",
+        "defaults": {
+          "dark": "#e87d2f",
+          "light": "#c55a11",
+          "highContrast": "#ff8c00",
+          "highContrastLight": "#a04a0a"
+        }
+      },
+      {
+        "id": "rqml.statusApproved",
+        "description": "Icon color for RQML elements with approved status",
+        "defaults": {
+          "dark": "#4ec957",
+          "light": "#2d8e36",
+          "highContrast": "#00ff41",
+          "highContrastLight": "#1a6b24"
+        }
+      },
+      {
+        "id": "rqml.statusDeprecated",
+        "description": "Icon color for RQML elements with deprecated status",
+        "defaults": {
+          "dark": "#6b6b6b",
+          "light": "#999999",
+          "highContrast": "#808080",
+          "highContrastLight": "#666666"
+        }
+      }
+    ],
     "commands": [
       {
-        "command": "rqml-vscode.createSpec",
-        "title": "Create RQML Spec"
+        "command": "rqml-vscode.initSpec",
+        "title": "RQML: Init Spec"
       },
       {
         "command": "rqml-vscode.openDocumentView",

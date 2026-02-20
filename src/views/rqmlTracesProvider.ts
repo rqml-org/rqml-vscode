@@ -81,12 +81,17 @@ export class RqmlTracesProvider implements vscode.TreeDataProvider<TraceItem> {
       return [];
     }
 
-    return traces.map(({ edge, direction }) => ({
-      label: edge.type,
-      targetId: direction === 'outgoing' ? edge.to : edge.from,
-      traceId: edge.id,
-      direction,
-      traceType: edge.type
-    }));
+    return traces.map(({ edge, direction }) => {
+      const targetId = direction === 'outgoing'
+        ? (edge.to || edge.toDisplay || '(external)')
+        : (edge.from || edge.fromDisplay || '(external)');
+      return {
+        label: edge.type,
+        targetId,
+        traceId: edge.id,
+        direction,
+        traceType: edge.type
+      };
+    });
   }
 }

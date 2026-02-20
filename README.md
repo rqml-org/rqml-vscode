@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/rqml-icon.png" alt="RQML" width="128" />
+  <img src="resources/RQML_logo_transparent.png" alt="RQML" width="128" />
 </p>
 
 <h1 align="center">RQML for VS Code</h1>

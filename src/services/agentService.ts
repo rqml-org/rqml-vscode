@@ -4,7 +4,6 @@
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as path from 'path';
 import { streamText, type ModelMessage } from 'ai';
 import { getLlmService } from './llmService';
 import { getSpecService } from './specService';
@@ -12,6 +11,7 @@ import { getConfigurationService } from './configurationService';
 import { getDiagnosticsService } from './diagnosticsService';
 import type { StrictnessLevel } from '../types/configuration';
 import { createCommandRegistry, type CommandRegistry, type CommandContext } from '../commands/slashCommands';
+import { getXsdPath, isXsdAvailable } from './xsdVersions';
 
 /** Message sent to the webview */
 export interface AgentWebviewMessage {
@@ -71,6 +71,12 @@ export class AgentService {
     this._commandRegistry = createCommandRegistry();
     this.loadSchema();
     this.setupFileWatchers();
+
+    // Reload schema when spec changes (version may differ)
+    const specService = getSpecService();
+    this.disposables.push(
+      specService.onDidChangeSpec(() => this.loadSchema())
+    );
   }
 
   /** REQ-CMD-001: Access the command registry (for autocomplete, palette integration) */
@@ -82,11 +88,24 @@ export class AgentService {
   }
 
   /**
-   * REQ-AGT-012 AC-AGT-012-02: Load XSD schema for agent's system prompt
+   * REQ-AGT-012 AC-AGT-012-02: Load XSD schema for agent's system prompt.
+   * REQ-UI-011A: Version-aware — reads version from the loaded spec document.
    */
   private loadSchema(): void {
+    if (!this.extensionPath) return;
+
+    const specService = getSpecService();
+    const version = specService.state.document?.version;
+    if (!version) return;
+
+    if (!isXsdAvailable(this.extensionPath, version)) {
+      console.warn(`AgentService: XSD schema for version ${version} not found`);
+      this.schemaContent = undefined;
+      return;
+    }
+
     try {
-      const schemaPath = path.join(this.extensionPath, 'rqml-2.0.1.xsd');
+      const schemaPath = getXsdPath(this.extensionPath, version);
       this.schemaContent = fs.readFileSync(schemaPath, 'utf-8');
     } catch {
       console.warn('AgentService: Failed to load XSD schema');
