@@ -61,7 +61,7 @@ const config: Config = {
       title: 'RQML for VS Code',
       logo: {
         alt: 'RQML Logo',
-        src: 'img/logo.svg',
+        src: 'img/RQML_logo_transparent.png',
       },
       items: [
         {
