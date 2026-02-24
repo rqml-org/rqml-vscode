@@ -21,7 +21,7 @@ LLMs write most of the code now. But without structured intent, every session st
 **RQML changes that.** It's an [open XML standard](https://rqml.org) for capturing requirements that both humans and LLMs can read. This extension brings RQML into VS Code with an AI-powered agent that keeps your specification and codebase in sync — so your LLMs always have the context they need to produce better code.
 
 <!-- TODO: Replace with hero screenshot or GIF -->
-> ![RQML Agent in action](images/hero-screenshot.png)
+> ![RQML Agent in action](images/rqml-extension-UI-annotated.png)
 > *The RQML Agent monitors your spec and codebase, flags quality issues, and suggests improvements — all from within VS Code.*
 
 ## Why RQML?

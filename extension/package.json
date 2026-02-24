@@ -1,0 +1,523 @@
+{
+  "name": "rqml-vscode",
+  "displayName": "rqml-vscode",
+  "description": "RQML for VSCode",
+  "version": "0.0.1",
+  "publisher": "Stakkar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stakkar/rqml-vscode"
+  },
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:rqmlTree",
+    "onView:rqmlDetails",
+    "onView:rqmlAgent",
+    "onStartupFinished",
+    "onLanguage:rqml",
+    "onCommand:rqml-vscode.initSpec",
+    "onCommand:rqml-vscode.openDocumentView",
+    "onCommand:rqml-vscode.openTraceView",
+    "onCommand:rqml-vscode.openGridView",
+    "onCommand:rqml-vscode.openIdeasView"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "colors": [
+      {
+        "id": "rqml.statusDraft",
+        "description": "Icon color for RQML elements with draft status",
+        "defaults": {
+          "dark": "#e2b714",
+          "light": "#b8860b",
+          "highContrast": "#ffd700",
+          "highContrastLight": "#8b6914"
+        }
+      },
+      {
+        "id": "rqml.statusReview",
+        "description": "Icon color for RQML elements with review status",
+        "defaults": {
+          "dark": "#e87d2f",
+          "light": "#c55a11",
+          "highContrast": "#ff8c00",
+          "highContrastLight": "#a04a0a"
+        }
+      },
+      {
+        "id": "rqml.statusApproved",
+        "description": "Icon color for RQML elements with approved status",
+        "defaults": {
+          "dark": "#4ec957",
+          "light": "#2d8e36",
+          "highContrast": "#00ff41",
+          "highContrastLight": "#1a6b24"
+        }
+      },
+      {
+        "id": "rqml.statusDeprecated",
+        "description": "Icon color for RQML elements with deprecated status",
+        "defaults": {
+          "dark": "#6b6b6b",
+          "light": "#999999",
+          "highContrast": "#808080",
+          "highContrastLight": "#666666"
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "rqml-vscode.initSpec",
+        "title": "RQML: Init Spec"
+      },
+      {
+        "command": "rqml-vscode.openDocumentView",
+        "title": "Open RQML Document",
+        "icon": "$(file)"
+      },
+      {
+        "command": "rqml-vscode.openTraceView",
+        "title": "Open Traceability Map",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "rqml-vscode.openGridView",
+        "title": "Open Requirements Grid",
+        "icon": "$(table)"
+      },
+      {
+        "command": "rqml-vscode.openIdeasView",
+        "title": "Open RQML Ideas",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "rqml-vscode.addItem",
+        "title": "Add RQML Item",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rqml-vscode.renameItem",
+        "title": "Rename"
+      },
+      {
+        "command": "rqml-vscode.deleteItem",
+        "title": "Delete"
+      },
+      {
+        "command": "rqml-vscode.gotoDefinition",
+        "title": "Go to Definition"
+      },
+      {
+        "command": "rqml-vscode.export",
+        "title": "Export Spec..."
+      },
+      {
+        "command": "rqml-vscode.openSettings",
+        "title": "RQML: Open Settings"
+      },
+      {
+        "command": "rqml-vscode.configureApiKey",
+        "title": "RQML: Configure API Key"
+      },
+      {
+        "command": "rqml-vscode.selectLlmProvider",
+        "title": "RQML: Select LLM Provider"
+      },
+      {
+        "command": "rqml-vscode.addLlmEndpoint",
+        "title": "RQML: Add LLM Endpoint",
+        "icon": "$(add)"
+      },
+      {
+        "command": "rqml-vscode.removeLlmEndpoint",
+        "title": "RQML: Remove LLM Endpoint",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "rqml-vscode.selectActiveEndpoint",
+        "title": "RQML: Select Active LLM Endpoint"
+      },
+      {
+        "command": "rqml-vscode.slashHelp",
+        "title": "RQML: Help (Agent Commands)"
+      },
+      {
+        "command": "rqml-vscode.slashStatus",
+        "title": "RQML: Status"
+      },
+      {
+        "command": "rqml-vscode.slashStatusFull",
+        "title": "RQML: Status (Full Assessment)"
+      },
+      {
+        "command": "rqml-vscode.slashValidate",
+        "title": "RQML: Validate Spec"
+      },
+      {
+        "command": "rqml-vscode.slashLint",
+        "title": "RQML: Lint Spec"
+      },
+      {
+        "command": "rqml-vscode.slashScore",
+        "title": "RQML: Score Spec"
+      },
+      {
+        "command": "rqml-vscode.slashSync",
+        "title": "RQML: Sync Status"
+      },
+      {
+        "command": "rqml-vscode.slashSyncScan",
+        "title": "RQML: Sync Scan (Deep)"
+      },
+      {
+        "command": "rqml-vscode.slashPlan",
+        "title": "RQML: Plan Implementation"
+      },
+      {
+        "command": "rqml-vscode.slashProviders",
+        "title": "RQML: List Providers"
+      },
+      {
+        "command": "rqml-vscode.slashLlm",
+        "title": "RQML: LLM Status"
+      },
+      {
+        "command": "rqml-vscode.slashDoctor",
+        "title": "RQML: Doctor (Health Check)"
+      },
+      {
+        "command": "rqml-vscode.slashAbout",
+        "title": "RQML: About"
+      },
+      {
+        "command": "rqml-vscode.slashModels",
+        "title": "RQML: List Models"
+      },
+      {
+        "command": "rqml-vscode.selectModel",
+        "title": "RQML: Select Model"
+      },
+      {
+        "command": "rqml-vscode.slashModelTest",
+        "title": "RQML: Test Model"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "rqmlExplorer",
+          "title": "REQUIREMENTS",
+          "icon": "./resources/rqml.png"
+        }
+      ],
+      "panel": [
+        {
+          "id": "rqmlPanel",
+          "title": "RQML AGENT",
+          "icon": "./resources/rqml.png"
+        }
+      ]
+    },
+    "views": {
+      "rqmlExplorer": [
+        {
+          "id": "rqmlTree",
+          "name": "Overview"
+        },
+        {
+          "id": "rqmlDetails",
+          "name": "Details"
+        },
+        {
+          "id": "rqmlTraces",
+          "name": "Traces"
+        }
+      ],
+      "rqmlPanel": [
+        {
+          "id": "rqmlAgent",
+          "name": "RQML AGENT",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "rqml-vscode.openDocumentView",
+          "when": "view == rqmlTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "rqml-vscode.openTraceView",
+          "when": "view == rqmlTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "rqml-vscode.openGridView",
+          "when": "view == rqmlTree",
+          "group": "navigation@3"
+        },
+        {
+          "command": "rqml-vscode.openIdeasView",
+          "when": "view == rqmlTree",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "rqml-vscode.openDocumentView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@1"
+        },
+        {
+          "command": "rqml-vscode.openTraceView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@2"
+        },
+        {
+          "command": "rqml-vscode.openGridView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@3"
+        },
+        {
+          "command": "rqml-vscode.openIdeasView",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "inline@4"
+        },
+        {
+          "command": "rqml-vscode.export",
+          "when": "view == rqmlTree && viewItem == rqmlRoot",
+          "group": "export"
+        },
+        {
+          "command": "rqml-vscode.addItem",
+          "when": "view == rqmlTree && (viewItem == rqmlSection || viewItem == rqmlSectionMissing)",
+          "group": "inline"
+        },
+        {
+          "command": "rqml-vscode.gotoDefinition",
+          "when": "view == rqmlTree && viewItem == rqmlItem",
+          "group": "navigation"
+        },
+        {
+          "command": "rqml-vscode.renameItem",
+          "when": "view == rqmlTree && viewItem == rqmlItem",
+          "group": "editing@1"
+        },
+        {
+          "command": "rqml-vscode.deleteItem",
+          "when": "view == rqmlTree && viewItem == rqmlItem",
+          "group": "editing@2"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "rqml",
+        "aliases": [
+          "RQML",
+          "rqml"
+        ],
+        "extensions": [
+          ".rqml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rqml",
+        "scopeName": "text.xml.rqml",
+        "path": "./syntaxes/rqml.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "RQML",
+      "properties": {
+        "rqml.llmProvider": {
+          "type": "string",
+          "default": "none",
+          "enum": [
+            "none",
+            "openai",
+            "anthropic",
+            "azure-openai",
+            "ollama"
+          ],
+          "enumDescriptions": [
+            "LLM features disabled",
+            "OpenAI (GPT models)",
+            "Anthropic (Claude models)",
+            "Azure OpenAI Service",
+            "Ollama (local models)"
+          ],
+          "description": "Select the LLM provider for AI-assisted features (Ideas view, requirement generation)."
+        },
+        "rqml.agentStrictness": {
+          "type": "string",
+          "default": "",
+          "enum": [
+            "",
+            "relaxed",
+            "standard",
+            "strict",
+            "certified"
+          ],
+          "enumDescriptions": [
+            "Use AGENTS.md setting or default to 'standard'",
+            "Prototyping. Spec is advisory. Quick iteration allowed.",
+            "Production default. Spec-first for features. Core traces required.",
+            "Full traceability. All behaviour specified. No ghost features.",
+            "Regulated/safety-critical. Audit-grade traces with metadata."
+          ],
+          "description": "Strictness level for the RQML Agent. Overrides AGENTS.md if set."
+        },
+        "rqml.llmEndpoints": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for this endpoint"
+              },
+              "provider": {
+                "type": "string",
+                "enum": ["openai", "anthropic", "azure-openai", "google"],
+                "description": "LLM provider"
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name for this endpoint"
+              },
+              "model": {
+                "type": "string",
+                "description": "Model identifier (e.g., gpt-4o, claude-sonnet-4-5-20250929)"
+              }
+            },
+            "required": ["id", "provider", "name"]
+          },
+          "description": "Configured LLM endpoints for the RQML Agent."
+        },
+        "rqml.activeEndpointId": {
+          "type": "string",
+          "default": "",
+          "description": "ID of the currently active LLM endpoint."
+        },
+        "rqml.modelSelections": {
+          "type": "object",
+          "default": {},
+          "description": "Selected model per endpoint. Keys are endpoint IDs, values are model IDs.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "rqml.modelCatalog.customModels": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "modelId": {
+                "type": "string",
+                "description": "Model identifier passed to the provider SDK"
+              },
+              "provider": {
+                "type": "string",
+                "description": "Provider key (e.g. openai, anthropic, google)"
+              },
+              "displayName": {
+                "type": "string",
+                "description": "Human-readable display name"
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["chat", "code", "vision", "function-calling", "reasoning"]
+                }
+              },
+              "contextWindow": {
+                "type": "number",
+                "description": "Context window size in tokens"
+              }
+            },
+            "required": ["modelId", "provider"]
+          },
+          "description": "Custom models added to the catalog by the user."
+        },
+        "rqml.modelCatalog.hiddenModels": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Model IDs hidden from the catalog (format: provider/modelId)."
+        },
+        "rqml.modelCatalog.overrides": {
+          "type": "object",
+          "default": {},
+          "description": "Metadata overrides for default catalog entries. Keys are provider/modelId.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "displayName": { "type": "string" },
+              "capabilities": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "contextWindow": { "type": "number" }
+            }
+          }
+        },
+        "rqml.modelCatalog.fallbackModels": {
+          "type": "object",
+          "default": {},
+          "description": "Optional fallback model per endpoint. Keys are endpoint IDs, values are model IDs.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.38",
+    "@ai-sdk/azure": "^3.0.27",
+    "@ai-sdk/google": "^3.0.22",
+    "@ai-sdk/openai": "^3.0.26",
+    "@xmldom/xmldom": "^0.8.11",
+    "ai": "^6.0.77",
+    "fast-xml-parser": "^4.5.1",
+    "xmllint-wasm": "^5.1.0",
+    "zod": "^3.22.0"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile && npm run build:webview",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "build:webview": "node esbuild.js",
+    "watch:webview": "node esbuild.js --watch",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.108.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.19.0",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1"
+  }
+}

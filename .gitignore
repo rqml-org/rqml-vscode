@@ -1,5 +1,19 @@
-out
-dist
-node_modules
+# Build outputs
+out/
+dist/
+
+# Dependencies
+node_modules/
+
+# VS Code test
 .vscode-test/
+
+# Packaged extensions
 *.vsix
+
+# OS
+.DS_Store
+
+# Docusaurus
+docs/.docusaurus/
+docs/build/
