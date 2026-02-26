@@ -37,6 +37,8 @@ export function registerCommands(
       matrixViewProvider?.dispose();
     }
   });
+
+
   // REQ-UI-011: Init spec command
   context.subscriptions.push(
     vscode.commands.registerCommand('rqml-vscode.initSpec', async () => {

@@ -211,7 +211,7 @@
       "activitybar": [
         {
           "id": "rqmlExplorer",
-          "title": "REQUIREMENTS",
+          "title": "RQML BROWSER",
           "icon": "./resources/rqml.png"
         }
       ],
@@ -240,7 +240,7 @@
       ],
       "rqmlPanel": [
         {
-          "id": "rqmlAgent",
+          "id": "rqmlAgentView",
           "name": "RQML AGENT",
           "type": "webview"
         }

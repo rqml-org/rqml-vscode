@@ -11,10 +11,10 @@ import { getSpecService } from '../services/specService';
 
 /**
  * WebviewViewProvider for the RQML Agent panel tab.
- * Hosts the chat-style agent interface in the VS Code panel area.
+ * Hosts the chat-style agent interface in the sidebar.
  */
 export class AgentViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'rqmlAgent';
+  public static readonly viewType = 'rqmlAgentView';
 
   private view: vscode.WebviewView | undefined;
   private readonly extensionUri: vscode.Uri;
@@ -33,14 +33,22 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'dist')]
+      localResourceRoots: [
+        vscode.Uri.joinPath(this.extensionUri, 'dist'),
+        vscode.Uri.joinPath(this.extensionUri, 'resources'),
+      ]
     };
+
+    const logoUri = webviewView.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'resources', 'RQML_logo_transparent.png')
+    );
 
     webviewView.webview.html = getWebviewContent(
       webviewView.webview,
       this.extensionUri,
       'agent',
-      'RQML AGENT'
+      'RQML AGENT',
+      { logoUri: logoUri.toString() }
     );
 
     // Handle messages from webview
@@ -55,19 +63,6 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
     this.disposables.push(
       agentService.onDidReceiveMessage((msg) => {
         this.postToWebview(msg);
-      })
-    );
-
-    // Send terminal font settings on init and watch for changes
-    this.sendTerminalFontSettings();
-    this.disposables.push(
-      vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('terminal.integrated.fontSize') ||
-            e.affectsConfiguration('terminal.integrated.lineHeight') ||
-            e.affectsConfiguration('terminal.integrated.fontFamily') ||
-            e.affectsConfiguration('editor.fontFamily')) {
-          this.sendTerminalFontSettings();
-        }
       })
     );
 
@@ -168,23 +163,6 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
     } catch {
       // Silently fail if we can't navigate
     }
-  }
-
-  /**
-   * Send terminal font settings from VS Code config to the webview.
-   */
-  private sendTerminalFontSettings(): void {
-    const termConfig = vscode.workspace.getConfiguration('terminal.integrated');
-    const editorConfig = vscode.workspace.getConfiguration('editor');
-    const fontSize = termConfig.get<number>('fontSize', 14);
-    const lineHeight = termConfig.get<number>('lineHeight', 1);
-    // terminal.integrated.fontFamily falls back to editor.fontFamily
-    const fontFamily = termConfig.get<string>('fontFamily', '')
-      || editorConfig.get<string>('fontFamily', '');
-    this.postToWebview({
-      type: 'terminalFontSettings',
-      payload: { fontSize, lineHeight, fontFamily },
-    });
   }
 
   dispose(): void {

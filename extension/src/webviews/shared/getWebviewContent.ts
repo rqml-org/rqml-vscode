@@ -14,7 +14,8 @@ export function getWebviewContent(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
   scriptName: string,
-  title: string
+  title: string,
+  data?: Record<string, string>
 ): string {
   // Get the URI for the bundled script
   const scriptUri = webview.asWebviewUri(
@@ -39,7 +40,7 @@ export function getWebviewContent(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource}; img-src ${webview.cspSource};">
   <title>${title}</title>
   ${cssLink}
   <style>
@@ -57,7 +58,8 @@ export function getWebviewContent(
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"></div>${data ? `
+  <script nonce="${nonce}">window.__WEBVIEW_DATA__=${JSON.stringify(data)};</script>` : ''}
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

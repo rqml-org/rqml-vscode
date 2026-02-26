@@ -36,8 +36,8 @@ export function registerSlashPaletteCommands(context: vscode.ExtensionContext): 
   for (const { id, slash } of PALETTE_COMMANDS) {
     context.subscriptions.push(
       vscode.commands.registerCommand(id, async () => {
-        // Focus the agent panel so the user sees the output
-        await vscode.commands.executeCommand('rqmlAgent.focus');
+        // Focus the agent view so the user sees the output
+        await vscode.commands.executeCommand('rqmlAgentView.focus');
 
         // Dispatch through the agent service
         const agentService = getAgentService();
