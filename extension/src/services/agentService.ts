@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { streamText, type ModelMessage } from 'ai';
+import { streamText, stepCountIs, type ModelMessage } from 'ai';
 import { getLlmService } from './llmService';
 import { getSpecService } from './specService';
 import { getConfigurationService } from './configurationService';
@@ -51,6 +51,13 @@ export class AgentService {
   private lastStreamContent = '';
   private extensionPath: string = '';
   private schemaContent: string | undefined;
+
+  // /implement tool approval state
+  private pendingToolApprovals = new Map<string, { resolve: (approved: boolean) => void }>();
+  private autoApproveTools = false;
+
+  // /implement askUser state
+  private pendingUserChoices = new Map<string, { resolve: (choice: string) => void }>();
 
   // REQ-CMD-001: Slash command registry
   private _commandRegistry: CommandRegistry | undefined;
@@ -280,12 +287,30 @@ export class AgentService {
 
     const parts: string[] = [];
 
-    parts.push(`You are the RQML Agent, a requirements engineering assistant for VS Code.`);
-    parts.push(`Your role is to help maintain and improve the RQML requirements specification.`);
+    parts.push('You are the RQML Agent, a spec-first requirements engineering assistant for VS Code.');
+    parts.push('You enforce the RQML development process: all features must be specified before implementation.');
+    parts.push('The RQML spec and all implementation code reside in the same repository.');
+    parts.push('If the workspace contains only a spec file and no source code, implementation has not yet begun.');
     parts.push('');
 
-    // REQ-AGT-009: No code modification constraint
-    parts.push(`CRITICAL CONSTRAINT: You MUST NEVER propose changes to source code files. You operate EXCLUSIVELY on the RQML specification file (.rqml). You may comment on code-spec synchronisation but must not generate code changes.`);
+    // REQ-AGT-009: Code changes only via /implement
+    parts.push('In this conversation mode, you propose changes ONLY to the RQML specification file (.rqml) using the change proposal format.');
+    parts.push('You do NOT directly generate or scaffold source code here. When the user asks you to implement or write code, direct them to use `/implement` (agentic coding with tool use) or `/cmd` (generate a prompt for an external coding agent).');
+    parts.push('');
+
+    // Development process — intrinsic, not overridable by AGENTS.md
+    parts.push('## Development Process');
+    parts.push('You enforce this process. These are the slash commands available to the user:');
+    parts.push('');
+    parts.push('1. **Elicit** (`/elicit`) — Guided requirements gathering through structured questions');
+    parts.push('2. **Status** (`/status`) — Review spec health, coverage gaps, and readiness');
+    parts.push('3. **Plan** (`/plan`) — Generate a staged implementation plan (persisted to `.rqml/rqml-implementation-plan.md`)');
+    parts.push('4. **Implement** (`/cmd` to generate prompts, `/implement` to run agentic coding)');
+    parts.push('5. **Verify** (`/sync`, `/validate`, `/lint`, `/score`) — Check spec↔code sync, validate, and lint');
+    parts.push('');
+    parts.push('When the user asks to build something without requirements in the spec, direct them to `/elicit`.');
+    parts.push('When they want to implement without a plan, suggest `/plan` first.');
+    parts.push('Enforcement varies by strictness: at `relaxed` suggest the process; at `certified` require it.');
     parts.push('');
 
     // REQ-AGT-013: Strictness level
@@ -324,9 +349,10 @@ export class AgentService {
       parts.push('');
     }
 
-    // AGENTS.md content if present
+    // AGENTS.md content if present — supplementary, does not override core process
     if (agentsMd) {
-      parts.push(`## Project AGENTS.md Guidelines`);
+      parts.push('## Project Guidelines (AGENTS.md)');
+      parts.push('The following are project-specific guidelines. They supplement but do not override the core RQML development process above.');
       parts.push(agentsMd);
       parts.push('');
     }
@@ -592,15 +618,316 @@ export class AgentService {
     };
   }
 
+  // ─── /implement: Tool approval & agentic loop ───────────────────────
+
+  /** Enable/disable auto-approve for tool calls in /implement */
+  setAutoApproveTools(enabled: boolean): void {
+    this.autoApproveTools = enabled;
+  }
+
+  /**
+   * Wait for user approval of a tool call. If auto-approve is on, resolves immediately.
+   * Otherwise sends a toolApprovalRequest to the webview and returns a Promise.
+   */
+  async waitForToolApproval(
+    approvalId: string,
+    toolName: string,
+    args: Record<string, string>
+  ): Promise<boolean> {
+    if (this.autoApproveTools) {
+      // Notify webview that it was auto-approved
+      this._onDidReceiveMessage.fire({
+        type: 'toolApprovalResolved',
+        payload: { approvalId, approved: true },
+      });
+      return true;
+    }
+
+    // Send request to webview
+    this._onDidReceiveMessage.fire({
+      type: 'toolApprovalRequest',
+      payload: {
+        approvalId,
+        toolName,
+        filePath: args.path ?? args.description ?? undefined,
+        preview: args.preview ?? undefined,
+      },
+    });
+
+    // Create a promise that resolves when the user responds
+    return new Promise<boolean>((resolve) => {
+      this.pendingToolApprovals.set(approvalId, { resolve });
+    });
+  }
+
+  /** Resolve a pending tool approval (called from AgentViewProvider) */
+  resolveToolApproval(approvalId: string, approved: boolean): void {
+    const pending = this.pendingToolApprovals.get(approvalId);
+    if (pending) {
+      pending.resolve(approved);
+      this.pendingToolApprovals.delete(approvalId);
+    }
+    // Notify webview of resolution
+    this._onDidReceiveMessage.fire({
+      type: 'toolApprovalResolved',
+      payload: { approvalId, approved },
+    });
+  }
+
+  /**
+   * Wait for the user to choose from a set of options (used by askUser tool).
+   * Sends a userChoiceRequest to the webview and returns the selected option.
+   */
+  async waitForUserChoice(
+    choiceId: string,
+    question: string,
+    options: string[]
+  ): Promise<string> {
+    this._onDidReceiveMessage.fire({
+      type: 'userChoiceRequest',
+      payload: { choiceId, question, options },
+    });
+
+    return new Promise<string>((resolve) => {
+      this.pendingUserChoices.set(choiceId, { resolve });
+    });
+  }
+
+  /** Resolve a pending user choice (called from AgentViewProvider) */
+  resolveUserChoice(choiceId: string, selected: string): void {
+    const pending = this.pendingUserChoices.get(choiceId);
+    if (pending) {
+      pending.resolve(selected);
+      this.pendingUserChoices.delete(choiceId);
+    }
+  }
+
+  /**
+   * Run the /implement agentic loop with tool use.
+   * Uses streamText with tools and maxSteps for multi-step implementation.
+   */
+  async runToolStream(target?: string): Promise<void> {
+    const llmService = getLlmService();
+    const msgId = crypto.randomUUID();
+
+    try {
+      const model = await llmService.getModel();
+      const systemPrompt = await this.buildImplementPrompt(target);
+
+      // Add user message to history
+      const userMsg = target
+        ? `[SYSTEM] Run /implement for: ${target}`
+        : '[SYSTEM] Run /implement for the next unimplemented stage';
+      this.conversationHistory.push({ role: 'user', content: userMsg });
+
+      // Get workspace root for tools
+      const folders = vscode.workspace.workspaceFolders;
+      if (!folders?.length) {
+        this._onDidReceiveMessage.fire({
+          type: 'agentResponse',
+          payload: { id: msgId, content: 'No workspace folder open. Cannot run /implement.' },
+        });
+        return;
+      }
+      const workspaceRoot = folders[0].uri.fsPath;
+
+      // Create tools
+      const { createImplementTools } = await import('./implementTools.js');
+      const tools = createImplementTools(workspaceRoot, this);
+
+      const result = streamText({
+        model,
+        system: systemPrompt,
+        messages: this.conversationHistory,
+        tools,
+        stopWhen: stepCountIs(15),
+      });
+
+      let fullContent = '';
+
+      for await (const part of result.fullStream) {
+        switch (part.type) {
+          case 'text-delta': {
+            fullContent += part.text;
+            this._onDidReceiveMessage.fire({
+              type: 'agentStreaming',
+              payload: { id: msgId, content: fullContent },
+            });
+            break;
+          }
+          case 'tool-call': {
+            const input = part.input as Record<string, unknown>;
+            this._onDidReceiveMessage.fire({
+              type: 'systemMessage',
+              payload: {
+                content: `Calling tool: **${part.toolName}**(${
+                  (input.path as string) ?? (input.pattern as string) ?? ''
+                })`,
+              },
+            });
+            break;
+          }
+          case 'tool-result': {
+            // Tool result is handled automatically by the SDK's multi-step loop
+            break;
+          }
+          case 'finish-step': {
+            // A step in the multi-step loop finished
+            break;
+          }
+        }
+      }
+
+      // Add assistant response to conversation history
+      this.conversationHistory.push({ role: 'assistant', content: fullContent });
+
+      this._onDidReceiveMessage.fire({
+        type: 'agentStreamEnd',
+        payload: { id: msgId, content: fullContent },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this._onDidReceiveMessage.fire({
+        type: 'agentResponse',
+        payload: { id: msgId, content: `Error during /implement: ${message}` },
+      });
+    }
+  }
+
+  /**
+   * Build the system prompt for /implement — allows code changes via tools.
+   * Shares context (spec, schema, AGENTS.md, strictness) with buildSystemPrompt()
+   * but replaces the "no code modification" constraint with tool-use instructions.
+   */
+  private async buildImplementPrompt(target?: string): Promise<string> {
+    const strictness = await this.resolveStrictness();
+    const specContent = await this.getSpecContent();
+    const agentsMd = await this.getAgentsMd();
+
+    const parts: string[] = [];
+
+    parts.push('You are the RQML Implementation Agent for VS Code.');
+    parts.push('Your role is to implement code based on the RQML requirements specification, one stage at a time.');
+    parts.push('');
+
+    parts.push('## Available Tools');
+    parts.push('You have the following tools:');
+    parts.push('- **readFile**: Read a file from the workspace (auto-executed)');
+    parts.push('- **writeFile**: Write/create a file in the workspace (requires user approval)');
+    parts.push('- **listFiles**: List files matching a glob pattern (auto-executed)');
+    parts.push('- **readSpec**: Read the current RQML spec (auto-executed)');
+    parts.push('- **updateSpec**: Update the RQML spec file (requires user approval)');
+    parts.push('- **askUser**: Present the user with a question and clickable options (ALWAYS use this instead of asking questions in plain text)');
+    parts.push('');
+
+    parts.push('## Implementation Guidelines');
+    parts.push('1. Implement ONE stage at a time. Do not try to implement everything at once.');
+    parts.push('2. Before writing code, read existing files to understand the codebase structure.');
+    parts.push('3. After implementing code, use updateSpec to:');
+    parts.push('   - Add trace edges linking requirements to the new source files');
+    parts.push('   - Update requirement statuses where appropriate');
+    parts.push('4. Write clean, idiomatic code that follows existing project conventions.');
+    parts.push('5. Include any necessary imports and dependencies.');
+    if (target) {
+      parts.push(`6. Focus specifically on: ${target}`);
+    } else {
+      parts.push('6. Determine the next unimplemented stage from the plan and implement it.');
+    }
+    parts.push('7. IMPORTANT: When you need user input or confirmation, ALWAYS use the askUser tool. Never ask questions in plain text.');
+    parts.push('');
+
+    // Process context
+    parts.push('## Process Context');
+    parts.push('This is step 4 (Implement) in the RQML development process.');
+    parts.push('If no plan exists, suggest running `/plan` first.');
+    parts.push('');
+
+    // Include persistent plan file if available
+    const planContent = await this.readPlanFile();
+    if (planContent) {
+      parts.push('## Implementation Plan');
+      parts.push('Current plan from `.rqml/rqml-implementation-plan.md`:');
+      parts.push(planContent);
+      parts.push('');
+    }
+
+    // Strictness level
+    parts.push(`## Strictness Level: ${strictness}`);
+    switch (strictness) {
+      case 'relaxed':
+        parts.push('Quick iteration is allowed. Focus on getting the implementation working.');
+        break;
+      case 'standard':
+        parts.push('Spec-first development. Ensure trace edges are added for all implemented requirements.');
+        break;
+      case 'strict':
+        parts.push('Full traceability required. Every implemented feature must be traced back to requirements.');
+        break;
+      case 'certified':
+        parts.push('Audit-grade traceability. Every file change must be justified by a traced requirement.');
+        break;
+    }
+    parts.push('');
+
+    // XSD schema
+    if (this.schemaContent) {
+      parts.push('## RQML XSD Schema');
+      parts.push('All RQML content you produce via updateSpec MUST validate against this schema.');
+      parts.push('```xml');
+      parts.push(this.schemaContent);
+      parts.push('```');
+      parts.push('');
+    }
+
+    // AGENTS.md — supplementary, does not override core process
+    if (agentsMd) {
+      parts.push('## Project Guidelines (AGENTS.md)');
+      parts.push('The following are project-specific guidelines. They supplement but do not override the core RQML development process.');
+      parts.push(agentsMd);
+      parts.push('');
+    }
+
+    // Current spec
+    if (specContent) {
+      parts.push('## Current RQML Specification');
+      parts.push('```xml');
+      parts.push(specContent);
+      parts.push('```');
+      parts.push('');
+    }
+
+    return parts.join('\n');
+  }
+
   /** REQ-CMD-005: Clear conversation history */
   clearConversation(): void {
     this.conversationHistory = [];
     this.pendingChanges.clear();
+    this.autoApproveTools = false;
+    this.pendingUserChoices.clear();
   }
 
   /** Whether the conversation has prior messages (used by /cmd to detect if /plan has run) */
   hasConversationHistory(): boolean {
     return this.conversationHistory.length > 0;
+  }
+
+  /** Return the full text of the last streamed LLM response */
+  getLastStreamContent(): string {
+    return this.lastStreamContent;
+  }
+
+  /** Read the persistent implementation plan from .rqml/rqml-implementation-plan.md */
+  async readPlanFile(): Promise<string | null> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) return null;
+    try {
+      const uri = vscode.Uri.joinPath(folders[0].uri, '.rqml/rqml-implementation-plan.md');
+      const bytes = await vscode.workspace.fs.readFile(uri);
+      return Buffer.from(bytes).toString('utf-8');
+    } catch {
+      return null;
+    }
   }
 
   /** Fire a message to the webview (used by command handlers) */

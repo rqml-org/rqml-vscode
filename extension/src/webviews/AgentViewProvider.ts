@@ -130,6 +130,27 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         vscode.window.setStatusBarMessage('Copied to clipboard.', 3000);
         break;
       }
+      case 'approveToolCall': {
+        const { approvalId } = message.payload as { approvalId: string };
+        agentService.resolveToolApproval(approvalId, true);
+        break;
+      }
+      case 'rejectToolCall': {
+        const { approvalId } = message.payload as { approvalId: string };
+        agentService.resolveToolApproval(approvalId, false);
+        break;
+      }
+      case 'allowAllToolCalls': {
+        const { approvalId } = message.payload as { approvalId: string };
+        agentService.setAutoApproveTools(true);
+        agentService.resolveToolApproval(approvalId, true);
+        break;
+      }
+      case 'respondToChoice': {
+        const { choiceId, selected } = message.payload as { choiceId: string; selected: string };
+        agentService.resolveUserChoice(choiceId, selected);
+        break;
+      }
     }
   }
 

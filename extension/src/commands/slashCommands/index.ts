@@ -6,8 +6,10 @@ import { createSessionCommands } from './handlers/session';
 import { createProviderCommands } from './handlers/provider';
 import { createQualityCommands } from './handlers/quality';
 import { createSyncCommands } from './handlers/sync';
+import { createElicitCommands } from './handlers/elicit';
 import { createPlanCommands } from './handlers/plan';
 import { createCmdCommands } from './handlers/cmd';
+import { createImplementCommands } from './handlers/implement';
 import { createDiagnosticsCommands } from './handlers/diagnostics';
 import { createModelCommands } from './handlers/model';
 
@@ -42,6 +44,11 @@ export function createCommandRegistry(): CommandRegistry {
     registry.register(cmd);
   }
 
+  // Elicitation
+  for (const cmd of createElicitCommands()) {
+    registry.register(cmd);
+  }
+
   // REQ-CMD-009: Planning
   for (const cmd of createPlanCommands()) {
     registry.register(cmd);
@@ -49,6 +56,11 @@ export function createCommandRegistry(): CommandRegistry {
 
   // REQ-CMD-010: Coding agent
   for (const cmd of createCmdCommands()) {
+    registry.register(cmd);
+  }
+
+  // Implementation via tool use
+  for (const cmd of createImplementCommands()) {
     registry.register(cmd);
   }
 

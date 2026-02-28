@@ -3,6 +3,8 @@ import React, { useCallback } from 'react';
 import type { Message, ChangeInfo } from './useAgentMessages';
 import { renderMarkdown } from './markdown';
 import { ChangeProposal } from './ChangeProposal';
+import { ToolApprovalCard } from './ToolApprovalCard';
+import { UserChoiceCard } from './UserChoiceCard';
 import { getVsCodeApi } from '../shared/vscodeApi';
 
 interface MessageBubbleProps {
@@ -10,6 +12,10 @@ interface MessageBubbleProps {
   onAcceptChange: (changeId: string) => void;
   onRejectChange: (changeId: string) => void;
   onAllowAllChanges: (changeId: string) => void;
+  onApproveToolCall: (approvalId: string) => void;
+  onRejectToolCall: (approvalId: string) => void;
+  onAllowAllToolCalls: (approvalId: string) => void;
+  onRespondToChoice: (choiceId: string, selected: string) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -17,6 +23,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onAcceptChange,
   onRejectChange,
   onAllowAllChanges,
+  onApproveToolCall,
+  onRejectToolCall,
+  onAllowAllToolCalls,
+  onRespondToChoice,
 }) => {
   const vscode = getVsCodeApi();
 
@@ -43,7 +53,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   if (message.role === 'system') {
     return (
       <div className="message message-system">
-        {message.content}
+        {!message.userChoice && message.content}
+        {message.toolApproval && (
+          <ToolApprovalCard
+            approval={message.toolApproval}
+            onApprove={onApproveToolCall}
+            onReject={onRejectToolCall}
+            onAllowAll={onAllowAllToolCalls}
+          />
+        )}
+        {message.userChoice && (
+          <UserChoiceCard
+            choice={message.userChoice}
+            onSelect={onRespondToChoice}
+          />
+        )}
       </div>
     );
   }

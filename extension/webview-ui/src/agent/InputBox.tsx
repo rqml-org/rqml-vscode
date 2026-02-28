@@ -39,6 +39,13 @@ export const InputBox: React.FC<InputBoxProps> = ({
     adjustHeight();
   }, [value, adjustHeight]);
 
+  // Refocus textarea when loading ends (after agent response or slash command)
+  useEffect(() => {
+    if (!isLoading) {
+      textareaRef.current?.focus();
+    }
+  }, [isLoading]);
+
   // Slash autocomplete
   useEffect(() => {
     if (value.startsWith('/') && !value.includes(' ')) {

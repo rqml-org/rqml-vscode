@@ -27,6 +27,8 @@ const PALETTE_COMMANDS: Array<{ id: string; slash: string }> = [
   { id: 'rqml-vscode.slashAbout',      slash: '/about' },
   { id: 'rqml-vscode.slashModels',     slash: '/models' },
   { id: 'rqml-vscode.slashModelTest',  slash: '/model test' },
+  { id: 'rqml-vscode.slashImplement', slash: '/implement' },
+  { id: 'rqml-vscode.slashElicit', slash: '/elicit' },
 ];
 
 /**

@@ -205,6 +205,14 @@
       {
         "command": "rqml-vscode.slashModelTest",
         "title": "RQML: Test Model"
+      },
+      {
+        "command": "rqml-vscode.slashImplement",
+        "title": "RQML: Implement Next Stage"
+      },
+      {
+        "command": "rqml-vscode.slashElicit",
+        "title": "RQML: Elicit Requirements"
       }
     ],
     "viewsContainers": {

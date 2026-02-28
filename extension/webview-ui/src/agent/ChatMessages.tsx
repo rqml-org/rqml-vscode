@@ -9,6 +9,10 @@ interface ChatMessagesProps {
   onAcceptChange: (changeId: string) => void;
   onRejectChange: (changeId: string) => void;
   onAllowAllChanges: (changeId: string) => void;
+  onApproveToolCall: (approvalId: string) => void;
+  onRejectToolCall: (approvalId: string) => void;
+  onAllowAllToolCalls: (approvalId: string) => void;
+  onRespondToChoice: (choiceId: string, selected: string) => void;
 }
 
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -17,6 +21,10 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   onAcceptChange,
   onRejectChange,
   onAllowAllChanges,
+  onApproveToolCall,
+  onRejectToolCall,
+  onAllowAllToolCalls,
+  onRespondToChoice,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,6 +58,10 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
           onAcceptChange={onAcceptChange}
           onRejectChange={onRejectChange}
           onAllowAllChanges={onAllowAllChanges}
+          onApproveToolCall={onApproveToolCall}
+          onRejectToolCall={onRejectToolCall}
+          onAllowAllToolCalls={onAllowAllToolCalls}
+          onRespondToChoice={onRespondToChoice}
         />
       ))}
       {isLoading && (

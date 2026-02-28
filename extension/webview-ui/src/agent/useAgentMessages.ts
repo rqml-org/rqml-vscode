@@ -9,12 +9,29 @@ export interface ChangeInfo {
   status: 'pending' | 'applied' | 'rejected';
 }
 
+export interface ToolApprovalInfo {
+  approvalId: string;
+  toolName: string;
+  filePath?: string;
+  preview?: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface UserChoiceInfo {
+  choiceId: string;
+  question: string;
+  options: string[];
+  selected?: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'command';
   content: string;
   streaming?: boolean;
   change?: ChangeInfo;
+  toolApproval?: ToolApprovalInfo;
+  userChoice?: UserChoiceInfo;
 }
 
 export interface EndpointStatus {
@@ -41,6 +58,7 @@ export function useAgentMessages() {
   const [commandNames, setCommandNames] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const autoApproveRef = useRef(false);
+  const autoApproveToolsRef = useRef(false);
   const vscode = getVsCodeApi();
 
   useEffect(() => {
@@ -156,6 +174,53 @@ export function useAgentMessages() {
           setCommandNames(names);
           break;
         }
+
+        case 'toolApprovalRequest': {
+          const { approvalId, toolName, filePath, preview } = msg.payload as {
+            approvalId: string; toolName: string; filePath?: string; preview?: string;
+          };
+          // Auto-approve if enabled
+          if (autoApproveToolsRef.current) {
+            vscode.postMessage({ type: 'approveToolCall', payload: { approvalId } });
+            setMessages(prev => [...prev, {
+              id: `tool-${approvalId}`,
+              role: 'system',
+              content: `Auto-approved: ${toolName}${filePath ? ` (${filePath})` : ''}`,
+              toolApproval: { approvalId, toolName, filePath, preview, status: 'approved' },
+            }]);
+          } else {
+            setMessages(prev => [...prev, {
+              id: `tool-${approvalId}`,
+              role: 'system',
+              content: `${toolName}${filePath ? `: ${filePath}` : ''}`,
+              toolApproval: { approvalId, toolName, filePath, preview, status: 'pending' },
+            }]);
+          }
+          break;
+        }
+
+        case 'toolApprovalResolved': {
+          const { approvalId, approved } = msg.payload as { approvalId: string; approved: boolean };
+          setMessages(prev => prev.map(m =>
+            m.toolApproval?.approvalId === approvalId
+              ? { ...m, toolApproval: { ...m.toolApproval, status: approved ? 'approved' as const : 'rejected' as const } }
+              : m
+          ));
+          break;
+        }
+
+        case 'userChoiceRequest': {
+          const { choiceId, question, options } = msg.payload as {
+            choiceId: string; question: string; options: string[];
+          };
+          setMessages(prev => [...prev, {
+            id: `choice-${choiceId}`,
+            role: 'system',
+            content: question,
+            userChoice: { choiceId, question, options },
+          }]);
+          break;
+        }
       }
     }
 
@@ -183,6 +248,28 @@ export function useAgentMessages() {
     vscode.postMessage({ type: 'acceptChange', payload: { changeId } });
   }, []);
 
+  const approveToolCall = useCallback((approvalId: string) => {
+    vscode.postMessage({ type: 'approveToolCall', payload: { approvalId } });
+  }, []);
+
+  const rejectToolCall = useCallback((approvalId: string) => {
+    vscode.postMessage({ type: 'rejectToolCall', payload: { approvalId } });
+  }, []);
+
+  const allowAllToolCalls = useCallback((approvalId: string) => {
+    autoApproveToolsRef.current = true;
+    vscode.postMessage({ type: 'allowAllToolCalls', payload: { approvalId } });
+  }, []);
+
+  const respondToChoice = useCallback((choiceId: string, selected: string) => {
+    vscode.postMessage({ type: 'respondToChoice', payload: { choiceId, selected } });
+    setMessages(prev => prev.map(m =>
+      m.userChoice?.choiceId === choiceId
+        ? { ...m, userChoice: { ...m.userChoice, selected } }
+        : m
+    ));
+  }, []);
+
   return {
     messages,
     endpointStatus,
@@ -192,5 +279,9 @@ export function useAgentMessages() {
     acceptChange,
     rejectChange,
     allowAllChanges,
+    approveToolCall,
+    rejectToolCall,
+    allowAllToolCalls,
+    respondToChoice,
   };
 }

@@ -15,6 +15,10 @@ export const AgentApp: React.FC = () => {
     acceptChange,
     rejectChange,
     allowAllChanges,
+    approveToolCall,
+    rejectToolCall,
+    allowAllToolCalls,
+    respondToChoice,
   } = useAgentMessages();
 
   // Derive status message for the input box
@@ -38,6 +42,10 @@ export const AgentApp: React.FC = () => {
         onAcceptChange={acceptChange}
         onRejectChange={rejectChange}
         onAllowAllChanges={allowAllChanges}
+        onApproveToolCall={approveToolCall}
+        onRejectToolCall={rejectToolCall}
+        onAllowAllToolCalls={allowAllToolCalls}
+        onRespondToChoice={respondToChoice}
       />
       <InputBox
         onSubmit={sendPrompt}

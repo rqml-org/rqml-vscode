@@ -385,6 +385,160 @@
   background: var(--vscode-editorSuggestWidget-selectedBackground, var(--vscode-list-hoverBackground));
 }
 
+/* ── Tool approval card ── */
+
+.tool-approval-card {
+  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+  border-radius: var(--agent-radius);
+  margin: 6px 0;
+  overflow: hidden;
+  font-style: normal;
+  opacity: 1;
+}
+
+.tool-resolved {
+  opacity: 0.6;
+}
+
+.tool-approval-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 0.9em;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.1));
+}
+
+.tool-approval-label {
+  white-space: nowrap;
+}
+
+.tool-approval-path {
+  font-weight: normal;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-approval-preview-section {
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+}
+
+.tool-approval-toggle {
+  display: block;
+  width: 100%;
+  padding: 4px 10px;
+  border: none;
+  background: none;
+  color: var(--vscode-textLink-foreground);
+  font-family: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tool-approval-toggle:hover {
+  text-decoration: underline;
+}
+
+.tool-approval-preview {
+  padding: 8px 10px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.05));
+}
+
+.tool-approval-actions {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+}
+
+.tool-approval-actions button {
+  padding: 3px 10px;
+  border: none;
+  border-radius: 3px;
+  font-size: 0.85em;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tool-approval-status {
+  padding: 4px 10px;
+  font-size: 0.85em;
+  font-style: italic;
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+}
+
+/* ── User choice card ── */
+
+.user-choice-card {
+  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+  border-radius: var(--agent-radius);
+  margin: 6px 0;
+  overflow: hidden;
+}
+
+.choice-resolved {
+  opacity: 0.6;
+}
+
+.user-choice-question {
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 0.9em;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.1));
+}
+
+.user-choice-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.user-choice-option {
+  padding: 4px 12px;
+  border: 1px solid var(--vscode-button-background);
+  border-radius: 3px;
+  font-size: 0.85em;
+  cursor: pointer;
+  font-family: inherit;
+  background: transparent;
+  color: var(--vscode-button-background);
+}
+
+.user-choice-option:hover:not(:disabled) {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.user-choice-option.selected {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.user-choice-option:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.user-choice-status {
+  padding: 4px 10px;
+  font-size: 0.85em;
+  font-style: italic;
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+}
+
 /* ── Spec health indicator ── */
 
 .spec-health {
