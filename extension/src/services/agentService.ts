@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { streamText, stepCountIs, type ModelMessage } from 'ai';
+import { streamText, stepCountIs, type ModelMessage, type ToolSet } from 'ai';
 import { getLlmService } from './llmService';
 import { getSpecService } from './specService';
 import { getConfigurationService } from './configurationService';
@@ -211,7 +211,8 @@ export class AgentService {
   }
 
   /**
-   * Stream a response from the LLM, including system prompt with context
+   * Stream a response from the LLM, including system prompt with context.
+   * All tools are available in regular chat — slash commands are shortcuts, not gates.
    */
   private async streamResponse(): Promise<void> {
     const llmService = getLlmService();
@@ -221,44 +222,88 @@ export class AgentService {
       const model = await llmService.getModel();
       const systemPrompt = await this.buildSystemPrompt();
 
+      // Provide tools if a workspace is open
+      const folders = vscode.workspace.workspaceFolders;
+      let tools: ToolSet | undefined;
+      if (folders?.length) {
+        const { createImplementTools } = await import('./implementTools.js');
+        tools = createImplementTools(folders[0].uri.fsPath, this);
+      }
+
       const result = streamText({
         model,
         system: systemPrompt,
         messages: this.conversationHistory,
+        ...(tools ? { tools, stopWhen: stepCountIs(15) } : {}),
       });
 
-      let fullContent = '';
+      // Track per-step text to avoid concatenating repetitive multi-step output.
+      // Each step that produces text before a tool call gets its own message.
+      let stepContent = '';
+      let currentMsgId = msgId;
 
-      for await (const chunk of result.textStream) {
-        fullContent += chunk;
-        this._onDidReceiveMessage.fire({
-          type: 'agentStreaming',
-          payload: { id: msgId, content: fullContent }
-        });
+      for await (const part of result.fullStream) {
+        switch (part.type) {
+          case 'text-delta': {
+            stepContent += part.text;
+            this._onDidReceiveMessage.fire({
+              type: 'agentStreaming',
+              payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+            });
+            break;
+          }
+          case 'tool-call': {
+            // Finalize any accumulated text as a completed message before tool call
+            if (stepContent.trim()) {
+              this._onDidReceiveMessage.fire({
+                type: 'agentStreamEnd',
+                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+              });
+              currentMsgId = crypto.randomUUID();
+              stepContent = '';
+            }
+            const input = part.input as Record<string, unknown>;
+            this._onDidReceiveMessage.fire({
+              type: 'systemMessage',
+              payload: {
+                content: `Calling tool: **${part.toolName}**(${
+                  (input.path as string) ?? (input.pattern as string) ?? (input.question as string) ?? ''
+                })`,
+              },
+            });
+            break;
+          }
+          case 'tool-result':
+          case 'finish-step':
+          case 'start-step':
+            break;
+        }
       }
 
-      // Parse final response for change proposals
-      const change = this.extractChangeProposal(fullContent);
+      // The final step's text is in stepContent — extract change proposals from it
+      const change = this.extractChangeProposal(stepContent);
+      const displayContent = this.stripProposalForDisplay(stepContent);
 
       // Store for offerCopy
-      this.lastStreamContent = fullContent;
+      this.lastStreamContent = stepContent;
 
-      // Add to conversation history
-      this.conversationHistory.push({ role: 'assistant', content: fullContent });
+      // Add proper response messages to conversation history (preserves tool calls/results)
+      const response = await result.response;
+      this.conversationHistory.push(...response.messages);
 
-      // If auto-approve is on and there's a change, apply it immediately
+      // Finalize the last step's message (display content has proposal markers stripped)
       if (change && this.autoApprove) {
         this._onDidReceiveMessage.fire({
           type: 'agentStreamEnd',
-          payload: { id: msgId, content: fullContent, change: { ...change, status: 'accepted' } }
+          payload: { id: currentMsgId, content: displayContent, change: { ...change, status: 'accepted' } }
         });
         await this.applyChangeInternal(change);
       } else {
         this._onDidReceiveMessage.fire({
           type: 'agentStreamEnd',
           payload: {
-            id: msgId,
-            content: fullContent,
+            id: currentMsgId,
+            content: displayContent,
             change: change ? { ...change, status: 'pending' } : undefined
           }
         });
@@ -291,11 +336,31 @@ export class AgentService {
     parts.push('You enforce the RQML development process: all features must be specified before implementation.');
     parts.push('The RQML spec and all implementation code reside in the same repository.');
     parts.push('If the workspace contains only a spec file and no source code, implementation has not yet begun.');
-    parts.push('');
+    parts.push('You personality is encourraging and collagorative and you love to build software with the user.');
+    parts.push('You always provide the user with a clear path forward, whether it is updating the spec or implementing the next stage in the plan.');
 
-    // REQ-AGT-009: Code changes only via /implement
-    parts.push('In this conversation mode, you propose changes ONLY to the RQML specification file (.rqml) using the change proposal format.');
-    parts.push('You do NOT directly generate or scaffold source code here. When the user asks you to implement or write code, direct them to use `/implement` (agentic coding with tool use) or `/cmd` (generate a prompt for an external coding agent).');
+    // REQ-AGT-009: Tools available in chat
+    parts.push('## Tools');
+    parts.push('You have the following tools available:');
+    parts.push('- **readFile**: Read a file in the workspace');
+    parts.push('- **writeFile**: Write/create a file (requires user approval)');
+    parts.push('- **listFiles**: List files matching a glob pattern');
+    parts.push('- **readSpec**: Read the current RQML spec');
+    parts.push('- **updateSpec**: Update the RQML spec (requires user approval)');
+    parts.push('- **askUser**: Present the user with a question and clickable options');
+    parts.push('');
+    parts.push('CRITICAL: When you need user input, confirmation, or want to present choices, you MUST call the askUser tool. NEVER write options as plain text in your response — the user cannot respond to plain-text options. The askUser tool renders interactive buttons the user can click.');
+    parts.push('For RQML spec changes you may also use the change proposal format (:::CHANGE_PROPOSAL:::).');
+    parts.push('');
+    parts.push('## Diagrams');
+    parts.push('You can render architecture diagrams, flowcharts, sequence diagrams, and other visuals using Mermaid.js.');
+    parts.push('Use ```mermaid code fences in your response — they render as interactive SVG diagrams directly in the chat.');
+    parts.push('Do NOT tell the user to paste the diagram elsewhere or use an external renderer. The diagrams render inline automatically.');
+    parts.push('Mermaid syntax rules (IMPORTANT — invalid syntax breaks the diagram):');
+    parts.push('- Node labels with special characters (spaces, slashes, parens) MUST use quotes: `A["Web / CLI"]` not `A[Web / CLI]`');
+    parts.push('- For line breaks in labels use `<br/>` inside quotes: `A["Line 1<br/>Line 2"]` — never use `\\n`');
+    parts.push('- Subgraph titles with special characters need quotes: `subgraph Delivery["Delivery / Interface Layer"]`');
+    parts.push('- Avoid bare parentheses in labels — use quotes or rephrase');
     parts.push('');
 
     // Development process — intrinsic, not overridable by AGENTS.md
@@ -377,7 +442,7 @@ export class AgentService {
     parts.push(`(the complete updated RQML file content)`);
     parts.push(`:::END_PROPOSAL:::`);
     parts.push('```');
-    parts.push(`Only propose changes to the .rqml file. Never propose code changes.`);
+    parts.push(`Use the change proposal format for RQML spec changes. For code changes, use the writeFile tool.`);
 
     return parts.join('\n');
   }
@@ -438,6 +503,31 @@ export class AgentService {
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Strip :::CHANGE_PROPOSAL::: blocks from displayed content.
+   * During streaming (incomplete proposal): replaces with a placeholder.
+   * After streaming (complete proposal): strips entirely (shown as card).
+   */
+  private stripProposalForDisplay(content: string): string {
+    const startMarker = ':::CHANGE_PROPOSAL:::';
+    const endMarker = ':::END_PROPOSAL:::';
+
+    const startIdx = content.indexOf(startMarker);
+    if (startIdx === -1) return content;
+
+    const before = content.substring(0, startIdx).trimEnd();
+    const endIdx = content.indexOf(endMarker);
+
+    if (endIdx === -1) {
+      // Proposal started but not ended (during streaming)
+      return before + '\n\n*Preparing change proposal...*';
+    }
+
+    // Complete proposal — strip entirely (will be shown as a card)
+    const after = content.substring(endIdx + endMarker.length).trimStart();
+    return after ? before + '\n\n' + after : before;
   }
 
   /**
@@ -743,47 +833,55 @@ export class AgentService {
         stopWhen: stepCountIs(15),
       });
 
-      let fullContent = '';
+      // Track per-step text to avoid concatenating repetitive multi-step output
+      let stepContent = '';
+      let currentMsgId = msgId;
 
       for await (const part of result.fullStream) {
         switch (part.type) {
           case 'text-delta': {
-            fullContent += part.text;
+            stepContent += part.text;
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
-              payload: { id: msgId, content: fullContent },
+              payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
             });
             break;
           }
           case 'tool-call': {
+            // Finalize any accumulated text as a completed message before tool call
+            if (stepContent.trim()) {
+              this._onDidReceiveMessage.fire({
+                type: 'agentStreamEnd',
+                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+              });
+              currentMsgId = crypto.randomUUID();
+              stepContent = '';
+            }
             const input = part.input as Record<string, unknown>;
             this._onDidReceiveMessage.fire({
               type: 'systemMessage',
               payload: {
                 content: `Calling tool: **${part.toolName}**(${
-                  (input.path as string) ?? (input.pattern as string) ?? ''
+                  (input.path as string) ?? (input.pattern as string) ?? (input.question as string) ?? ''
                 })`,
               },
             });
             break;
           }
-          case 'tool-result': {
-            // Tool result is handled automatically by the SDK's multi-step loop
+          case 'tool-result':
+          case 'finish-step':
+          case 'start-step':
             break;
-          }
-          case 'finish-step': {
-            // A step in the multi-step loop finished
-            break;
-          }
         }
       }
 
-      // Add assistant response to conversation history
-      this.conversationHistory.push({ role: 'assistant', content: fullContent });
+      // Add proper response messages to conversation history (preserves tool calls/results)
+      const response = await result.response;
+      this.conversationHistory.push(...response.messages);
 
       this._onDidReceiveMessage.fire({
         type: 'agentStreamEnd',
-        payload: { id: msgId, content: fullContent },
+        payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

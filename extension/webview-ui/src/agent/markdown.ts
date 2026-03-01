@@ -10,6 +10,28 @@ marked.setOptions({
   breaks: true,
 });
 
+// Custom renderer: intercept mermaid code fences and emit placeholder divs
+marked.use({
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }) {
+      if (lang === 'mermaid') {
+        const encoded = btoa(unescape(encodeURIComponent(text)));
+        return `<div class="mermaid-placeholder" data-mermaid-source="${encoded}"><pre><code class="language-mermaid">${escapeHtml(text)}</code></pre></div>`;
+      }
+      // Fall through to marked's default renderer
+      return false as unknown as string;
+    },
+  },
+});
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /**
  * Convert markdown text to HTML with requirement ID links.
  */

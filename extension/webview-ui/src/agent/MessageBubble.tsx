@@ -1,7 +1,8 @@
 // Individual chat message with markdown rendering and requirement ID links
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import type { Message, ChangeInfo } from './useAgentMessages';
 import { renderMarkdown } from './markdown';
+import { renderMermaidDiagram } from './mermaidRenderer';
 import { ChangeProposal } from './ChangeProposal';
 import { ToolApprovalCard } from './ToolApprovalCard';
 import { UserChoiceCard } from './UserChoiceCard';
@@ -29,6 +30,42 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onRespondToChoice,
 }) => {
   const vscode = getVsCodeApi();
+
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Render mermaid placeholders after HTML is injected into the DOM
+  useEffect(() => {
+    if (!contentRef.current || message.streaming) return;
+
+    const placeholders = contentRef.current.querySelectorAll(
+      '.mermaid-placeholder:not(.mermaid-rendered)'
+    );
+    if (placeholders.length === 0) return;
+
+    placeholders.forEach(async (placeholder) => {
+      const encoded = placeholder.getAttribute('data-mermaid-source');
+      if (!encoded) return;
+
+      placeholder.classList.add('mermaid-rendered');
+
+      try {
+        const source = decodeURIComponent(escape(atob(encoded)));
+        const result = await renderMermaidDiagram(source);
+
+        if ('svg' in result) {
+          placeholder.innerHTML = `<div class="mermaid-diagram">${result.svg}</div>`;
+        } else {
+          placeholder.classList.add('mermaid-error');
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'mermaid-error-notice';
+          errorDiv.textContent = `Diagram error: ${result.error}`;
+          placeholder.insertBefore(errorDiv, placeholder.firstChild);
+        }
+      } catch {
+        placeholder.classList.add('mermaid-error');
+      }
+    });
+  }, [message.content, message.streaming]);
 
   // Handle clicks on requirement ID links
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -79,7 +116,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <div className={className}>
       <div
-        className="markdown-content"
+        ref={contentRef}
+        className={`markdown-content${message.streaming ? ' streaming' : ''}`}
         dangerouslySetInnerHTML={{ __html: html }}
         onClick={handleClick}
       />

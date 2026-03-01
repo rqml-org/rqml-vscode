@@ -1,8 +1,10 @@
 // Root layout: chat area + input box
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ChatMessages } from './ChatMessages';
 import { InputBox } from './InputBox';
 import { useAgentMessages } from './useAgentMessages';
+import { useVscodeTheme } from '../shared/useVscodeTheme';
+import { updateMermaidTheme } from './mermaidRenderer';
 import './agent.css';
 
 export const AgentApp: React.FC = () => {
@@ -20,6 +22,25 @@ export const AgentApp: React.FC = () => {
     allowAllToolCalls,
     respondToChoice,
   } = useAgentMessages();
+
+  // Initialize mermaid with VS Code theme colors
+  const theme = useVscodeTheme();
+  useEffect(() => {
+    const bg = theme.background.replace('#', '');
+    const r = parseInt(bg.substring(0, 2), 16) || 0;
+    const g = parseInt(bg.substring(2, 4), 16) || 0;
+    const b = parseInt(bg.substring(4, 6), 16) || 0;
+    const isDark = (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+
+    updateMermaidTheme({
+      isDark,
+      foreground: theme.foreground,
+      background: theme.editorBackground,
+      primaryColor: theme.buttonBackground,
+      primaryTextColor: theme.buttonForeground,
+      lineColor: theme.panelBorder,
+    });
+  }, [theme]);
 
   // Derive status message for the input box
   const statusMessage = useMemo(() => {

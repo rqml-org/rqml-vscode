@@ -191,6 +191,60 @@
   text-decoration: underline;
 }
 
+/* ── Mermaid diagrams ── */
+
+.mermaid-placeholder {
+  margin: 6px 0;
+  border-radius: var(--agent-radius);
+  overflow: hidden;
+}
+
+.mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  padding: 12px 8px;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+  border-radius: var(--agent-radius);
+  overflow-x: auto;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error-notice {
+  padding: 4px 10px;
+  font-size: 0.85em;
+  color: var(--vscode-errorForeground, #f48771);
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+}
+
+.mermaid-rendered pre {
+  display: none;
+}
+
+.mermaid-error pre {
+  display: block;
+}
+
+/* During streaming, hide the raw mermaid source and show a placeholder */
+.streaming .mermaid-placeholder pre {
+  display: none;
+}
+
+.streaming .mermaid-placeholder::after {
+  content: 'Generating diagram\2026';
+  display: block;
+  padding: 16px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground, rgba(204, 204, 204, 0.7));
+  font-style: italic;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+  border-radius: var(--agent-radius);
+}
+
 /* Streaming cursor */
 .streaming-cursor {
   display: inline-block;
