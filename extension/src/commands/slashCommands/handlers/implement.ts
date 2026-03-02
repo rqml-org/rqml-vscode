@@ -6,9 +6,7 @@ const HAS_PLAN_PREAMBLE =
   'A plan exists in the conversation. Based on it, implement the next stage.';
 
 const NO_PLAN_HINT =
-  'No implementation plan found in this conversation. ' +
-  'Consider running /plan first to generate a staged plan. ' +
-  'Proceeding to implement based on the spec requirements directly.';
+  'No plan file found. The agent will generate one automatically before implementing.';
 
 export function createImplementCommands(): SlashCommand[] {
   const implementCommand: SlashCommand = {
@@ -26,7 +24,9 @@ export function createImplementCommands(): SlashCommand[] {
       if (target) {
         ctx.system(`Starting implementation for: ${target}`);
       } else {
-        const hasPlan = ctx.services.agent.hasConversationHistory();
+        // Check the persistent plan file first, then conversation history
+        const planFile = await ctx.services.agent.readPlanFile();
+        const hasPlan = planFile !== null || ctx.services.agent.hasConversationHistory();
         ctx.system(hasPlan ? HAS_PLAN_PREAMBLE : NO_PLAN_HINT);
       }
 

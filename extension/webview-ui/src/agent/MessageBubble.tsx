@@ -88,8 +88,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   if (message.role === 'system') {
+    const interactive = message.userChoice || message.toolApproval;
     return (
-      <div className="message message-system">
+      <div className={`message message-system${interactive ? ' system-interactive' : ''}`}>
         {!message.userChoice && message.content}
         {message.toolApproval && (
           <ToolApprovalCard

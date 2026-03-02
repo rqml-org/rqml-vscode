@@ -1,11 +1,12 @@
 // Scrollable chat message list with auto-scroll
 import React, { useEffect, useRef } from 'react';
-import type { Message } from './useAgentMessages';
+import type { Message, StartupStatus } from './useAgentMessages';
 import { MessageBubble } from './MessageBubble';
 
 interface ChatMessagesProps {
   messages: Message[];
   isLoading: boolean;
+  startupStatus: StartupStatus | null;
   onAcceptChange: (changeId: string) => void;
   onRejectChange: (changeId: string) => void;
   onAllowAllChanges: (changeId: string) => void;
@@ -18,6 +19,7 @@ interface ChatMessagesProps {
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
   isLoading,
+  startupStatus,
   onAcceptChange,
   onRejectChange,
   onAllowAllChanges,
@@ -45,10 +47,16 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
               alt="RQML"
             />
           )}
-          <div className="message message-system">
-            Ask about your requirements, request quality assessments,
-            or let the agent monitor your spec. Type /help for commands.
-          </div>
+          {startupStatus ? (
+            <div className="status-card">
+              <div className="status-summary">{startupStatus.summary}</div>
+              <div className="status-next-step">{startupStatus.nextStep}</div>
+            </div>
+          ) : (
+            <div className="status-card">
+              <div className="status-summary">Loading...</div>
+            </div>
+          )}
         </div>
       )}
       {messages.map(msg => (

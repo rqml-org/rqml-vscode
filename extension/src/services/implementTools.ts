@@ -131,14 +131,16 @@ export function createImplementTools(
       description:
         'Ask the user a question and present options to choose from. ' +
         'ALWAYS use this tool instead of asking questions in plain text. ' +
-        'The user will see a card with clickable options.',
+        'The user will see a card with clickable options. ' +
+        'Put your recommended option first and set recommended to 0.',
       inputSchema: z.object({
         question: z.string().describe('The question to ask the user'),
         options: z.array(z.string()).min(2).max(6).describe('2-6 options for the user to choose from'),
+        recommended: z.number().int().min(0).optional().describe('0-based index of the recommended option (highlighted and pre-selected)'),
       }),
-      execute: async ({ question, options }) => {
+      execute: async ({ question, options, recommended }) => {
         const choiceId = crypto.randomUUID();
-        const selected = await agentService.waitForUserChoice(choiceId, question, options);
+        const selected = await agentService.waitForUserChoice(choiceId, question, options, recommended);
         return `User selected: ${selected}`;
       },
     }),

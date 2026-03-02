@@ -55,9 +55,14 @@ export class AgentService {
   // /implement tool approval state
   private pendingToolApprovals = new Map<string, { resolve: (approved: boolean) => void }>();
   private autoApproveTools = false;
+  private approvalInProgress = false;
+  private approvalQueue: Array<() => void> = [];
 
   // /implement askUser state
   private pendingUserChoices = new Map<string, { resolve: (choice: string) => void }>();
+
+  // Suppress file-watcher analysis while a tool stream (/implement) is running
+  private toolStreamActive = false;
 
   // REQ-CMD-001: Slash command registry
   private _commandRegistry: CommandRegistry | undefined;
@@ -144,6 +149,7 @@ export class AgentService {
   private onRqmlFileChanged(): void {
     if (this.rqmlChangeTimer) clearTimeout(this.rqmlChangeTimer);
     this.rqmlChangeTimer = setTimeout(async () => {
+      if (this.toolStreamActive) { return; } // Suppress during /implement
       const llmService = getLlmService();
       if (!(await llmService.isReady())) return;
 
@@ -162,6 +168,7 @@ export class AgentService {
   private onCodeFileChanged(): void {
     if (this.codeChangeTimer) clearTimeout(this.codeChangeTimer);
     this.codeChangeTimer = setTimeout(async () => {
+      if (this.toolStreamActive) { return; } // Suppress during /implement
       const llmService = getLlmService();
       if (!(await llmService.isReady())) return;
 
@@ -237,10 +244,10 @@ export class AgentService {
         ...(tools ? { tools, stopWhen: stepCountIs(15) } : {}),
       });
 
-      // Track per-step text to avoid concatenating repetitive multi-step output.
-      // Each step that produces text before a tool call gets its own message.
+      // Single message ID for the entire response. Each step's text REPLACES
+      // the previous step's — only the final step's text is the actual response.
+      // Tool calls appear as system messages interleaved with the streaming message.
       let stepContent = '';
-      let currentMsgId = msgId;
 
       for await (const part of result.fullStream) {
         switch (part.type) {
@@ -248,29 +255,29 @@ export class AgentService {
             stepContent += part.text;
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
-              payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+              payload: { id: msgId, content: this.stripProposalForDisplay(stepContent) },
             });
             break;
           }
           case 'tool-call': {
-            // Finalize any accumulated text as a completed message before tool call
-            if (stepContent.trim()) {
-              this._onDidReceiveMessage.fire({
-                type: 'agentStreamEnd',
-                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
-              });
-              currentMsgId = crypto.randomUUID();
-              stepContent = '';
-            }
-            const input = part.input as Record<string, unknown>;
+            // Reset step content — next step's text will replace current in the same message
+            stepContent = '';
             this._onDidReceiveMessage.fire({
-              type: 'systemMessage',
-              payload: {
-                content: `Calling tool: **${part.toolName}**(${
-                  (input.path as string) ?? (input.pattern as string) ?? (input.question as string) ?? ''
-                })`,
-              },
+              type: 'agentStreaming',
+              payload: { id: msgId, content: '' },
             });
+            // Skip system message for askUser — the UserChoiceCard is the visual indicator
+            if (part.toolName !== 'askUser') {
+              const input = part.input as Record<string, unknown>;
+              this._onDidReceiveMessage.fire({
+                type: 'systemMessage',
+                payload: {
+                  content: `Calling tool: **${part.toolName}**(${
+                    (input.path as string) ?? (input.pattern as string) ?? (input.question as string) ?? ''
+                  })`,
+                },
+              });
+            }
             break;
           }
           case 'tool-result':
@@ -291,18 +298,18 @@ export class AgentService {
       const response = await result.response;
       this.conversationHistory.push(...response.messages);
 
-      // Finalize the last step's message (display content has proposal markers stripped)
+      // Finalize the streaming message with the final step's content
       if (change && this.autoApprove) {
         this._onDidReceiveMessage.fire({
           type: 'agentStreamEnd',
-          payload: { id: currentMsgId, content: displayContent, change: { ...change, status: 'accepted' } }
+          payload: { id: msgId, content: displayContent, change: { ...change, status: 'accepted' } }
         });
         await this.applyChangeInternal(change);
       } else {
         this._onDidReceiveMessage.fire({
           type: 'agentStreamEnd',
           payload: {
-            id: currentMsgId,
+            id: msgId,
             content: displayContent,
             change: change ? { ...change, status: 'pending' } : undefined
           }
@@ -369,13 +376,22 @@ export class AgentService {
     parts.push('');
     parts.push('1. **Elicit** (`/elicit`) — Guided requirements gathering through structured questions');
     parts.push('2. **Status** (`/status`) — Review spec health, coverage gaps, and readiness');
-    parts.push('3. **Plan** (`/plan`) — Generate a staged implementation plan (persisted to `.rqml/rqml-implementation-plan.md`)');
+    parts.push('3. **Plan** (`/plan`) — Review the implementation plan and propose next steps (--full to regenerate)');
     parts.push('4. **Implement** (`/cmd` to generate prompts, `/implement` to run agentic coding)');
     parts.push('5. **Verify** (`/sync`, `/validate`, `/lint`, `/score`) — Check spec↔code sync, validate, and lint');
     parts.push('');
     parts.push('When the user asks to build something without requirements in the spec, direct them to `/elicit`.');
-    parts.push('When they want to implement without a plan, suggest `/plan` first.');
     parts.push('Enforcement varies by strictness: at `relaxed` suggest the process; at `certified` require it.');
+    parts.push('');
+
+    // Plan management — the agent owns the plan file implicitly
+    parts.push('## Plan Management');
+    parts.push('You maintain the implementation plan file (`.rqml/rqml-implementation-plan.md`) implicitly.');
+    parts.push('When the user asks to implement something:');
+    parts.push('- If a plan exists (shown in the Implementation Plan section below), use it to determine the next unfinished stage and proceed.');
+    parts.push('- If NO plan exists, generate one using the writeFile tool (path: `.rqml/rqml-implementation-plan.md`), then proceed with the first stage.');
+    parts.push('Never ask the user whether to create a plan or whether a plan exists. Just find it or create it and move forward.');
+    parts.push('After completing a stage, update the plan file to mark that stage as complete (change `- [ ]` to `- [x]`).');
     parts.push('');
 
     // REQ-AGT-013: Strictness level
@@ -419,6 +435,15 @@ export class AgentService {
       parts.push('## Project Guidelines (AGENTS.md)');
       parts.push('The following are project-specific guidelines. They supplement but do not override the core RQML development process above.');
       parts.push(agentsMd);
+      parts.push('');
+    }
+
+    // Include persistent plan file if available
+    const planContent = await this.readPlanFile();
+    if (planContent) {
+      parts.push('## Implementation Plan');
+      parts.push('Current plan from `.rqml/rqml-implementation-plan.md`:');
+      parts.push(planContent);
       parts.push('');
     }
 
@@ -668,6 +693,48 @@ export class AgentService {
   }
 
   /**
+   * Build a startup status summary for the webview welcome screen.
+   */
+  async getStartupStatus(): Promise<{ summary: string; nextStep: string }> {
+    const specService = getSpecService();
+    const specState = specService.state;
+    const specLoaded = !!specState.document;
+    const planContent = await this.readPlanFile();
+    const llmReady = await getLlmService().isReady();
+
+    // Build summary parts
+    const parts: string[] = [];
+    if (specLoaded) {
+      parts.push('Spec loaded');
+    } else {
+      parts.push('No spec file loaded');
+    }
+    if (planContent) {
+      parts.push('plan available');
+    }
+    if (llmReady) {
+      parts.push('LLM ready');
+    } else {
+      parts.push('no LLM configured');
+    }
+    const summary = parts.join(' · ');
+
+    // Determine recommended next step
+    let nextStep: string;
+    if (!specLoaded) {
+      nextStep = 'Open an RQML spec file to get started.';
+    } else if (!llmReady) {
+      nextStep = 'Configure an LLM endpoint to start working with the agent.';
+    } else if (!planContent) {
+      nextStep = 'Ask me to implement something — I will generate a plan automatically.';
+    } else {
+      nextStep = 'Type /plan to review progress, or ask me to implement the next stage.';
+    }
+
+    return { summary, nextStep };
+  }
+
+  /**
    * REQ-CMD-001: Build a CommandContext for slash command execution
    */
   private buildCommandContext(): CommandContext {
@@ -724,12 +791,23 @@ export class AgentService {
     toolName: string,
     args: Record<string, string>
   ): Promise<boolean> {
+    // Serialize approvals: wait in queue if another approval is in progress.
+    // This prevents multiple approval cards from appearing simultaneously
+    // when the LLM emits several tool calls in one step.
+    if (this.approvalInProgress) {
+      await new Promise<void>(resolve => {
+        this.approvalQueue.push(resolve);
+      });
+    }
+    this.approvalInProgress = true;
+
+    // Check auto-approve (may have been set by "Allow All" on a previous approval)
     if (this.autoApproveTools) {
-      // Notify webview that it was auto-approved
       this._onDidReceiveMessage.fire({
         type: 'toolApprovalResolved',
         payload: { approvalId, approved: true },
       });
+      this.releaseApprovalQueue();
       return true;
     }
 
@@ -744,10 +822,21 @@ export class AgentService {
       },
     });
 
-    // Create a promise that resolves when the user responds
-    return new Promise<boolean>((resolve) => {
+    // Wait for user response
+    const approved = await new Promise<boolean>((resolve) => {
       this.pendingToolApprovals.set(approvalId, { resolve });
     });
+
+    this.releaseApprovalQueue();
+    return approved;
+  }
+
+  private releaseApprovalQueue(): void {
+    this.approvalInProgress = false;
+    const next = this.approvalQueue.shift();
+    if (next) {
+      next();
+    }
   }
 
   /** Resolve a pending tool approval (called from AgentViewProvider) */
@@ -771,11 +860,12 @@ export class AgentService {
   async waitForUserChoice(
     choiceId: string,
     question: string,
-    options: string[]
+    options: string[],
+    recommended?: number
   ): Promise<string> {
     this._onDidReceiveMessage.fire({
       type: 'userChoiceRequest',
-      payload: { choiceId, question, options },
+      payload: { choiceId, question, options, recommended },
     });
 
     return new Promise<string>((resolve) => {
@@ -800,6 +890,7 @@ export class AgentService {
     const llmService = getLlmService();
     const msgId = crypto.randomUUID();
 
+    this.toolStreamActive = true;
     try {
       const model = await llmService.getModel();
       const systemPrompt = await this.buildImplementPrompt(target);
@@ -833,9 +924,8 @@ export class AgentService {
         stopWhen: stepCountIs(15),
       });
 
-      // Track per-step text to avoid concatenating repetitive multi-step output
+      // Single message ID — each step's text replaces the previous, only final persists
       let stepContent = '';
-      let currentMsgId = msgId;
 
       for await (const part of result.fullStream) {
         switch (part.type) {
@@ -843,29 +933,29 @@ export class AgentService {
             stepContent += part.text;
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
-              payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+              payload: { id: msgId, content: this.stripProposalForDisplay(stepContent) },
             });
             break;
           }
           case 'tool-call': {
-            // Finalize any accumulated text as a completed message before tool call
-            if (stepContent.trim()) {
-              this._onDidReceiveMessage.fire({
-                type: 'agentStreamEnd',
-                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
-              });
-              currentMsgId = crypto.randomUUID();
-              stepContent = '';
-            }
-            const input = part.input as Record<string, unknown>;
+            // Reset step content — next step's text will replace current
+            stepContent = '';
             this._onDidReceiveMessage.fire({
-              type: 'systemMessage',
-              payload: {
-                content: `Calling tool: **${part.toolName}**(${
-                  (input.path as string) ?? (input.pattern as string) ?? (input.question as string) ?? ''
-                })`,
-              },
+              type: 'agentStreaming',
+              payload: { id: msgId, content: '' },
             });
+            // Skip system message for askUser — the card itself is the UI
+            if (part.toolName !== 'askUser') {
+              const input = part.input as Record<string, unknown>;
+              this._onDidReceiveMessage.fire({
+                type: 'systemMessage',
+                payload: {
+                  content: `Calling tool: **${part.toolName}**(${
+                    (input.path as string) ?? (input.pattern as string) ?? ''
+                  })`,
+                },
+              });
+            }
             break;
           }
           case 'tool-result':
@@ -881,7 +971,7 @@ export class AgentService {
 
       this._onDidReceiveMessage.fire({
         type: 'agentStreamEnd',
-        payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+        payload: { id: msgId, content: this.stripProposalForDisplay(stepContent) },
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -889,6 +979,8 @@ export class AgentService {
         type: 'agentResponse',
         payload: { id: msgId, content: `Error during /implement: ${message}` },
       });
+    } finally {
+      this.toolStreamActive = false;
     }
   }
 
@@ -937,7 +1029,7 @@ export class AgentService {
     // Process context
     parts.push('## Process Context');
     parts.push('This is step 4 (Implement) in the RQML development process.');
-    parts.push('If no plan exists, suggest running `/plan` first.');
+    parts.push('If no plan is provided below, generate a staged plan and save it to `.rqml/rqml-implementation-plan.md` using the writeFile tool, then implement the first stage.');
     parts.push('');
 
     // Include persistent plan file if available
@@ -1002,6 +1094,9 @@ export class AgentService {
     this.conversationHistory = [];
     this.pendingChanges.clear();
     this.autoApproveTools = false;
+    this.approvalInProgress = false;
+    this.approvalQueue = [];
+    this.toolStreamActive = false;
     this.pendingUserChoices.clear();
   }
 

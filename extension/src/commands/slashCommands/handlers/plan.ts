@@ -44,6 +44,9 @@ function stripProposalBlocks(text: string): string {
 
 // ── Prompt builders ───────────────────────────────────────────────────
 
+/**
+ * Build a prompt to generate or regenerate a plan.
+ */
 function buildPlanPrompt(
   target: string,
   isFull: boolean,
@@ -97,12 +100,31 @@ function buildPlanPrompt(
   return prompt;
 }
 
+/**
+ * Build a prompt to review an existing plan and propose the next stage.
+ */
+function buildReviewPrompt(existingPlan: string, target: string): string {
+  let prompt =
+    '[SYSTEM] Review the implementation plan below. ' +
+    'Summarize which stages are complete (marked [x]), which is the next unfinished stage, and any blockers. ' +
+    'Then propose implementing that next stage — briefly describe what it will involve. ' +
+    'Be concise (5-10 lines). Do NOT regenerate or rewrite the plan.';
+
+  if (target) {
+    prompt += ` Focus on stages related to: ${target}.`;
+  }
+
+  prompt += '\n\n[PLAN]\n' + existingPlan;
+
+  return prompt;
+}
+
 // ── Command definition ────────────────────────────────────────────────
 
 export function createPlanCommands(): SlashCommand[] {
   const planCommand: SlashCommand = {
     name: 'plan',
-    description: 'Generate a staged implementation plan from the spec (--full for detailed report)',
+    description: 'Review the plan and propose next steps (--full to regenerate)',
     usage: '/plan [--full] [<target>]',
     category: 'planning',
     requiresSpec: true,
@@ -112,20 +134,26 @@ export function createPlanCommands(): SlashCommand[] {
       const target = parsed.args.length > 0 ? parsed.args.join(' ') : '';
       const isFull = parsed.flags.has('full');
 
-      // Read existing plan (if any) for context
+      // Read existing plan (if any)
       const existingPlan = await ctx.services.agent.readPlanFile();
 
-      const prompt = buildPlanPrompt(target, isFull, existingPlan);
+      if (existingPlan && !isFull) {
+        // Review mode: summarize the plan and propose the next stage
+        const prompt = buildReviewPrompt(existingPlan, target);
+        await ctx.streamPrompt(prompt);
+        // Don't overwrite the plan file in review mode
+      } else {
+        // Generate / regenerate mode
+        const prompt = buildPlanPrompt(target, isFull, existingPlan);
+        await ctx.streamPrompt(prompt);
 
-      // Stream the LLM response (shown in chat)
-      await ctx.streamPrompt(prompt);
-
-      // Persist the plan to .rqml/rqml-implementation-plan.md
-      const content = ctx.services.agent.getLastStreamContent();
-      if (content) {
-        const cleaned = stripProposalBlocks(content);
-        await writePlanFile(cleaned);
-        ctx.system(`Plan saved to \`${PLAN_REL_PATH}\``);
+        // Persist the plan to .rqml/rqml-implementation-plan.md
+        const content = ctx.services.agent.getLastStreamContent();
+        if (content) {
+          const cleaned = stripProposalBlocks(content);
+          await writePlanFile(cleaned);
+          ctx.system(`Plan saved to \`${PLAN_REL_PATH}\``);
+        }
       }
     },
   };

@@ -21,6 +21,7 @@ export interface UserChoiceInfo {
   choiceId: string;
   question: string;
   options: string[];
+  recommended?: number;
   selected?: string;
 }
 
@@ -40,11 +41,17 @@ export interface EndpointStatus {
   model?: string;
 }
 
+export interface StartupStatus {
+  summary: string;
+  nextStep: string;
+}
+
 export interface AgentState {
   messages: Message[];
   endpointStatus: EndpointStatus;
   commandNames: string[];
   isLoading: boolean;
+  startupStatus: StartupStatus | null;
 }
 
 let msgCounter = 0;
@@ -57,6 +64,7 @@ export function useAgentMessages() {
   const [endpointStatus, setEndpointStatus] = useState<EndpointStatus>({ configured: false });
   const [commandNames, setCommandNames] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [startupStatus, setStartupStatus] = useState<StartupStatus | null>(null);
   const autoApproveRef = useRef(false);
   const autoApproveToolsRef = useRef(false);
   const vscode = getVsCodeApi();
@@ -65,21 +73,26 @@ export function useAgentMessages() {
     // Request initial state
     vscode.postMessage({ type: 'requestEndpoints' });
     vscode.postMessage({ type: 'requestCommandList' });
+    vscode.postMessage({ type: 'requestStartupStatus' });
 
     function handleMessage(event: MessageEvent) {
       const msg = event.data;
       switch (msg.type) {
         case 'agentStreaming': {
           const { id, content } = msg.payload as { id: string; content: string };
+          const streamId = `stream-${id}`;
           setMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last?.id === `stream-${id}` && last.streaming) {
-              // Update existing streaming message
-              return [...prev.slice(0, -1), { ...last, content }];
+            // Find the streaming message anywhere in the list (tool call system messages
+            // may have been inserted after it, so it may not be the last message)
+            const idx = prev.findIndex(m => m.id === streamId && m.streaming);
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = { ...prev[idx], content };
+              return updated;
             }
             // New stream — create message
             setIsLoading(false);
-            return [...prev, { id: `stream-${id}`, role: 'assistant', content, streaming: true }];
+            return [...prev, { id: streamId, role: 'assistant', content, streaming: true }];
           });
           break;
         }
@@ -91,8 +104,8 @@ export function useAgentMessages() {
             change?: { changeId: string; description: string; diff?: string; status: string };
           };
           setIsLoading(false);
+          const endStreamId = `stream-${id}`;
           setMessages(prev => {
-            const last = prev[prev.length - 1];
             const changeInfo: ChangeInfo | undefined = change
               ? { changeId: change.changeId, description: change.description, diff: change.diff, status: 'pending' }
               : undefined;
@@ -103,10 +116,14 @@ export function useAgentMessages() {
               changeInfo.status = 'applied';
             }
 
-            if (last?.id === `stream-${id}`) {
-              return [...prev.slice(0, -1), { ...last, content, streaming: false, change: changeInfo }];
+            // Find the streaming message anywhere in the list
+            const idx = prev.findIndex(m => m.id === endStreamId);
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = { ...prev[idx], content, streaming: false, change: changeInfo };
+              return updated;
             }
-            return [...prev, { id: `stream-${id}`, role: 'assistant', content, streaming: false, change: changeInfo }];
+            return [...prev, { id: endStreamId, role: 'assistant', content, streaming: false, change: changeInfo }];
           });
           break;
         }
@@ -175,6 +192,12 @@ export function useAgentMessages() {
           break;
         }
 
+        case 'startupStatus': {
+          const { summary, nextStep } = msg.payload as { summary: string; nextStep: string };
+          setStartupStatus({ summary, nextStep });
+          break;
+        }
+
         case 'toolApprovalRequest': {
           const { approvalId, toolName, filePath, preview } = msg.payload as {
             approvalId: string; toolName: string; filePath?: string; preview?: string;
@@ -210,14 +233,14 @@ export function useAgentMessages() {
         }
 
         case 'userChoiceRequest': {
-          const { choiceId, question, options } = msg.payload as {
-            choiceId: string; question: string; options: string[];
+          const { choiceId, question, options, recommended } = msg.payload as {
+            choiceId: string; question: string; options: string[]; recommended?: number;
           };
           setMessages(prev => [...prev, {
             id: `choice-${choiceId}`,
             role: 'system',
             content: question,
-            userChoice: { choiceId, question, options },
+            userChoice: { choiceId, question, options, recommended },
           }]);
           break;
         }
@@ -275,6 +298,7 @@ export function useAgentMessages() {
     endpointStatus,
     commandNames,
     isLoading,
+    startupStatus,
     sendPrompt,
     acceptChange,
     rejectChange,

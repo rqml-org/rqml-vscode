@@ -112,6 +112,11 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         await agentService.sendEndpointStatus();
         break;
       }
+      case 'requestStartupStatus': {
+        const status = await agentService.getStartupStatus();
+        this.postToWebview({ type: 'startupStatus', payload: status });
+        break;
+      }
       case 'requestCommandList': {
         // REQ-CMD-002: Send command names to webview for autocomplete
         const names = agentService.commandRegistry.getAllNames();
