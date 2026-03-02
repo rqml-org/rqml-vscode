@@ -60,6 +60,9 @@ export class AgentService {
 
   // /implement askUser state
   private pendingUserChoices = new Map<string, { resolve: (choice: string) => void }>();
+  // Gate: when askUser is pending, write tools (writeFile, updateSpec) must wait
+  private userChoiceGate: Promise<void> | null = null;
+  private userChoiceGateResolve: (() => void) | null = null;
 
   // Suppress file-watcher analysis while a tool stream (/implement) is running
   private toolStreamActive = false;
@@ -791,6 +794,13 @@ export class AgentService {
     toolName: string,
     args: Record<string, string>
   ): Promise<boolean> {
+    // If an askUser choice is pending, wait for the user to respond first.
+    // The LLM may call askUser + writeFile in the same step; we must not
+    // write files before the user has answered.
+    if (this.userChoiceGate) {
+      await this.userChoiceGate;
+    }
+
     // Serialize approvals: wait in queue if another approval is in progress.
     // This prevents multiple approval cards from appearing simultaneously
     // when the LLM emits several tool calls in one step.
@@ -863,14 +873,28 @@ export class AgentService {
     options: string[],
     recommended?: number
   ): Promise<string> {
+    // Set the gate — write tools in the same step will wait until user responds
+    this.userChoiceGate = new Promise<void>((resolve) => {
+      this.userChoiceGateResolve = resolve;
+    });
+
     this._onDidReceiveMessage.fire({
       type: 'userChoiceRequest',
       payload: { choiceId, question, options, recommended },
     });
 
-    return new Promise<string>((resolve) => {
+    const selected = await new Promise<string>((resolve) => {
       this.pendingUserChoices.set(choiceId, { resolve });
     });
+
+    // Release the gate — queued write tools can now proceed
+    if (this.userChoiceGateResolve) {
+      this.userChoiceGateResolve();
+      this.userChoiceGate = null;
+      this.userChoiceGateResolve = null;
+    }
+
+    return selected;
   }
 
   /** Resolve a pending user choice (called from AgentViewProvider) */
@@ -926,6 +950,8 @@ export class AgentService {
 
       // Single message ID — each step's text replaces the previous, only final persists
       let stepContent = '';
+      // Suppress tool-call messages after askUser within the same step
+      let suppressToolMessages = false;
 
       for await (const part of result.fullStream) {
         switch (part.type) {
@@ -944,8 +970,10 @@ export class AgentService {
               type: 'agentStreaming',
               payload: { id: msgId, content: '' },
             });
-            // Skip system message for askUser — the card itself is the UI
-            if (part.toolName !== 'askUser') {
+            if (part.toolName === 'askUser') {
+              // askUser card is the UI — suppress subsequent tool messages in this step
+              suppressToolMessages = true;
+            } else if (!suppressToolMessages) {
               const input = part.input as Record<string, unknown>;
               this._onDidReceiveMessage.fire({
                 type: 'systemMessage',
@@ -959,8 +987,12 @@ export class AgentService {
             break;
           }
           case 'tool-result':
-          case 'finish-step':
+            break;
           case 'start-step':
+            // New step — reset suppression flag
+            suppressToolMessages = false;
+            break;
+          case 'finish-step':
             break;
         }
       }
@@ -1098,6 +1130,11 @@ export class AgentService {
     this.approvalQueue = [];
     this.toolStreamActive = false;
     this.pendingUserChoices.clear();
+    if (this.userChoiceGateResolve) {
+      this.userChoiceGateResolve();
+    }
+    this.userChoiceGate = null;
+    this.userChoiceGateResolve = null;
   }
 
   /** Whether the conversation has prior messages (used by /cmd to detect if /plan has run) */
