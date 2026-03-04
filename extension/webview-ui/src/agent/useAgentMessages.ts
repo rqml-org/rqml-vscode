@@ -25,6 +25,12 @@ export interface UserChoiceInfo {
   selected?: string;
 }
 
+export interface ImageAttachment {
+  id: string;
+  dataUrl: string;
+  mediaType: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'command';
@@ -33,6 +39,7 @@ export interface Message {
   change?: ChangeInfo;
   toolApproval?: ToolApprovalInfo;
   userChoice?: UserChoiceInfo;
+  images?: ImageAttachment[];
 }
 
 export interface EndpointStatus {
@@ -119,9 +126,20 @@ export function useAgentMessages() {
             // Find the streaming message anywhere in the list
             const idx = prev.findIndex(m => m.id === endStreamId);
             if (idx !== -1) {
+              // If content is empty (stream ended with tool calls, no text),
+              // remove the empty streaming placeholder instead of keeping it
+              if (!content && !changeInfo) {
+                const updated = [...prev];
+                updated.splice(idx, 1);
+                return updated;
+              }
               const updated = [...prev];
               updated[idx] = { ...prev[idx], content, streaming: false, change: changeInfo };
               return updated;
+            }
+            // Don't create a new empty message
+            if (!content && !changeInfo) {
+              return prev;
             }
             return [...prev, { id: endStreamId, role: 'assistant', content, streaming: false, change: changeInfo }];
           });
@@ -144,7 +162,19 @@ export function useAgentMessages() {
 
         case 'systemMessage': {
           const { content } = msg.payload as { content: string };
-          setMessages(prev => [...prev, { id: nextId(), role: 'system', content }]);
+          const isToolCall = content.startsWith('Calling tool:');
+          setMessages(prev => {
+            // Merge consecutive tool-call messages into one line
+            if (isToolCall && prev.length > 0) {
+              const last = prev[prev.length - 1];
+              if (last.role === 'system' && last.content.startsWith('Calling tool:')) {
+                const updated = [...prev];
+                updated[updated.length - 1] = { ...last, content: last.content + ' · ' + content };
+                return updated;
+              }
+            }
+            return [...prev, { id: nextId(), role: 'system', content }];
+          });
           break;
         }
 
@@ -251,10 +281,21 @@ export function useAgentMessages() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const sendPrompt = useCallback((text: string) => {
-    setMessages(prev => [...prev, { id: nextId(), role: 'user', content: text }]);
+  const sendPrompt = useCallback((text: string, images?: ImageAttachment[]) => {
+    setMessages(prev => [...prev, {
+      id: nextId(),
+      role: 'user',
+      content: text,
+      images: images?.length ? images : undefined,
+    }]);
     setIsLoading(true);
-    vscode.postMessage({ type: 'sendPrompt', payload: { text } });
+    vscode.postMessage({
+      type: 'sendPrompt',
+      payload: {
+        text,
+        images: images?.map(img => ({ dataUrl: img.dataUrl, mediaType: img.mediaType })),
+      },
+    });
   }, []);
 
   const acceptChange = useCallback((changeId: string) => {

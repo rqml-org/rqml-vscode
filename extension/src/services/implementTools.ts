@@ -23,10 +23,6 @@ export function createImplementTools(
         path: z.string().describe('Relative path from workspace root (e.g. "src/index.ts")'),
       }),
       execute: async ({ path }) => {
-        agentService.fireMessage({
-          type: 'systemMessage',
-          payload: { content: `Reading \`${path}\`...` },
-        });
         try {
           const uri = vscode.Uri.joinPath(vscode.Uri.file(workspaceRoot), path);
           const bytes = await vscode.workspace.fs.readFile(uri);
@@ -86,10 +82,6 @@ export function createImplementTools(
           .describe('Maximum number of results to return (default 50)'),
       }),
       execute: async ({ pattern, maxResults }) => {
-        agentService.fireMessage({
-          type: 'systemMessage',
-          payload: { content: `Listing files matching \`${pattern}\`...` },
-        });
         try {
           const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**', maxResults ?? 50);
           const rootUri = vscode.Uri.file(workspaceRoot);
@@ -111,10 +103,6 @@ export function createImplementTools(
         'Read the current RQML specification file content. Use this to understand requirements, trace edges, and statuses.',
       inputSchema: z.object({}),
       execute: async () => {
-        agentService.fireMessage({
-          type: 'systemMessage',
-          payload: { content: 'Reading RQML spec...' },
-        });
         const specService = getSpecService();
         const state = specService.state;
         if (!state.document?.uri) return 'No RQML spec file is currently loaded.';

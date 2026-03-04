@@ -188,7 +188,10 @@ export class AgentService {
    * REQ-AGT-002, REQ-CMD-001: Handle user message from the prompt input.
    * Slash commands are intercepted before the LLM readiness check.
    */
-  async handleUserMessage(text: string): Promise<void> {
+  async handleUserMessage(
+    text: string,
+    images?: Array<{ dataUrl: string; mediaType: string }>
+  ): Promise<void> {
     // REQ-CMD-001: Intercept slash commands before LLM check
     if (text.trimStart().startsWith('/')) {
       const parsed = this.commandRegistry.parse(text);
@@ -214,8 +217,24 @@ export class AgentService {
       return;
     }
 
-    // Add user message to history
-    this.conversationHistory.push({ role: 'user', content: text });
+    // Build user content — multi-part when images are present
+    let content: ModelMessage['content'];
+    if (images && images.length > 0) {
+      const parts: Array<{ type: 'text'; text: string } | { type: 'image'; image: string; mediaType: string }> = [];
+      if (text) {
+        parts.push({ type: 'text', text });
+      }
+      for (const img of images) {
+        // Strip data URL prefix to get raw base64 for the AI SDK
+        const base64 = img.dataUrl.replace(/^data:[^;]+;base64,/, '');
+        parts.push({ type: 'image', image: base64, mediaType: img.mediaType });
+      }
+      content = parts;
+    } else {
+      content = text;
+    }
+
+    this.conversationHistory.push({ role: 'user', content });
 
     await this.streamResponse();
   }
@@ -948,7 +967,10 @@ export class AgentService {
         stopWhen: stepCountIs(15),
       });
 
-      // Single message ID — each step's text replaces the previous, only final persists
+      // Each text segment gets its own message ID so tool-call system messages
+      // don't appear out of order. When the LLM transitions from text → tools,
+      // we finalize the current text message and create a fresh ID for the next one.
+      let currentMsgId = msgId;
       let stepContent = '';
       // Suppress tool-call messages after askUser within the same step
       let suppressToolMessages = false;
@@ -959,17 +981,21 @@ export class AgentService {
             stepContent += part.text;
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
-              payload: { id: msgId, content: this.stripProposalForDisplay(stepContent) },
+              payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
             });
             break;
           }
           case 'tool-call': {
-            // Reset step content — next step's text will replace current
-            stepContent = '';
-            this._onDidReceiveMessage.fire({
-              type: 'agentStreaming',
-              payload: { id: msgId, content: '' },
-            });
+            // Finalize any preceding text as a complete message
+            if (stepContent) {
+              this._onDidReceiveMessage.fire({
+                type: 'agentStreamEnd',
+                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+              });
+              stepContent = '';
+              // Next text segment will get a fresh message ID
+              currentMsgId = crypto.randomUUID();
+            }
             if (part.toolName === 'askUser') {
               // askUser card is the UI — suppress subsequent tool messages in this step
               suppressToolMessages = true;
@@ -1001,9 +1027,10 @@ export class AgentService {
       const response = await result.response;
       this.conversationHistory.push(...response.messages);
 
+      // Finalize the last text segment (or send empty to signal completion)
       this._onDidReceiveMessage.fire({
         type: 'agentStreamEnd',
-        payload: { id: msgId, content: this.stripProposalForDisplay(stepContent) },
+        payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

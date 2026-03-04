@@ -97,6 +97,20 @@
   white-space: pre-wrap;
 }
 
+.message-images {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.message-image-thumb {
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
 .message-assistant,
 .message-command {
   align-self: flex-start;
@@ -107,8 +121,7 @@
   align-self: center;
   opacity: 0.6;
   font-style: italic;
-  font-size: 0.9em;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 /* Interactive system messages (choice cards, tool approvals) — full opacity and width */
@@ -406,6 +419,52 @@
   color: var(--vscode-input-placeholderForeground, rgba(127, 127, 127, 0.6));
 }
 
+/* ── Image preview strip (below textarea) ── */
+
+.image-previews {
+  display: flex;
+  gap: 6px;
+  padding: 4px 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
+}
+
+.image-preview-item {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+}
+
+.image-preview-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-preview-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 0 0 0 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.image-preview-remove:hover {
+  background: rgba(200, 0, 0, 0.8);
+}
+
 .input-bottom-bar {
   display: flex;
   align-items: center;
@@ -555,6 +614,11 @@
   font-size: 0.85em;
   cursor: pointer;
   font-family: inherit;
+}
+
+.tool-approval-actions button.highlighted {
+  outline: 2px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: -1px;
 }
 
 .tool-approval-status {

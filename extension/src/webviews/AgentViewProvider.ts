@@ -86,8 +86,11 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
     switch (message.type) {
       case 'sendPrompt': {
         // REQ-AGT-002: User submitted a prompt
-        const { text } = message.payload as { text: string };
-        await agentService.handleUserMessage(text);
+        const { text, images } = message.payload as {
+          text: string;
+          images?: Array<{ dataUrl: string; mediaType: string }>;
+        };
+        await agentService.handleUserMessage(text, images);
         break;
       }
       case 'acceptChange': {

@@ -97,7 +97,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const agentViewProvider = new AgentViewProvider(context.extensionUri);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(AgentViewProvider.viewType, agentViewProvider)
+    vscode.window.registerWebviewViewProvider(AgentViewProvider.viewType, agentViewProvider, {
+      webviewOptions: { retainContextWhenHidden: true },
+    })
   );
   context.subscriptions.push(agentViewProvider);
 

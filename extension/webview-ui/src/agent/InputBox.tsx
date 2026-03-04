@@ -1,10 +1,42 @@
 // Bottom input area: auto-growing textarea, spec health, status, attachment, help
+// Supports image pasting from clipboard with thumbnail preview
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { SpecHealthIndicator } from './SpecHealthIndicator';
-import type { EndpointStatus } from './useAgentMessages';
+import type { EndpointStatus, ImageAttachment } from './useAgentMessages';
+
+const MAX_DIMENSION = 1024;
+const MAX_ENCODED_SIZE = 1024 * 1024 * 1.37; // ~1MB raw ≈ 1.37MB base64
+
+function compressImage(dataUrl: string): Promise<{ dataUrl: string; mediaType: string }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const scale = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      let quality = 0.85;
+      let result = canvas.toDataURL('image/jpeg', quality);
+      while (result.length > MAX_ENCODED_SIZE && quality > 0.3) {
+        quality -= 0.1;
+        result = canvas.toDataURL('image/jpeg', quality);
+      }
+      resolve({ dataUrl: result, mediaType: 'image/jpeg' });
+    };
+    img.src = dataUrl;
+  });
+}
 
 interface InputBoxProps {
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, images?: ImageAttachment[]) => void;
   isLoading: boolean;
   endpointStatus: EndpointStatus;
   commandNames: string[];
@@ -25,6 +57,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [autocompleteItems, setAutocompleteItems] = useState<string[]>([]);
   const [autocompleteIndex, setAutocompleteIndex] = useState(0);
+  const [images, setImages] = useState<ImageAttachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -60,12 +93,64 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   const submit = useCallback(() => {
     const text = value.trim();
-    if (!text || isLoading) return;
-    onSubmit(text);
-    setHistory(prev => [...prev, text]);
+    if (!text && images.length === 0) return;
+    if (isLoading) return;
+    onSubmit(text, images.length > 0 ? images : undefined);
+    setHistory(prev => text ? [...prev, text] : prev);
     setHistoryIndex(-1);
     setValue('');
-  }, [value, isLoading, onSubmit]);
+    setImages([]);
+  }, [value, images, isLoading, onSubmit]);
+
+  const addImageFromBlob = useCallback(async (blob: Blob) => {
+    const raw = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+    const compressed = await compressImage(raw);
+    setImages(prev => [...prev, {
+      id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      dataUrl: compressed.dataUrl,
+      mediaType: compressed.mediaType,
+    }]);
+  }, []);
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    // Try the synchronous clipboardData first (works in regular browsers)
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) { addImageFromBlob(file); }
+          return;
+        }
+      }
+    }
+
+    // Fallback: use async Clipboard API (needed in VS Code webviews where
+    // clipboardData doesn't include image items)
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageType = item.types.find(t => t.startsWith('image/'));
+        if (imageType) {
+          e.preventDefault();
+          const blob = await item.getType(imageType);
+          addImageFromBlob(blob);
+          return;
+        }
+      }
+    } catch {
+      // Clipboard API not available or permission denied — let default paste proceed
+    }
+  }, [addImageFromBlob]);
+
+  const removeImage = useCallback((id: string) => {
+    setImages(prev => prev.filter(img => img.id !== id));
+  }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Autocomplete navigation
@@ -173,10 +258,27 @@ export const InputBox: React.FC<InputBoxProps> = ({
           value={value}
           onChange={e => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder={placeholder}
           disabled={isLoading}
           rows={1}
         />
+        {images.length > 0 && (
+          <div className="image-previews">
+            {images.map(img => (
+              <div key={img.id} className="image-preview-item">
+                <img src={img.dataUrl} alt="Attached" className="image-preview-thumb" />
+                <button
+                  className="image-preview-remove"
+                  onClick={() => removeImage(img.id)}
+                  title="Remove image"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="input-bottom-bar">
           <SpecHealthIndicator progress={specHealth} />
           <div className="input-status">{statusMessage}</div>

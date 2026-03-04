@@ -82,7 +82,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   if (message.role === 'user') {
     return (
       <div className="message message-user">
-        {message.content}
+        {message.images && message.images.length > 0 && (
+          <div className="message-images">
+            {message.images.map(img => (
+              <img
+                key={img.id}
+                src={img.dataUrl}
+                alt="Attached"
+                className="message-image-thumb"
+              />
+            ))}
+          </div>
+        )}
+        {message.content && <span>{message.content}</span>}
       </div>
     );
   }
