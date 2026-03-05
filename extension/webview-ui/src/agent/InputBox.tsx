@@ -102,51 +102,35 @@ export const InputBox: React.FC<InputBoxProps> = ({
     setImages([]);
   }, [value, images, isLoading, onSubmit]);
 
-  const addImageFromBlob = useCallback(async (blob: Blob) => {
-    const raw = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(blob);
-    });
-    const compressed = await compressImage(raw);
-    setImages(prev => [...prev, {
-      id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      dataUrl: compressed.dataUrl,
-      mediaType: compressed.mediaType,
-    }]);
-  }, []);
+  // Document-level paste listener — captures image paste in VS Code webviews
+  useEffect(() => {
+    const handler = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
 
-  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    // Try the synchronous clipboardData first (works in regular browsers)
-    const items = e.clipboardData?.items;
-    if (items) {
       for (const item of Array.from(items)) {
         if (item.type.startsWith('image/')) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) { addImageFromBlob(file); }
-          return;
-        }
-      }
-    }
+          const blob = item.getAsFile();
+          if (!blob) continue;
 
-    // Fallback: use async Clipboard API (needed in VS Code webviews where
-    // clipboardData doesn't include image items)
-    try {
-      const clipboardItems = await navigator.clipboard.read();
-      for (const item of clipboardItems) {
-        const imageType = item.types.find(t => t.startsWith('image/'));
-        if (imageType) {
-          e.preventDefault();
-          const blob = await item.getType(imageType);
-          addImageFromBlob(blob);
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const raw = reader.result as string;
+            const compressed = await compressImage(raw);
+            setImages(prev => [...prev, {
+              id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              dataUrl: compressed.dataUrl,
+              mediaType: compressed.mediaType,
+            }]);
+          };
+          reader.readAsDataURL(blob);
           return;
         }
       }
-    } catch {
-      // Clipboard API not available or permission denied — let default paste proceed
-    }
-  }, [addImageFromBlob]);
+    };
+    document.addEventListener('paste', handler);
+    return () => document.removeEventListener('paste', handler);
+  }, []);
 
   const removeImage = useCallback((id: string) => {
     setImages(prev => prev.filter(img => img.id !== id));
@@ -258,7 +242,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
           value={value}
           onChange={e => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
           placeholder={placeholder}
           disabled={isLoading}
           rows={1}
