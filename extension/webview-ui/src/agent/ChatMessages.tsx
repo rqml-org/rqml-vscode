@@ -73,7 +73,16 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
         />
       ))}
       {isLoading && (
-        <div className="message message-system">Thinking...</div>
+        <div className="working-indicator">
+          {(window as any).__WEBVIEW_DATA__?.rqmlIconUri && (
+            <img
+              className="working-icon"
+              src={(window as any).__WEBVIEW_DATA__.rqmlIconUri}
+              alt=""
+            />
+          )}
+          <span className="working-text">Working...</span>
+        </div>
       )}
       <div ref={bottomRef} />
     </div>

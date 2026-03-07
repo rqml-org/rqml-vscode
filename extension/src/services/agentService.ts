@@ -153,15 +153,9 @@ export class AgentService {
     if (this.rqmlChangeTimer) clearTimeout(this.rqmlChangeTimer);
     this.rqmlChangeTimer = setTimeout(async () => {
       if (this.toolStreamActive) { return; } // Suppress during /implement
-      const llmService = getLlmService();
-      if (!(await llmService.isReady())) return;
-
-      this._onDidReceiveMessage.fire({
-        type: 'systemMessage',
-        payload: { content: 'RQML spec file changed. Analysing...' }
-      });
-
-      await this.analyseSpecChange();
+      await this.backgroundAnalysis(
+        '[SYSTEM EVENT] The RQML specification file has been modified. Assess whether this change is material — does it affect requirements coverage, traceability, or spec-code alignment? If the change is trivial (whitespace, formatting, minor wording), respond with exactly "[NO_CHANGE]". Otherwise, provide a brief assessment of the impact.'
+      );
     }, 2000); // 2s debounce
   }
 
@@ -172,15 +166,9 @@ export class AgentService {
     if (this.codeChangeTimer) clearTimeout(this.codeChangeTimer);
     this.codeChangeTimer = setTimeout(async () => {
       if (this.toolStreamActive) { return; } // Suppress during /implement
-      const llmService = getLlmService();
-      if (!(await llmService.isReady())) return;
-
-      this._onDidReceiveMessage.fire({
-        type: 'systemMessage',
-        payload: { content: 'Codebase change detected. Checking spec-code alignment...' }
-      });
-
-      await this.analyseCodeChange();
+      await this.backgroundAnalysis(
+        '[SYSTEM EVENT] Source code files have been modified. Assess whether the changes are material to spec-code alignment — are there new unspecified features, removed implementations, or requirement coverage changes? If the changes are routine (dependency updates, formatting, non-functional) or you cannot determine the impact without more context, respond with exactly "[NO_CHANGE]". Otherwise, briefly note what may be affected.'
+      );
     }, 5000); // 5s debounce for code changes
   }
 
@@ -245,7 +233,7 @@ export class AgentService {
    */
   private async streamResponse(): Promise<void> {
     const llmService = getLlmService();
-    const msgId = crypto.randomUUID();
+    let currentMsgId = crypto.randomUUID();
 
     try {
       const model = await llmService.getModel();
@@ -266,9 +254,9 @@ export class AgentService {
         ...(tools ? { tools, stopWhen: stepCountIs(15) } : {}),
       });
 
-      // Single message ID for the entire response. Each step's text REPLACES
-      // the previous step's — only the final step's text is the actual response.
-      // Tool calls appear as system messages interleaved with the streaming message.
+      // Each step's text gets its own message ID. When a tool call occurs,
+      // the current text is finalized and a new ID is created so the next
+      // step's text appears below the tool call messages in the chat.
       let stepContent = '';
 
       for await (const part of result.fullStream) {
@@ -277,17 +265,26 @@ export class AgentService {
             stepContent += part.text;
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
-              payload: { id: msgId, content: this.stripProposalForDisplay(stepContent) },
+              payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
             });
             break;
           }
           case 'tool-call': {
-            // Reset step content — next step's text will replace current in the same message
-            stepContent = '';
-            this._onDidReceiveMessage.fire({
-              type: 'agentStreaming',
-              payload: { id: msgId, content: '' },
-            });
+            // Finalize any accumulated text as a completed message
+            if (stepContent) {
+              this._onDidReceiveMessage.fire({
+                type: 'agentStreamEnd',
+                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+              });
+              stepContent = '';
+              currentMsgId = crypto.randomUUID();
+            } else {
+              // Clear empty streaming placeholder
+              this._onDidReceiveMessage.fire({
+                type: 'agentStreaming',
+                payload: { id: currentMsgId, content: '' },
+              });
+            }
             // Skip system message for askUser — the UserChoiceCard is the visual indicator
             if (part.toolName !== 'askUser') {
               const input = part.input as Record<string, unknown>;
@@ -324,14 +321,14 @@ export class AgentService {
       if (change && this.autoApprove) {
         this._onDidReceiveMessage.fire({
           type: 'agentStreamEnd',
-          payload: { id: msgId, content: displayContent, change: { ...change, status: 'accepted' } }
+          payload: { id: currentMsgId, content: displayContent, change: { ...change, status: 'accepted' } }
         });
         await this.applyChangeInternal(change);
       } else {
         this._onDidReceiveMessage.fire({
           type: 'agentStreamEnd',
           payload: {
-            id: msgId,
+            id: currentMsgId,
             content: displayContent,
             change: change ? { ...change, status: 'pending' } : undefined
           }
@@ -345,7 +342,7 @@ export class AgentService {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this._onDidReceiveMessage.fire({
         type: 'agentResponse',
-        payload: { id: msgId, content: `Error communicating with LLM: ${message}` }
+        payload: { id: currentMsgId, content: `Error communicating with LLM: ${message}` }
       });
     }
   }
@@ -667,25 +664,57 @@ export class AgentService {
   }
 
   /**
-   * REQ-AGT-006: Analyse spec changes and provide quality feedback
+   * REQ-AGT-004, REQ-AGT-005, REQ-AGT-006, REQ-AGT-010:
+   * Run a background analysis without streaming to the chat.
+   * Only displays the result if the LLM deems the change material.
    */
-  private async analyseSpecChange(): Promise<void> {
-    this.conversationHistory.push({
-      role: 'user',
-      content: '[SYSTEM EVENT] The RQML specification file has been modified. Please analyse the updated specification for quality, completeness, and structural integrity. Provide a brief assessment.'
-    });
-    await this.streamResponse();
-  }
+  private async backgroundAnalysis(prompt: string): Promise<void> {
+    const llmService = getLlmService();
+    if (!(await llmService.isReady())) { return; }
 
-  /**
-   * REQ-AGT-010: Analyse code changes for spec-code alignment
-   */
-  private async analyseCodeChange(): Promise<void> {
-    this.conversationHistory.push({
-      role: 'user',
-      content: '[SYSTEM EVENT] Source code files have been modified. Please comment on whether the changes appear aligned with the current RQML specification. Note any requirements that may be affected or any code that appears unspecified.'
-    });
-    await this.streamResponse();
+    try {
+      const model = await llmService.getModel();
+      const systemPrompt = await this.buildSystemPrompt();
+
+      // Use a temporary history so background checks don't pollute conversation
+      const messages: ModelMessage[] = [
+        ...this.conversationHistory,
+        { role: 'user', content: prompt },
+      ];
+
+      const result = streamText({
+        model,
+        system: systemPrompt,
+        messages,
+      });
+
+      // Collect the full response without streaming to the UI
+      let fullText = '';
+      for await (const part of result.fullStream) {
+        if (part.type === 'text-delta') {
+          fullText += part.text;
+        }
+      }
+
+      const trimmed = fullText.trim();
+
+      // If the LLM says nothing material, silently discard
+      if (!trimmed || trimmed === '[NO_CHANGE]' || trimmed.startsWith('[NO_CHANGE]')) {
+        return;
+      }
+
+      // Material change — add to conversation history and display
+      this.conversationHistory.push({ role: 'user', content: prompt });
+      this.conversationHistory.push({ role: 'assistant', content: trimmed });
+
+      const msgId = crypto.randomUUID();
+      this._onDidReceiveMessage.fire({
+        type: 'agentResponse',
+        payload: { id: msgId, content: trimmed },
+      });
+    } catch {
+      // Silently fail for background analysis
+    }
   }
 
   /**

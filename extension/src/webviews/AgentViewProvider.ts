@@ -42,13 +42,16 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
     const logoUri = webviewView.webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'resources', 'RQML_logo_transparent.png')
     );
+    const rqmlIconUri = webviewView.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'resources', 'rqml.png')
+    );
 
     webviewView.webview.html = getWebviewContent(
       webviewView.webview,
       this.extensionUri,
       'agent',
       'RQML AGENT',
-      { logoUri: logoUri.toString() }
+      { logoUri: logoUri.toString(), rqmlIconUri: rqmlIconUri.toString() }
     );
 
     // Handle messages from webview

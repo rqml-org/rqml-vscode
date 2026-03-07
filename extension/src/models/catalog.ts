@@ -56,12 +56,28 @@ export const DEFAULT_CATALOG: readonly ModelCatalogEntry[] = [
   // --- OpenAI ---
 
   {
+    modelId: 'gpt-5.4',
+    displayName: 'GPT-5.4',
+    provider: 'openai',
+    capabilities: ['chat', 'code', 'vision', 'function-calling'],
+    contextWindow: 1_050_000,
+    recommended: true,
+  },
+  {
+    modelId: 'gpt-5.4-pro',
+    displayName: 'GPT-5.4 Pro',
+    provider: 'openai',
+    capabilities: ['chat', 'code', 'vision', 'function-calling'],
+    contextWindow: 1_050_000,
+    recommended: false,
+  },
+  {
     modelId: 'gpt-5.2',
     displayName: 'GPT-5.2',
     provider: 'openai',
     capabilities: ['chat', 'code', 'vision', 'function-calling'],
     contextWindow: 400_000,
-    recommended: true,
+    recommended: false,
   },
   {
     modelId: 'gpt-5.2-pro',

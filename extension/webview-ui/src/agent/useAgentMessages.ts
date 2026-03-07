@@ -163,6 +163,9 @@ export function useAgentMessages() {
         case 'systemMessage': {
           const { content } = msg.payload as { content: string };
           const isToolCall = content.startsWith('Calling tool:');
+          if (isToolCall) {
+            setIsLoading(true);
+          }
           setMessages(prev => {
             // Merge consecutive tool-call messages into one line
             if (isToolCall && prev.length > 0) {
