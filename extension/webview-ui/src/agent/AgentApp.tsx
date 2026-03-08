@@ -1,5 +1,5 @@
 // Root layout: chat area + input box
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { ChatMessages } from './ChatMessages';
 import { InputBox } from './InputBox';
 import { useAgentMessages } from './useAgentMessages';
@@ -14,6 +14,8 @@ export const AgentApp: React.FC = () => {
     commandNames,
     isLoading,
     startupStatus,
+    availableModels,
+    selectedModelId,
     sendPrompt,
     acceptChange,
     rejectChange,
@@ -21,6 +23,7 @@ export const AgentApp: React.FC = () => {
     approveToolCall,
     rejectToolCall,
     allowAllToolCalls,
+    selectModel,
     respondToChoice,
   } = useAgentMessages();
 
@@ -42,16 +45,6 @@ export const AgentApp: React.FC = () => {
       lineColor: theme.panelBorder,
     });
   }, [theme]);
-
-  // Derive status message for the input box
-  const statusMessage = useMemo(() => {
-    if (!endpointStatus.configured) {
-      return 'No LLM endpoint configured';
-    }
-    const model = endpointStatus.model || 'no model';
-    const provider = endpointStatus.name || '';
-    return `${model}${provider ? ` (${provider})` : ''}`;
-  }, [endpointStatus]);
 
   // Spec health: placeholder 0 for now (will be wired to spec service)
   const specHealth = 0;
@@ -76,7 +69,9 @@ export const AgentApp: React.FC = () => {
         endpointStatus={endpointStatus}
         commandNames={commandNames}
         specHealth={specHealth}
-        statusMessage={statusMessage}
+        availableModels={availableModels}
+        selectedModelId={selectedModelId}
+        onSelectModel={selectModel}
       />
     </div>
   );

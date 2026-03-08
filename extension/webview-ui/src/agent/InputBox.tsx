@@ -2,7 +2,7 @@
 // Supports image pasting from clipboard with thumbnail preview
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { SpecHealthIndicator } from './SpecHealthIndicator';
-import type { EndpointStatus, ImageAttachment } from './useAgentMessages';
+import type { EndpointStatus, ImageAttachment, AvailableModel } from './useAgentMessages';
 
 const MAX_DIMENSION = 1024;
 const MAX_ENCODED_SIZE = 1024 * 1024 * 1.37; // ~1MB raw ≈ 1.37MB base64
@@ -41,7 +41,9 @@ interface InputBoxProps {
   endpointStatus: EndpointStatus;
   commandNames: string[];
   specHealth: number;
-  statusMessage: string;
+  availableModels: AvailableModel[];
+  selectedModelId: string;
+  onSelectModel: (modelId: string) => void;
 }
 
 export const InputBox: React.FC<InputBoxProps> = ({
@@ -50,7 +52,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
   endpointStatus,
   commandNames,
   specHealth,
-  statusMessage,
+  availableModels,
+  selectedModelId,
+  onSelectModel,
 }) => {
   const [value, setValue] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -264,7 +268,23 @@ export const InputBox: React.FC<InputBoxProps> = ({
         )}
         <div className="input-bottom-bar">
           <SpecHealthIndicator progress={specHealth} />
-          <div className="input-status">{statusMessage}</div>
+          <div className="input-bottom-spacer" />
+          <select
+            className="model-selector"
+            value={selectedModelId}
+            onChange={e => onSelectModel(e.target.value)}
+            title="Select LLM model"
+            disabled={availableModels.length === 0}
+          >
+            {availableModels.length === 0 && (
+              <option value="">No models available</option>
+            )}
+            {availableModels.map(m => (
+              <option key={`${m.provider}/${m.modelId}`} value={m.modelId}>
+                {m.displayName}
+              </option>
+            ))}
+          </select>
           <button
             className="input-icon-btn"
             onClick={handleAttachClick}

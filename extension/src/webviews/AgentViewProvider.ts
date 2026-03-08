@@ -8,6 +8,8 @@ import * as vscode from 'vscode';
 import { getWebviewContent } from './shared/getWebviewContent';
 import { getAgentService } from '../services/agentService';
 import { getSpecService } from '../services/specService';
+import { getModelCatalogService } from '../services/modelCatalogService';
+import { getConfigurationService } from '../services/configurationService';
 
 /**
  * WebviewViewProvider for the RQML Agent panel tab.
@@ -19,6 +21,7 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
   private readonly extensionUri: vscode.Uri;
   private disposables: vscode.Disposable[] = [];
+  private terminal: vscode.Terminal | undefined;
 
   constructor(extensionUri: vscode.Uri) {
     this.extensionUri = extensionUri;
@@ -162,6 +165,80 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         agentService.resolveUserChoice(choiceId, selected);
         break;
       }
+      case 'requestModelList': {
+        await this.sendModelList();
+        break;
+      }
+      case 'selectModel': {
+        const { modelId } = message.payload as { modelId: string };
+        await this.handleSelectModel(modelId);
+        break;
+      }
+      case 'runInTerminal': {
+        const { command } = message.payload as { command: string };
+        this.runInTerminal(command);
+        break;
+      }
+    }
+  }
+
+  /**
+   * Send available models and current selection to the webview.
+   */
+  private async sendModelList(): Promise<void> {
+    const catalogService = getModelCatalogService();
+    const configService = getConfigurationService();
+    const endpoint = configService.getActiveEndpoint();
+
+    const catalog = await catalogService.getAvailableCatalog();
+    const models = catalog.map(e => ({
+      modelId: e.modelId,
+      displayName: e.displayName,
+      provider: e.provider,
+    }));
+
+    const selectedModel = endpoint
+      ? catalogService.getSelectedModelId(endpoint)
+      : undefined;
+
+    this.postToWebview({
+      type: 'modelList',
+      payload: { models, selectedModel },
+    });
+  }
+
+  /**
+   * Handle model selection from the webview dropdown.
+   */
+  private async handleSelectModel(modelId: string): Promise<void> {
+    const catalogService = getModelCatalogService();
+    const configService = getConfigurationService();
+    const endpoint = configService.getActiveEndpoint();
+    if (!endpoint) return;
+
+    const entry = catalogService.findModel(modelId);
+    if (!entry) return;
+
+    await catalogService.selectModelEntry(entry, endpoint);
+    // Refresh endpoint status so the UI updates
+    await getAgentService().sendEndpointStatus();
+    // Refresh model list (endpoint may have changed)
+    await this.sendModelList();
+  }
+
+  /**
+   * Run a command in the VS Code integrated terminal.
+   * Reuses an existing RQML terminal if still open.
+   */
+  private runInTerminal(command: string): void {
+    // Check if existing terminal is still alive
+    if (this.terminal && this.terminal.exitStatus === undefined) {
+      this.terminal.show(true);
+      this.terminal.sendText(command);
+    } else {
+      this.terminal = vscode.window.createTerminal({ name: 'RQML' });
+      this.terminal.show(true);
+      this.terminal.sendText(command);
     }
   }
 

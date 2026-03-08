@@ -67,14 +67,39 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     });
   }, [message.content, message.streaming]);
 
-  // Handle clicks on requirement ID links
+  // Handle clicks on interactive elements in rendered markdown
   const handleClick = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
+    // Walk up from the actual click target to find the button/link element
+    // (click may land on the SVG icon inside a button)
+    const target = (e.target as HTMLElement).closest?.('.req-link, .cmd-copy, .cmd-run, .code-copy') as HTMLElement | null
+      ?? e.target as HTMLElement;
+
     if (target.classList.contains('req-link')) {
       e.preventDefault();
       const reqId = target.getAttribute('data-req-id');
       if (reqId) {
         vscode.postMessage({ type: 'navigateToRequirement', payload: { id: reqId } });
+      }
+    } else if (target.classList.contains('cmd-copy')) {
+      e.preventDefault();
+      const cmd = target.getAttribute('data-cmd');
+      if (cmd) {
+        vscode.postMessage({ type: 'copyToClipboard', payload: { content: cmd } });
+      }
+    } else if (target.classList.contains('cmd-run')) {
+      e.preventDefault();
+      const cmd = target.getAttribute('data-cmd');
+      if (cmd) {
+        vscode.postMessage({ type: 'runInTerminal', payload: { command: cmd } });
+      }
+    } else if (target.classList.contains('code-copy')) {
+      e.preventDefault();
+      const encoded = target.getAttribute('data-code');
+      if (encoded) {
+        try {
+          const content = decodeURIComponent(escape(atob(encoded)));
+          vscode.postMessage({ type: 'copyToClipboard', payload: { content } });
+        } catch { /* ignore decode errors */ }
       }
     }
   }, []);

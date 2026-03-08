@@ -258,10 +258,15 @@ export class AgentService {
       // the current text is finalized and a new ID is created so the next
       // step's text appears below the tool call messages in the chat.
       let stepContent = '';
+      // When askUser is called, suppress subsequent text and tool messages
+      // until the next step begins (i.e. the user has responded and tool
+      // execution completed).
+      let askUserPending = false;
 
       for await (const part of result.fullStream) {
         switch (part.type) {
           case 'text-delta': {
+            if (askUserPending) { break; } // Suppress text while waiting for user choice
             stepContent += part.text;
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
@@ -270,23 +275,21 @@ export class AgentService {
             break;
           }
           case 'tool-call': {
-            // Finalize any accumulated text as a completed message
-            if (stepContent) {
+            // Finalize any accumulated text (or clean up empty placeholder)
+            // and always rotate the message ID so the next text segment
+            // appears below the tool-call system messages.
+            if (!askUserPending) {
               this._onDidReceiveMessage.fire({
                 type: 'agentStreamEnd',
-                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+                payload: { id: currentMsgId, content: stepContent ? this.stripProposalForDisplay(stepContent) : '' },
               });
               stepContent = '';
               currentMsgId = crypto.randomUUID();
-            } else {
-              // Clear empty streaming placeholder
-              this._onDidReceiveMessage.fire({
-                type: 'agentStreaming',
-                payload: { id: currentMsgId, content: '' },
-              });
             }
-            // Skip system message for askUser — the UserChoiceCard is the visual indicator
-            if (part.toolName !== 'askUser') {
+            if (part.toolName === 'askUser') {
+              // askUser card is the UI — suppress subsequent messages until step completes
+              askUserPending = true;
+            } else if (!askUserPending) {
               const input = part.input as Record<string, unknown>;
               this._onDidReceiveMessage.fire({
                 type: 'systemMessage',
@@ -302,13 +305,18 @@ export class AgentService {
           case 'tool-result':
           case 'finish-step':
           case 'start-step':
+            // Step boundary or tool completion — resume normal output
+            askUserPending = false;
             break;
         }
       }
 
       // The final step's text is in stepContent — extract change proposals from it
       const change = this.extractChangeProposal(stepContent);
-      const displayContent = this.stripProposalForDisplay(stepContent);
+      let displayContent = this.stripProposalForDisplay(stepContent);
+
+      // Detect raw askUser JSON that models sometimes output as plain text
+      displayContent = this.interceptRawAskUser(displayContent);
 
       // Store for offerCopy
       this.lastStreamContent = stepContent;
@@ -572,6 +580,87 @@ export class AgentService {
     // Complete proposal — strip entirely (will be shown as a card)
     const after = content.substring(endIdx + endMarker.length).trimStart();
     return after ? before + '\n\n' + after : before;
+  }
+
+  /**
+   * Detect raw askUser tool call JSON that some models output as plain text
+   * instead of using function calling. Intercepts the first occurrence,
+   * fires a userChoiceRequest, and returns the text with all raw askUser
+   * JSON blocks stripped out.
+   */
+  private interceptRawAskUser(content: string): string {
+    // Find raw askUser JSON blocks that some models output as plain text
+    const marker = '"name"';
+    let result = content;
+    let intercepted = false;
+
+    // Scan for {"name": "askUser", "arguments": ...} blocks
+    let searchFrom = 0;
+    while (true) {
+      const idx = result.indexOf(marker, searchFrom);
+      if (idx === -1) break;
+
+      // Walk back to find the opening {
+      let braceStart = idx - 1;
+      while (braceStart >= 0 && result[braceStart] !== '{') {
+        braceStart--;
+      }
+      if (braceStart < 0) {
+        searchFrom = idx + 1;
+        continue;
+      }
+
+      // Try to parse the JSON starting from braceStart by finding balanced braces
+      let depth = 0;
+      let braceEnd = -1;
+      for (let i = braceStart; i < result.length; i++) {
+        if (result[i] === '{') {
+          depth++;
+        } else if (result[i] === '}') {
+          depth--;
+          if (depth === 0) {
+            braceEnd = i;
+            break;
+          }
+        }
+      }
+      if (braceEnd === -1) {
+        searchFrom = idx + 1;
+        continue;
+      }
+
+      const jsonStr = result.substring(braceStart, braceEnd + 1);
+      try {
+        const parsed = JSON.parse(jsonStr) as {
+          name?: string;
+          arguments?: { question?: string; options?: string[]; recommended?: number };
+        };
+        if (parsed.name === 'askUser' && parsed.arguments?.question && Array.isArray(parsed.arguments.options)) {
+          // Strip this JSON block from the output
+          result = result.substring(0, braceStart) + result.substring(braceEnd + 1);
+
+          // Only intercept the first one — fire user choice
+          if (!intercepted) {
+            intercepted = true;
+            const { question, options, recommended } = parsed.arguments;
+            const choiceId = crypto.randomUUID();
+            this.waitForUserChoice(choiceId, question, options, recommended)
+              .then(selected => {
+                this.conversationHistory.push({ role: 'user', content: selected });
+                this.streamResponse();
+              })
+              .catch(() => { /* user choice was cancelled or errored */ });
+          }
+          // Don't advance searchFrom — text shifted, re-scan from same position
+          continue;
+        }
+      } catch {
+        // Not valid JSON — skip
+      }
+      searchFrom = idx + 1;
+    }
+
+    return result;
   }
 
   /**
@@ -1007,6 +1096,7 @@ export class AgentService {
       for await (const part of result.fullStream) {
         switch (part.type) {
           case 'text-delta': {
+            if (suppressToolMessages) { break; } // Suppress text while askUser is pending
             stepContent += part.text;
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
@@ -1015,18 +1105,19 @@ export class AgentService {
             break;
           }
           case 'tool-call': {
-            // Finalize any preceding text as a complete message
-            if (stepContent) {
+            // Finalize any preceding text (or clean up empty placeholder)
+            // and always rotate the message ID so the next text segment
+            // appears below the tool-call system messages.
+            if (!suppressToolMessages) {
               this._onDidReceiveMessage.fire({
                 type: 'agentStreamEnd',
-                payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+                payload: { id: currentMsgId, content: stepContent ? this.stripProposalForDisplay(stepContent) : '' },
               });
               stepContent = '';
-              // Next text segment will get a fresh message ID
               currentMsgId = crypto.randomUUID();
             }
             if (part.toolName === 'askUser') {
-              // askUser card is the UI — suppress subsequent tool messages in this step
+              // askUser card is the UI — suppress subsequent messages until step completes
               suppressToolMessages = true;
             } else if (!suppressToolMessages) {
               const input = part.input as Record<string, unknown>;
@@ -1042,12 +1133,10 @@ export class AgentService {
             break;
           }
           case 'tool-result':
-            break;
           case 'start-step':
-            // New step — reset suppression flag
-            suppressToolMessages = false;
-            break;
           case 'finish-step':
+            // Step boundary or tool completion — resume normal output
+            suppressToolMessages = false;
             break;
         }
       }
@@ -1057,9 +1146,11 @@ export class AgentService {
       this.conversationHistory.push(...response.messages);
 
       // Finalize the last text segment (or send empty to signal completion)
+      let finalContent = this.stripProposalForDisplay(stepContent);
+      finalContent = this.interceptRawAskUser(finalContent);
       this._onDidReceiveMessage.fire({
         type: 'agentStreamEnd',
-        payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+        payload: { id: currentMsgId, content: finalContent },
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

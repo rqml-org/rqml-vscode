@@ -48,6 +48,12 @@ export interface EndpointStatus {
   model?: string;
 }
 
+export interface AvailableModel {
+  modelId: string;
+  displayName: string;
+  provider: string;
+}
+
 export interface StartupStatus {
   summary: string;
   nextStep: string;
@@ -59,6 +65,8 @@ export interface AgentState {
   commandNames: string[];
   isLoading: boolean;
   startupStatus: StartupStatus | null;
+  availableModels: AvailableModel[];
+  selectedModelId: string;
 }
 
 let msgCounter = 0;
@@ -72,6 +80,8 @@ export function useAgentMessages() {
   const [commandNames, setCommandNames] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [startupStatus, setStartupStatus] = useState<StartupStatus | null>(null);
+  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState('');
   const autoApproveRef = useRef(false);
   const autoApproveToolsRef = useRef(false);
   const vscode = getVsCodeApi();
@@ -81,6 +91,7 @@ export function useAgentMessages() {
     vscode.postMessage({ type: 'requestEndpoints' });
     vscode.postMessage({ type: 'requestCommandList' });
     vscode.postMessage({ type: 'requestStartupStatus' });
+    vscode.postMessage({ type: 'requestModelList' });
 
     function handleMessage(event: MessageEvent) {
       const msg = event.data;
@@ -191,6 +202,17 @@ export function useAgentMessages() {
             configured: boolean; name?: string; model?: string;
           };
           setEndpointStatus({ configured, name, model });
+          if (model) setSelectedModelId(model);
+          break;
+        }
+
+        case 'modelList': {
+          const { models, selectedModel } = msg.payload as {
+            models: AvailableModel[];
+            selectedModel?: string;
+          };
+          setAvailableModels(models);
+          if (selectedModel) setSelectedModelId(selectedModel);
           break;
         }
 
@@ -328,6 +350,11 @@ export function useAgentMessages() {
     vscode.postMessage({ type: 'allowAllToolCalls', payload: { approvalId } });
   }, []);
 
+  const selectModel = useCallback((modelId: string) => {
+    setSelectedModelId(modelId);
+    vscode.postMessage({ type: 'selectModel', payload: { modelId } });
+  }, []);
+
   const respondToChoice = useCallback((choiceId: string, selected: string) => {
     vscode.postMessage({ type: 'respondToChoice', payload: { choiceId, selected } });
     setMessages(prev => prev.map(m =>
@@ -343,6 +370,8 @@ export function useAgentMessages() {
     commandNames,
     isLoading,
     startupStatus,
+    availableModels,
+    selectedModelId,
     sendPrompt,
     acceptChange,
     rejectChange,
@@ -350,6 +379,7 @@ export function useAgentMessages() {
     approveToolCall,
     rejectToolCall,
     allowAllToolCalls,
+    selectModel,
     respondToChoice,
   };
 }

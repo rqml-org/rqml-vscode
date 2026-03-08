@@ -189,6 +189,143 @@
   padding: 0;
 }
 
+/* ── Code block action buttons ── */
+
+.code-block {
+  position: relative;
+  margin: 6px 0;
+}
+
+/* Non-shell code blocks: copy button in top-right corner */
+.code-block > .code-copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 3px;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+
+.code-block:hover > .code-copy {
+  opacity: 0.6;
+}
+
+.code-block > .code-copy:hover {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.25));
+}
+
+.code-block > pre {
+  margin: 0;
+}
+
+/* Shell code blocks: per-line layout */
+.code-block-shell {
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.15));
+  border-radius: var(--agent-radius);
+  padding: 6px 0;
+  font-family: var(--vscode-editor-font-family, 'Cascadia Code', Menlo, Monaco, monospace);
+  font-size: 0.9em;
+  line-height: 1.4;
+  overflow-x: auto;
+}
+
+.cmd-line {
+  display: flex;
+  align-items: center;
+  padding: 1px 10px;
+  gap: 4px;
+}
+
+.cmd-line-empty {
+  height: 0.5em;
+}
+
+.cmd-text {
+  flex: 1;
+  white-space: pre;
+}
+
+.cmd-copy,
+.cmd-run {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 0;
+}
+
+.cmd-line:hover .cmd-copy,
+.cmd-line:hover .cmd-run {
+  opacity: 0.5;
+}
+
+.cmd-copy:hover,
+.cmd-run:hover {
+  opacity: 1 !important;
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.25));
+}
+
+/* Inline command spans (e.g. `npm test` in prose) */
+.inline-cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  vertical-align: baseline;
+}
+
+.inline-cmd > code {
+  /* inherit normal inline code styles */
+}
+
+.inline-cmd > .cmd-copy,
+.inline-cmd > .cmd-run {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.inline-cmd:hover > .cmd-copy,
+.inline-cmd:hover > .cmd-run {
+  opacity: 0.5;
+}
+
+.inline-cmd > .cmd-copy:hover,
+.inline-cmd > .cmd-run:hover {
+  opacity: 1 !important;
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.25));
+}
+
 .markdown-content blockquote {
   border-left: 3px solid var(--vscode-textBlockQuote-border, var(--vscode-foreground));
   margin: 6px 0;
@@ -478,13 +615,33 @@
   background: var(--vscode-input-background);
 }
 
-.input-status {
+.input-bottom-spacer {
   flex: 1;
-  font-size: 0.85em;
-  opacity: 0.6;
-  white-space: nowrap;
+}
+
+.model-selector {
+  font-size: 0.8em;
+  font-family: inherit;
+  padding: 1px 4px;
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-widget-border, rgba(127, 127, 127, 0.3)));
+  border-radius: 3px;
+  background: var(--vscode-dropdown-background, var(--vscode-input-background));
+  color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
+  cursor: pointer;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.model-selector:hover {
+  opacity: 1;
+}
+
+.model-selector:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+  opacity: 1;
 }
 
 .input-icon-btn {
