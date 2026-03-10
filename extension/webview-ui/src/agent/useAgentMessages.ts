@@ -31,6 +31,11 @@ export interface ImageAttachment {
   mediaType: string;
 }
 
+export interface FileAttachment {
+  path: string;
+  isDirectory: boolean;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system' | 'command';
@@ -40,6 +45,7 @@ export interface Message {
   toolApproval?: ToolApprovalInfo;
   userChoice?: UserChoiceInfo;
   images?: ImageAttachment[];
+  files?: FileAttachment[];
 }
 
 export interface EndpointStatus {
@@ -306,12 +312,13 @@ export function useAgentMessages() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  const sendPrompt = useCallback((text: string, images?: ImageAttachment[]) => {
+  const sendPrompt = useCallback((text: string, images?: ImageAttachment[], files?: FileAttachment[]) => {
     setMessages(prev => [...prev, {
       id: nextId(),
       role: 'user',
       content: text,
       images: images?.length ? images : undefined,
+      files: files?.length ? files : undefined,
     }]);
     setIsLoading(true);
     vscode.postMessage({
@@ -319,6 +326,7 @@ export function useAgentMessages() {
       payload: {
         text,
         images: images?.map(img => ({ dataUrl: img.dataUrl, mediaType: img.mediaType })),
+        files: files?.map(f => ({ path: f.path, isDirectory: f.isDirectory })),
       },
     });
   }, []);

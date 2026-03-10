@@ -92,11 +92,24 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
     switch (message.type) {
       case 'sendPrompt': {
         // REQ-AGT-002: User submitted a prompt
-        const { text, images } = message.payload as {
+        const { text, images, files } = message.payload as {
           text: string;
           images?: Array<{ dataUrl: string; mediaType: string }>;
+          files?: Array<{ path: string; isDirectory: boolean }>;
         };
-        await agentService.handleUserMessage(text, images);
+        // If files are attached, read their contents and inject into the prompt
+        let augmentedText = text;
+        if (files?.length) {
+          const filePaths = files.map(f => f.path);
+          const contents = await this.readFileContents(filePaths);
+          if (contents.length > 0) {
+            const contextBlock = contents
+              .map(f => `--- ${f.path} ---\n${f.content}`)
+              .join('\n\n');
+            augmentedText = `${text}\n\n<attached-context>\n${contextBlock}\n</attached-context>`;
+          }
+        }
+        await agentService.handleUserMessage(augmentedText, images);
         break;
       }
       case 'acceptChange': {
@@ -179,6 +192,11 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         this.runInTerminal(command);
         break;
       }
+      case 'listWorkspaceFiles': {
+        const { relativePath } = message.payload as { relativePath: string };
+        await this.listWorkspaceFiles(relativePath);
+        break;
+      }
     }
   }
 
@@ -240,6 +258,102 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
       this.terminal.show(true);
       this.terminal.sendText(command);
     }
+  }
+
+  /**
+   * List files and folders in a workspace-relative directory for the file browser.
+   */
+  private async listWorkspaceFiles(relativePath: string): Promise<void> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) {
+      this.postToWebview({ type: 'workspaceFiles', payload: { entries: [], relativePath } });
+      return;
+    }
+
+    const root = folders[0].uri;
+    const targetUri = relativePath ? vscode.Uri.joinPath(root, relativePath) : root;
+
+    try {
+      const rawEntries = await vscode.workspace.fs.readDirectory(targetUri);
+      // Sort: folders first, then files, both alphabetical; hide dot-prefixed entries
+      const entries = rawEntries
+        .filter(([name]) => !name.startsWith('.'))
+        .sort((a, b) => {
+          if (a[1] !== b[1]) {
+            return a[1] === vscode.FileType.Directory ? -1 : 1;
+          }
+          return a[0].localeCompare(b[0]);
+        })
+        .map(([name, type]) => ({
+          name,
+          isDirectory: type === vscode.FileType.Directory,
+          path: relativePath ? `${relativePath}/${name}` : name,
+        }));
+
+      this.postToWebview({ type: 'workspaceFiles', payload: { entries, relativePath } });
+    } catch {
+      this.postToWebview({ type: 'workspaceFiles', payload: { entries: [], relativePath } });
+    }
+  }
+
+  /**
+   * Read file contents for attached paths (used when submitting a prompt with attachments).
+   * For directories, collects files recursively up to a depth limit.
+   */
+  private async readFileContents(paths: string[]): Promise<Array<{ path: string; content: string }>> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) return [];
+
+    const root = folders[0].uri;
+    const files: Array<{ path: string; content: string }> = [];
+
+    for (const relPath of paths) {
+      const uri = vscode.Uri.joinPath(root, relPath);
+      try {
+        const stat = await vscode.workspace.fs.stat(uri);
+        if (stat.type === vscode.FileType.Directory) {
+          await this.collectDirectoryFiles(root, relPath, files, 3);
+        } else {
+          const bytes = await vscode.workspace.fs.readFile(uri);
+          const content = Buffer.from(bytes).toString('utf-8');
+          if (content.length <= 100_000) {
+            files.push({ path: relPath, content });
+          }
+        }
+      } catch {
+        // Skip files that can't be read
+      }
+    }
+
+    return files;
+  }
+
+  private async collectDirectoryFiles(
+    root: vscode.Uri,
+    relDir: string,
+    out: Array<{ path: string; content: string }>,
+    maxDepth: number
+  ): Promise<void> {
+    if (maxDepth <= 0) return;
+    const dirUri = vscode.Uri.joinPath(root, relDir);
+    try {
+      const entries = await vscode.workspace.fs.readDirectory(dirUri);
+      for (const [name, type] of entries) {
+        if (name.startsWith('.') || name === 'node_modules') continue;
+        const childPath = `${relDir}/${name}`;
+        if (type === vscode.FileType.Directory) {
+          await this.collectDirectoryFiles(root, childPath, out, maxDepth - 1);
+        } else {
+          try {
+            const bytes = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(root, childPath));
+            const content = Buffer.from(bytes).toString('utf-8');
+            if (content.length <= 100_000) {
+              out.push({ path: childPath, content });
+            }
+          } catch { /* skip unreadable files */ }
+        }
+      }
+    } catch { /* skip unreadable dirs */ }
   }
 
   /**

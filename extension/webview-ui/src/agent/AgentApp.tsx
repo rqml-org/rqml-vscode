@@ -1,8 +1,9 @@
 // Root layout: chat area + input box
-import React, { useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ChatMessages } from './ChatMessages';
 import { InputBox } from './InputBox';
 import { useAgentMessages } from './useAgentMessages';
+import type { FileAttachment } from './useAgentMessages';
 import { useVscodeTheme } from '../shared/useVscodeTheme';
 import { updateMermaidTheme } from './mermaidRenderer';
 import './agent.css';
@@ -27,6 +28,20 @@ export const AgentApp: React.FC = () => {
     respondToChoice,
   } = useAgentMessages();
 
+  // Persistent file attachments — survive across prompt submissions
+  const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
+
+  const handleAttachFile = useCallback((path: string, isDirectory: boolean) => {
+    setAttachedFiles(prev => {
+      if (prev.some(f => f.path === path)) return prev;
+      return [...prev, { path, isDirectory }];
+    });
+  }, []);
+
+  const handleRemoveFile = useCallback((path: string) => {
+    setAttachedFiles(prev => prev.filter(f => f.path !== path));
+  }, []);
+
   // Initialize mermaid with VS Code theme colors
   const theme = useVscodeTheme();
   useEffect(() => {
@@ -45,9 +60,6 @@ export const AgentApp: React.FC = () => {
       lineColor: theme.panelBorder,
     });
   }, [theme]);
-
-  // Spec health: placeholder 0 for now (will be wired to spec service)
-  const specHealth = 0;
 
   return (
     <div className="agent-root">
@@ -68,10 +80,12 @@ export const AgentApp: React.FC = () => {
         isLoading={isLoading}
         endpointStatus={endpointStatus}
         commandNames={commandNames}
-        specHealth={specHealth}
         availableModels={availableModels}
         selectedModelId={selectedModelId}
         onSelectModel={selectModel}
+        attachedFiles={attachedFiles}
+        onAttachFile={handleAttachFile}
+        onRemoveFile={handleRemoveFile}
       />
     </div>
   );

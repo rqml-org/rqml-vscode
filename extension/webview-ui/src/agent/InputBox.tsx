@@ -1,8 +1,8 @@
-// Bottom input area: auto-growing textarea, spec health, status, attachment, help
+// Bottom input area: auto-growing textarea, RQML icon, model selector, attachment, help
 // Supports image pasting from clipboard with thumbnail preview
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { SpecHealthIndicator } from './SpecHealthIndicator';
-import type { EndpointStatus, ImageAttachment, AvailableModel } from './useAgentMessages';
+import { FileBrowser } from './FileBrowser';
+import type { EndpointStatus, ImageAttachment, FileAttachment, AvailableModel } from './useAgentMessages';
 
 const MAX_DIMENSION = 1024;
 const MAX_ENCODED_SIZE = 1024 * 1024 * 1.37; // ~1MB raw ≈ 1.37MB base64
@@ -36,14 +36,16 @@ function compressImage(dataUrl: string): Promise<{ dataUrl: string; mediaType: s
 }
 
 interface InputBoxProps {
-  onSubmit: (text: string, images?: ImageAttachment[]) => void;
+  onSubmit: (text: string, images?: ImageAttachment[], files?: FileAttachment[]) => void;
   isLoading: boolean;
   endpointStatus: EndpointStatus;
   commandNames: string[];
-  specHealth: number;
   availableModels: AvailableModel[];
   selectedModelId: string;
   onSelectModel: (modelId: string) => void;
+  attachedFiles: FileAttachment[];
+  onAttachFile: (path: string, isDirectory: boolean) => void;
+  onRemoveFile: (path: string) => void;
 }
 
 export const InputBox: React.FC<InputBoxProps> = ({
@@ -51,10 +53,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
   isLoading,
   endpointStatus,
   commandNames,
-  specHealth,
   availableModels,
   selectedModelId,
   onSelectModel,
+  attachedFiles,
+  onAttachFile,
+  onRemoveFile,
 }) => {
   const [value, setValue] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -62,6 +66,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const [autocompleteItems, setAutocompleteItems] = useState<string[]>([]);
   const [autocompleteIndex, setAutocompleteIndex] = useState(0);
   const [images, setImages] = useState<ImageAttachment[]>([]);
+  const [fileBrowserOpen, setFileBrowserOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea
@@ -97,14 +102,18 @@ export const InputBox: React.FC<InputBoxProps> = ({
 
   const submit = useCallback(() => {
     const text = value.trim();
-    if (!text && images.length === 0) return;
+    if (!text && images.length === 0 && attachedFiles.length === 0) return;
     if (isLoading) return;
-    onSubmit(text, images.length > 0 ? images : undefined);
+    onSubmit(
+      text,
+      images.length > 0 ? images : undefined,
+      attachedFiles.length > 0 ? attachedFiles : undefined,
+    );
     setHistory(prev => text ? [...prev, text] : prev);
     setHistoryIndex(-1);
     setValue('');
     setImages([]);
-  }, [value, images, isLoading, onSubmit]);
+  }, [value, images, attachedFiles, isLoading, onSubmit]);
 
   // Document-level paste listener — captures image paste in VS Code webviews
   useEffect(() => {
@@ -139,6 +148,12 @@ export const InputBox: React.FC<InputBoxProps> = ({
   const removeImage = useCallback((id: string) => {
     setImages(prev => prev.filter(img => img.id !== id));
   }, []);
+
+  const handleFileSelect = useCallback((path: string, isDirectory: boolean) => {
+    onAttachFile(path, isDirectory);
+    setFileBrowserOpen(false);
+    textareaRef.current?.focus();
+  }, [onAttachFile]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Autocomplete navigation
@@ -212,15 +227,27 @@ export const InputBox: React.FC<InputBoxProps> = ({
   }, [onSubmit]);
 
   const handleAttachClick = useCallback(() => {
-    // Placeholder — attachment not yet implemented
+    setFileBrowserOpen(prev => !prev);
   }, []);
 
   const placeholder = !endpointStatus.configured
     ? 'No LLM endpoint configured...'
     : 'Describe what to build next';
 
+  /** Display name for an attachment tag */
+  const tagName = (f: FileAttachment) => {
+    const name = f.path.includes('/') ? f.path.substring(f.path.lastIndexOf('/') + 1) : f.path;
+    return f.isDirectory ? `${name}/` : name;
+  };
+
   return (
     <div className="input-box">
+      {fileBrowserOpen && (
+        <FileBrowser
+          onSelect={handleFileSelect}
+          onClose={() => setFileBrowserOpen(false)}
+        />
+      )}
       <div className="input-textarea-wrapper">
         {autocompleteItems.length > 0 && (
           <div className="autocomplete-dropdown">
@@ -266,8 +293,31 @@ export const InputBox: React.FC<InputBoxProps> = ({
             ))}
           </div>
         )}
+        {attachedFiles.length > 0 && (
+          <div className="attached-files">
+            {attachedFiles.map(f => (
+              <span key={f.path} className="attached-file-tag" title={f.path}>
+                <span className="attached-file-icon">{f.isDirectory ? '📁' : '📄'}</span>
+                <span className="attached-file-name">{tagName(f)}</span>
+                <button
+                  className="attached-file-remove"
+                  onClick={() => onRemoveFile(f.path)}
+                  title="Remove"
+                >
+                  &times;
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="input-bottom-bar">
-          <SpecHealthIndicator progress={specHealth} />
+          {(window as any).__WEBVIEW_DATA__?.rqmlIconUri && (
+            <img
+              className="input-rqml-icon"
+              src={(window as any).__WEBVIEW_DATA__.rqmlIconUri}
+              alt="RQML"
+            />
+          )}
           <div className="input-bottom-spacer" />
           <select
             className="model-selector"
@@ -286,9 +336,9 @@ export const InputBox: React.FC<InputBoxProps> = ({
             ))}
           </select>
           <button
-            className="input-icon-btn"
+            className={`input-icon-btn${fileBrowserOpen ? ' active' : ''}`}
             onClick={handleAttachClick}
-            title="Add attachment"
+            title="Attach file or folder"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <path d="M10.97 1.47a3.75 3.75 0 0 0-5.3 0L2.22 4.92a5.25 5.25 0 0 0 7.42 7.42l4.72-4.72a.75.75 0 1 0-1.06-1.06l-4.72 4.72a3.75 3.75 0 0 1-5.3-5.3l3.45-3.45a2.25 2.25 0 0 1 3.18 3.18L6.46 9.16a.75.75 0 0 1-1.06-1.06l2.83-2.83a.75.75 0 0 0-1.06-1.06L4.34 7.04a2.25 2.25 0 0 0 3.18 3.18l3.45-3.45a3.75 3.75 0 0 0 0-5.3Z" />
@@ -300,7 +350,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
             title="Help (/help)"
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM6.5 5.5a1.5 1.5 0 1 1 2.13 1.36.75.75 0 0 0-.38.66V8.5a.75.75 0 0 0 1.5 0v-.56A3 3 0 1 0 5 5.5a.75.75 0 0 0 1.5 0ZM8 11a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+              <path fillRule="evenodd" clipRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm0-1.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11Z" />
+              <path d="M7.25 10.5a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM8 4.5A2.25 2.25 0 0 0 5.75 6.75h1.5a.75.75 0 0 1 1.5 0c0 .414-.336.75-.75.75a.75.75 0 0 0-.75.75V9h1.5v-.34A2.25 2.25 0 0 0 8 4.5Z" />
             </svg>
           </button>
         </div>

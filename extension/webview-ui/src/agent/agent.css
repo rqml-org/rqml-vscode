@@ -111,6 +111,24 @@
   object-fit: contain;
 }
 
+.message-files {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.message-file-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(127, 127, 127, 0.15);
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
 .message-assistant,
 .message-command {
   align-self: flex-start;
@@ -938,14 +956,202 @@
   100% { opacity: 0.4; transform: scale(0.9); }
 }
 
-/* ── Spec health indicator ── */
+/* ── RQML icon in input bar ── */
 
-.spec-health {
+.input-rqml-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  opacity: 0.6;
+}
+
+.input-icon-btn.active {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.15));
+}
+
+/* ── File browser popup ── */
+
+.file-browser {
+  background: var(--vscode-editorSuggestWidget-background, var(--vscode-input-background));
+  border: 1px solid var(--vscode-editorSuggestWidget-border, var(--vscode-widget-border));
+  border-radius: var(--agent-radius);
+  max-height: 260px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.file-browser-header {
   display: flex;
   align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
   flex: none;
 }
 
-.spec-health svg {
-  display: block;
+.file-browser-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.85em;
+}
+
+.file-browser-crumb {
+  background: none;
+  border: none;
+  color: var(--vscode-textLink-foreground, var(--vscode-foreground));
+  cursor: pointer;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: inherit;
+  white-space: nowrap;
+}
+
+.file-browser-crumb:hover {
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.15));
+}
+
+.file-browser-sep {
+  opacity: 0.4;
+  font-size: 0.85em;
+}
+
+.file-browser-attach-folder {
+  flex: none;
+  font-size: 0.8em;
+  padding: 2px 6px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-widget-border, rgba(127, 127, 127, 0.3)));
+  border-radius: 3px;
+  background: var(--vscode-button-secondaryBackground, rgba(127, 127, 127, 0.15));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  cursor: pointer;
+}
+
+.file-browser-attach-folder:hover {
+  background: var(--vscode-button-secondaryHoverBackground, rgba(127, 127, 127, 0.25));
+}
+
+.file-browser-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.file-browser-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.file-browser-entry:hover {
+  background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.1));
+}
+
+.file-browser-icon {
+  flex: none;
+  font-size: 0.9em;
+}
+
+.file-browser-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-browser-attach-btn {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+  border-radius: 3px;
+  background: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  font-size: 0.85em;
+  line-height: 18px;
+  text-align: center;
+  padding: 0;
+  opacity: 0;
+}
+
+.file-browser-entry:hover .file-browser-attach-btn {
+  opacity: 0.6;
+}
+
+.file-browser-attach-btn:hover {
+  opacity: 1 !important;
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.15));
+}
+
+.file-browser-loading,
+.file-browser-empty {
+  padding: 12px 8px;
+  text-align: center;
+  opacity: 0.5;
+  font-size: 0.85em;
+}
+
+/* ── Attached file tags ── */
+
+.attached-files {
+  display: flex;
+  gap: 4px;
+  padding: 4px 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
+}
+
+.attached-file-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--vscode-badge-background, rgba(127, 127, 127, 0.2));
+  color: var(--vscode-badge-foreground, var(--vscode-foreground));
+  font-size: 0.8em;
+  max-width: 180px;
+}
+
+.attached-file-icon {
+  flex: none;
+  font-size: 0.85em;
+}
+
+.attached-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attached-file-remove {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85em;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+.attached-file-remove:hover {
+  opacity: 1;
+  background: rgba(200, 0, 0, 0.6);
+  color: #fff;
 }

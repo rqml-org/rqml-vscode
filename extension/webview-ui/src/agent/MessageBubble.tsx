@@ -119,6 +119,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             ))}
           </div>
         )}
+        {message.files && message.files.length > 0 && (
+          <div className="message-files">
+            {message.files.map(f => (
+              <span key={f.path} className="message-file-tag">
+                {f.isDirectory ? '📁' : '📄'} {f.path.includes('/') ? f.path.substring(f.path.lastIndexOf('/') + 1) : f.path}{f.isDirectory ? '/' : ''}
+              </span>
+            ))}
+          </div>
+        )}
         {message.content && <span>{message.content}</span>}
       </div>
     );
