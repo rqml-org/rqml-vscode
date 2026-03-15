@@ -10,11 +10,13 @@ import { getSpecService } from '../services/specService';
 import { DocumentViewProvider } from '../webviews/DocumentViewProvider';
 import { TraceGraphViewProvider } from '../webviews/TraceGraphViewProvider';
 import { MatrixViewProvider } from '../webviews/MatrixViewProvider';
+import { ExportViewProvider } from '../webviews/ExportViewProvider';
 
 // Webview providers (initialized during registration)
 let documentViewProvider: DocumentViewProvider | undefined;
 let traceGraphViewProvider: TraceGraphViewProvider | undefined;
 let matrixViewProvider: MatrixViewProvider | undefined;
+let exportViewProvider: ExportViewProvider | undefined;
 
 /**
  * Register all commands for the extension.
@@ -28,6 +30,7 @@ export function registerCommands(
   documentViewProvider = new DocumentViewProvider(context.extensionUri);
   traceGraphViewProvider = new TraceGraphViewProvider(context.extensionUri);
   matrixViewProvider = new MatrixViewProvider(context.extensionUri);
+  exportViewProvider = new ExportViewProvider(context.extensionUri);
 
   // Add providers to subscriptions for cleanup
   context.subscriptions.push({
@@ -35,6 +38,7 @@ export function registerCommands(
       documentViewProvider?.dispose();
       traceGraphViewProvider?.dispose();
       matrixViewProvider?.dispose();
+      exportViewProvider?.dispose();
     }
   });
 
@@ -227,35 +231,10 @@ export function registerCommands(
     })
   );
 
-  // REQ-EXP-005: Export functionality
+  // REQ-EXP-005: Export functionality via wizard
   context.subscriptions.push(
     vscode.commands.registerCommand('rqml-vscode.export', async () => {
-      const format = await vscode.window.showQuickPick(
-        [
-          { label: 'HTML', description: 'Export as HTML document (free)', format: 'html' },
-          { label: 'PDF', description: 'Export as PDF document (pro)', format: 'pdf' },
-          { label: 'Markdown', description: 'Export as Markdown document (pro)', format: 'markdown' },
-          { label: 'Word', description: 'Export as Word document (pro)', format: 'docx' }
-        ],
-        {
-          placeHolder: 'Select export format'
-        }
-      );
-
-      if (!format) {
-        return;
-      }
-
-      if (format.format !== 'html') {
-        // REQ-SUB-002: Feature gating for pro features
-        vscode.window.showInformationMessage(
-          `${format.label} export requires a Pro subscription. HTML export is available for free.`
-        );
-        return;
-      }
-
-      // HTML export is available
-      vscode.window.showInformationMessage('HTML export functionality coming soon.');
+      await exportViewProvider?.show();
     })
   );
 }

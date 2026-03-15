@@ -114,7 +114,8 @@
       },
       {
         "command": "rqml-vscode.export",
-        "title": "Export Spec..."
+        "title": "Export Spec...",
+        "icon": "$(export)"
       },
       {
         "command": "rqml-vscode.openSettings",
@@ -270,6 +271,11 @@
           "command": "rqml-vscode.openGridView",
           "when": "view == rqmlTree",
           "group": "navigation@3"
+        },
+        {
+          "command": "rqml-vscode.export",
+          "when": "view == rqmlTree",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -388,7 +394,12 @@
               },
               "provider": {
                 "type": "string",
-                "enum": ["openai", "anthropic", "azure-openai", "google"],
+                "enum": [
+                  "openai",
+                  "anthropic",
+                  "azure-openai",
+                  "google"
+                ],
                 "description": "LLM provider"
               },
               "name": {
@@ -400,7 +411,11 @@
                 "description": "Model identifier (e.g., gpt-4o, claude-sonnet-4-5-20250929)"
               }
             },
-            "required": ["id", "provider", "name"]
+            "required": [
+              "id",
+              "provider",
+              "name"
+            ]
           },
           "description": "Configured LLM endpoints for the RQML Agent."
         },
@@ -439,7 +454,13 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "enum": ["chat", "code", "vision", "function-calling", "reasoning"]
+                  "enum": [
+                    "chat",
+                    "code",
+                    "vision",
+                    "function-calling",
+                    "reasoning"
+                  ]
                 }
               },
               "contextWindow": {
@@ -447,7 +468,10 @@
                 "description": "Context window size in tokens"
               }
             },
-            "required": ["modelId", "provider"]
+            "required": [
+              "modelId",
+              "provider"
+            ]
           },
           "description": "Custom models added to the catalog by the user."
         },
@@ -466,12 +490,18 @@
           "additionalProperties": {
             "type": "object",
             "properties": {
-              "displayName": { "type": "string" },
+              "displayName": {
+                "type": "string"
+              },
               "capabilities": {
                 "type": "array",
-                "items": { "type": "string" }
+                "items": {
+                  "type": "string"
+                }
               },
-              "contextWindow": { "type": "number" }
+              "contextWindow": {
+                "type": "number"
+              }
             }
           }
         },
@@ -494,6 +524,7 @@
     "@xmldom/xmldom": "^0.8.11",
     "ai": "^6.0.77",
     "fast-xml-parser": "^4.5.1",
+    "pptxgenjs": "^4.0.1",
     "xmllint-wasm": "^5.1.0",
     "zod": "^3.22.0"
   },

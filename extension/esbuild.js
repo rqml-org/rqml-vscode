@@ -50,6 +50,11 @@ const webviews = [
     entry: 'webview-ui/src/agent/index.tsx',
     outfile: 'dist/agent.js',
   },
+  {
+    name: 'export',
+    entry: 'webview-ui/src/export/index.tsx',
+    outfile: 'dist/export.js',
+  },
 ];
 
 async function build() {
