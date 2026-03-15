@@ -4,6 +4,16 @@
  * work well for content-centric websites.
  */
 
+
+ /* CSS HEX */
+ /**
+--lavender-purple: #8568abff;
+--turquoise-surf: #00a5cfff;
+--verdigris: #25a18eff;
+--bright-lemon: #e9df00ff;
+--watermelon: #ed254eff;
+*/
+
 /* You can override the default Infima variables here. */
 :root {
   --ifm-color-primary: #2e8555;

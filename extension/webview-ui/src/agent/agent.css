@@ -270,7 +270,6 @@
 }
 
 .cmd-text {
-  flex: 1;
   white-space: pre;
 }
 
@@ -327,20 +326,15 @@
   background: none;
   color: var(--vscode-foreground);
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.4;
   transition: opacity 0.15s;
   padding: 0;
   vertical-align: middle;
 }
 
-.inline-cmd:hover > .cmd-copy,
-.inline-cmd:hover > .cmd-run {
-  opacity: 0.5;
-}
-
 .inline-cmd > .cmd-copy:hover,
 .inline-cmd > .cmd-run:hover {
-  opacity: 1 !important;
+  opacity: 1;
   background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.25));
 }
 
@@ -962,7 +956,7 @@
   width: 16px;
   height: 16px;
   flex: none;
-  opacity: 0.6;
+  cursor: default;
 }
 
 .input-icon-btn.active {

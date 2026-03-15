@@ -270,11 +270,6 @@
           "command": "rqml-vscode.openGridView",
           "when": "view == rqmlTree",
           "group": "navigation@3"
-        },
-        {
-          "command": "rqml-vscode.openIdeasView",
-          "when": "view == rqmlTree",
-          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -292,11 +287,6 @@
           "command": "rqml-vscode.openGridView",
           "when": "view == rqmlTree && viewItem == rqmlRoot",
           "group": "inline@3"
-        },
-        {
-          "command": "rqml-vscode.openIdeasView",
-          "when": "view == rqmlTree && viewItem == rqmlRoot",
-          "group": "inline@4"
         },
         {
           "command": "rqml-vscode.export",

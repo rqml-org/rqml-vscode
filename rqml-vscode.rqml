@@ -1,0 +1,1947 @@
+<rqml xmlns="https://rqml.org/schema/2.0.1"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="https://rqml.org/schema/2.0.1 https://rqml.org/schema/rqml-2.0.1.xsd"
+      version="2.0.1" docId="DOC-RQML-VSCODE-001" status="draft">
+  <meta>
+    <title>RQML extension for VSCode - Requirements specification</title>
+    <system>RQML extension for Visual Studio Code</system>
+  </meta>
+  <goals>
+    <goal id="GOAL-SE-PRINCIPLES" title="Preserve software engineering rigor" priority="must" status="draft">
+      <statement>Enable proper software engineering principles to remain viable and practical in an era where code is increasingly written by LLMs.</statement>
+      <rationale>As LLMs become primary code generators, there is a risk that foundational practices—requirements traceability, specification-driven development, and systematic verification—are bypassed in favor of speed. RQML provides structure that keeps these principles accessible and enforceable, ensuring that LLM-generated code is grounded in intentional design rather than ad-hoc prompting.</rationale>
+    </goal>
+    <goal id="GOAL-STAKEHOLDER-COMM" title="Facilitate stakeholder communication" priority="must" status="draft">
+      <statement>Aid clear and effective communication among all project stakeholders—developers, product owners, QA, and business representatives—through a shared, structured artifact.</statement>
+      <rationale>Miscommunication between stakeholders is a leading cause of project failure. By centralizing intent, acceptance criteria, and traceability in a machine-readable yet human-reviewable format, RQML becomes a single source of truth that bridges technical and non-technical perspectives.</rationale>
+    </goal>
+    <goal id="GOAL-LLM-CONTEXT" title="Maintain LLM coding context" priority="must" status="draft">
+      <statement>Provide LLMs with a persistent, well-structured context from which to generate and modify code, improving output quality and reducing token consumption over time.</statement>
+      <rationale>LLMs perform better when given clear, consistent context. Without a specification artifact, each coding session starts from scratch or relies on scattered comments and documentation. RQML serves as a durable context anchor—reducing repetitive prompting, minimizing hallucination, and enabling LLMs to produce code that aligns with documented requirements.</rationale>
+    </goal>
+    <qgoal id="QGOAL-CODE-QUALITY" title="Improve generated code quality" priority="should" status="draft">
+      <statement>Achieve measurably higher code quality in LLM-generated outputs when using RQML-driven workflows compared to ad-hoc prompting.</statement>
+      <metric>Reduction in defect density; increased first-pass acceptance of generated code; improved alignment with stated requirements as measured by traceability coverage.</metric>
+    </qgoal>
+    <qgoal id="QGOAL-TOKEN-EFFICIENCY" title="Reduce long-term token usage" priority="should" status="draft">
+      <statement>Lower cumulative token consumption for LLM interactions over the lifecycle of a project by providing reusable, structured context.</statement>
+      <metric>Reduction in average tokens per feature implementation compared to baseline non-RQML workflows; decrease in repeated context-setting prompts.</metric>
+    </qgoal>
+    <goalLink id="GL-001" from="QGOAL-CODE-QUALITY" to="GOAL-LLM-CONTEXT" type="refines"/>
+    <goalLink id="GL-002" from="QGOAL-TOKEN-EFFICIENCY" to="GOAL-LLM-CONTEXT" type="refines"/>
+  </goals>
+  <requirements>
+    <reqPackage id="PKG-UI" title="VS Code UI surfaces">
+      <description>UI requirements for the Activity Bar, Sidebar, Panel, and Status Bar.</description>
+      <req id="REQ-UI-001" type="UXR" title="Activity Bar icon" status="approved" priority="must">
+        <statement>The extension SHALL contribute an RQML icon to the VS Code Activity Bar.</statement>
+        <acceptance>
+          <criterion id="AC-UI-001-01">
+            <then>An RQML icon is visible in the Activity Bar when the extension is installed and enabled.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-002" type="FR" title="Open RQML overview" status="approved" priority="must">
+        <statement>Clicking the Activity Bar RQML icon SHALL open the RQML overview in the VS Code sidebar.</statement>
+        <acceptance>
+          <criterion id="AC-UI-002-01">
+            <when>The user clicks the RQML icon in the Activity Bar.</when>
+            <then>The RQML overview view is displayed in the Sidebar.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-003" type="UXR" title="Sidebar three-region layout" status="approved" priority="must">
+        <statement>The RQML Sidebar SHALL be split vertically into three regions: Overview (top), Details (middle), and Traces (bottom).</statement>
+        <acceptance>
+          <criterion id="AC-UI-003-01">
+            <then>The Sidebar shows three vertically stacked regions labeled "Overview", "Details", and "Traces".</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-004" type="UXR" title="Resizable regions" status="approved" priority="must">
+        <statement>The dividers between the three Sidebar regions SHALL be resizable by the user.</statement>
+        <acceptance>
+          <criterion id="AC-UI-004-01">
+            <when>The user drags a divider between any two regions.</when>
+            <then>The sizes of the adjacent regions adjust accordingly.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-005" type="FR" title="Tree view of specification" status="approved" priority="must">
+        <statement>The Overview region of the Sidebar SHALL display a tree view of the RQML specification.</statement>
+        <acceptance>
+          <criterion id="AC-UI-005-01">
+            <then>The Overview region contains a hierarchical tree representing the RQML document structure.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006" type="FR" title="Selection details view" status="approved" priority="must">
+        <statement>The Details region of the Sidebar SHALL display properties and information for the item selected in the tree view.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006-01">
+            <when>The user selects an item in the tree view.</when>
+            <then>The Details region updates to show property information for the selected item.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006A" type="UXR" title="Show all RQML sections" status="approved" priority="must">
+        <statement>The tree view SHALL display all RQML sections, including sections not present in the spec.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006A-01">
+            <then>Each RQML section appears as a node in the tree view even when the section has no content in the document.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006B" type="UXR" title="Visual distinction for missing sections" status="approved" priority="must">
+        <statement>Sections that are not present in the spec SHALL be visually distinct in the tree view.</statement>
+        <notes>Example: gray text and italic styling.</notes>
+        <acceptance>
+          <criterion id="AC-UI-006B-01">
+            <then>Missing sections are rendered with a distinct visual style from present sections.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006C" type="FR" title="Hover actions for section creation" status="draft" priority="must">
+        <statement>Hovering over a section node in the tree view SHALL reveal icons for creating new items within that section.</statement>
+        <notes>Some sections may support multiple item types; the UI should expose available item types per section.</notes>
+        <acceptance>
+          <criterion id="AC-UI-006C-01">
+            <when>The user hovers over a section node.</when>
+            <then>Creation icons appear on the right side of the section row.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006D" type="FR" title="Edit item in form" status="draft" priority="must">
+        <statement>Double-clicking an individual item in the tree view SHALL open a UI form to edit that item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006D-01">
+            <when>The user double-clicks an item in the tree view.</when>
+            <then>An edit form opens for the selected item.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006E" type="FR" title="Context menu actions" status="draft" priority="must">
+        <statement>Right-clicking (or control-clicking on macOS) an item in the tree view SHALL open a context menu with actions to rename and delete the item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006E-01">
+            <when>The user right-clicks or control-clicks an item in the tree view.</when>
+            <then>A context menu is shown with rename and delete actions.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006F" type="FR" title="Go to definition" status="approved" priority="must">
+        <statement>The tree view context menu SHALL include a "Go to definition" action that navigates to the relevant location in the RQML instance document, opening it in the editor if needed.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006F-01">
+            <when>The user selects "Go to definition" on a tree view item.</when>
+            <then>The RQML instance document opens in the editor (if not already open) and focus moves to the item definition.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006G" type="UXR" title="Tree root label" status="approved" priority="must">
+        <statement>The root node of the tree view SHALL be labeled "RQML Spec".</statement>
+        <acceptance>
+          <criterion id="AC-UI-006G-01">
+            <then>The tree view displays a root node labeled "RQML Spec".</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006H" type="FR" title="View title toolbar actions" status="approved" priority="must">
+        <statement>The Overview view title bar SHALL display four action icons: Document, Graph, Grid, and Lightbulb.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006H-01">
+            <then>Four action icons appear in the Overview view's title bar (view/title menu).</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006I" type="FR" title="Root actions behavior" status="approved" priority="must">
+        <statement>The four root action icons SHALL open the following editor views: Document opens a WYSIWYG full-spec view with chapters for each RQML section; Arrow opens a traceability map; Grid opens a requirements-to-test-cases matrix with status coloring; Lightbulb opens an LLM-assisted ideas view for improvements or new features in the spec.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006I-01">
+            <when>The user selects the Document icon.</when>
+            <then>A WYSIWYG editor view of the full spec opens with chapters for each section.</then>
+          </criterion>
+          <criterion id="AC-UI-006I-02">
+            <when>The user selects the Arrow icon.</when>
+            <then>A traceability map view opens in the editor.</then>
+          </criterion>
+          <criterion id="AC-UI-006I-03">
+            <when>The user selects the Grid icon.</when>
+            <then>A requirements-to-test-cases grid opens with red/amber/green status indicators.</then>
+          </criterion>
+          <criterion id="AC-UI-006I-04">
+            <when>The user selects the Lightbulb icon.</when>
+            <then>An LLM-assisted ideas view opens for improvements or new spec features.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006J" type="FR" title="Traces view" status="approved" priority="must">
+        <statement>The Traces region of the Sidebar SHALL display a list of all trace edges that the selected item participates in.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006J-01">
+            <when>The user selects an item in the tree view that has trace edges.</when>
+            <then>The Traces region shows a list of all trace edges where the item is either the source or target.</then>
+          </criterion>
+          <criterion id="AC-UI-006J-02">
+            <then>Each trace entry displays the trace type (e.g., dependsOn, implements, verifies) and the linked item ID.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006K" type="FR" title="Clickable trace IDs" status="approved" priority="must">
+        <statement>Linked item IDs in the Traces view SHALL be clickable to navigate to the related item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006K-01">
+            <when>The user clicks on a linked item ID in the Traces view.</when>
+            <then>The tree view navigates to and selects the clicked item.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-006L" type="FR" title="Synchronized view updates" status="approved" priority="must">
+        <statement>When the user navigates via a clickable ID in the Traces view, all three Sidebar views SHALL update to reflect the newly selected item.</statement>
+        <acceptance>
+          <criterion id="AC-UI-006L-01">
+            <when>The user clicks a linked item ID in the Traces view.</when>
+            <then>The Overview highlights and reveals the target item, the Details view shows the item's properties, and the Traces view shows the item's trace edges.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-007" type="FR" title="Open detail views" status="draft" priority="should">
+        <statement>Double-clicking an item in the Sidebar overview SHOULD open a detailed view for that item in the editor.</statement>
+        <notes>This behavior may be restricted to a pro tier.</notes>
+        <acceptance>
+          <criterion id="AC-UI-007-01">
+            <when>The user double-clicks an item in the Sidebar overview.</when>
+            <then>A detailed editor view for the item opens, subject to licensing or tier constraints.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-008" type="FR" title="Spec activity panel view" status="draft" priority="must">
+        <statement>The Panel SHALL include a tab named "Spec" that shows activity and changes to the requirements specification.</statement>
+        <acceptance>
+          <criterion id="AC-UI-008-01">
+            <then>The Panel contains a "Spec" tab with a list or timeline of spec activity/changes.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-009" type="FR" title="Nonconformity warnings" status="draft" priority="must">
+        <statement>The "Spec" Panel view SHALL show warnings about nonconformity between the specification and expected structure or rules.</statement>
+        <acceptance>
+          <criterion id="AC-UI-009-01">
+            <when>The specification contains a detectable nonconformity.</when>
+            <then>A warning is shown in the "Spec" Panel view describing the issue.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-013" type="FR" title="Semantic diagnostics" status="draft" priority="must">
+        <statement>The extension SHALL perform semantic diagnostics to detect ambiguous language, missing IDs, and inconsistent priorities, and display them in the Problems panel.</statement>
+        <acceptance>
+          <criterion id="AC-UI-013-01">
+            <when>The RQML spec contains ambiguous language, missing IDs, or inconsistent priorities.</when>
+            <then>Corresponding diagnostics appear in the Problems panel.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-013A" type="FR" title="Real-time validation" status="approved" priority="must">
+        <statement>The extension SHALL validate the RQML specification file upon any change and report validation errors to the Problems panel.</statement>
+        <acceptance>
+          <criterion id="AC-UI-013A-01">
+            <when>The user modifies and saves the RQML spec file.</when>
+            <then>Validation is performed and any errors appear in the Problems panel.</then>
+          </criterion>
+          <criterion id="AC-UI-013A-02">
+            <when>The RQML spec file contains malformed XML.</when>
+            <then>An error diagnostic appears in the Problems panel indicating the XML parse error.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-013B" type="FR" title="XSD schema validation" status="approved" priority="must">
+        <statement>The extension SHALL validate the RQML specification file against the RQML XSD schema and report schema validation errors to the Problems panel.</statement>
+        <acceptance>
+          <criterion id="AC-UI-013B-01">
+            <when>The RQML spec file contains elements or attributes not conforming to the RQML schema.</when>
+            <then>A schema validation error appears in the Problems panel with the line number and description of the violation.</then>
+          </criterion>
+          <criterion id="AC-UI-013B-02">
+            <then>The XSD schema is loaded once into memory at extension activation for efficient validation.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-014" type="FR" title="RQML language mode" status="approved" priority="must">
+        <statement>The extension SHALL provide an RQML language mode with syntax highlighting, folding, and XML awareness tailored to RQML.</statement>
+        <acceptance>
+          <criterion id="AC-UI-014-01">
+            <then>RQML files open with an RQML language mode that supports syntax highlighting, folding, and RQML-specific XML awareness.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-010" type="OR" title="Status bar spec indicator" status="approved" priority="must">
+        <statement>The Status Bar SHALL show an indicator with four states: Spec invalid, Spec incomplete, Spec unimplemented, and Spec synced. The indicator SHALL also display the resolved project root path and spec file path for the currently active editor.</statement>
+        <notes>
+          Spec invalid: the RQML spec file is not well-formed XML or not valid against the RQML schema.
+          Spec incomplete: there are unspecced features in the code.
+          Spec unimplemented: parts or all of the spec are not implemented in code.
+          Spec synced: all features in the spec have been implemented in code and are in sync.
+          When no RQML project is resolved, the indicator shows "No RQML project detected".
+        </notes>
+        <acceptance>
+          <criterion id="AC-UI-010-01">
+            <then>The Status Bar displays a distinct state label matching one of the four defined states.</then>
+          </criterion>
+          <criterion id="AC-UI-010-02">
+            <then>The Status Bar indicator shows the resolved project root path and spec file path.</then>
+          </criterion>
+          <criterion id="AC-UI-010-03">
+            <given>No RQML project is resolved for the active editor.</given>
+            <then>The Status Bar indicator shows "No RQML project detected".</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-011" type="FR" title="Offer spec creation" status="approved" priority="must">
+        <statement>When no RQML project is resolved for the active editor, the extension SHALL offer call-to-action buttons: "Create requirements.rqml here…" (creates a spec in the active file's nearest sensible unit root, i.e., the current folder) and "Locate existing spec…" (opens a file picker). The default version SHALL be the most recent XSD schema version available in the extension.</statement>
+        <acceptance>
+          <criterion id="AC-UI-011-01">
+            <given>No RQML project is resolved for the active editor.</given>
+            <then>The sidebar displays CTA actions: "Create requirements.rqml here…" and "Locate existing spec…".</then>
+          </criterion>
+          <criterion id="AC-UI-011-02">
+            <when>The user selects "Create requirements.rqml here…".</when>
+            <then>A requirements.rqml file is created in the active file's directory using the most recent available XSD version in the xmlns, schemaLocation, and version attributes.</then>
+          </criterion>
+          <criterion id="AC-UI-011-03">
+            <when>The user selects "Locate existing spec…".</when>
+            <then>A file picker dialog opens allowing the user to select an existing .rqml file.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-011A" type="FR" title="Version-aware XSD loading" status="draft" priority="must">
+        <statement>When the resolved RQML spec is loaded, the extension SHALL read the version attribute from the root rqml element and load the matching XSD schema from resources/xsd/rqml-{version}.xsd. If the matching XSD is not available, the extension SHALL show a warning in the sidebar tree view and status bar, and XSD-based validation SHALL be skipped.</statement>
+        <acceptance>
+          <criterion id="AC-UI-011A-01">
+            <when>The resolved spec file has version="X.Y.Z".</when>
+            <then>The extension loads resources/xsd/rqml-X.Y.Z.xsd for validation and agent schema context.</then>
+          </criterion>
+          <criterion id="AC-UI-011A-02">
+            <when>The matching XSD file does not exist in resources/xsd/.</when>
+            <then>A warning node appears in the sidebar tree view reading "Schema rqml-X.Y.Z.xsd not available", the status bar shows a warning state, and XSD-based validation is skipped.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-012" type="FR" title="Ambiguous spec resolution" status="approved" priority="must">
+        <statement>If a directory in the resolution path contains multiple .rqml files and none is named requirements.rqml, the extension SHALL treat the project as ambiguous: show an error state and offer quick-fix actions "Choose primary spec" and "Rename to requirements.rqml".</statement>
+        <notes>A directory containing requirements.rqml is never ambiguous regardless of other .rqml files present—requirements.rqml always wins.</notes>
+        <acceptance>
+          <criterion id="AC-UI-012-01">
+            <when>The project resolution algorithm encounters a directory with multiple .rqml files and no requirements.rqml.</when>
+            <then>An error state is shown indicating ambiguous spec files.</then>
+          </criterion>
+          <criterion id="AC-UI-012-02">
+            <when>The user selects "Choose primary spec" from the quick-fix actions.</when>
+            <then>A picker is shown listing the .rqml files in the ambiguous directory and the user's selection becomes the resolved spec.</then>
+          </criterion>
+          <criterion id="AC-UI-012-03">
+            <when>The user selects "Rename to requirements.rqml" from the quick-fix actions.</when>
+            <then>A picker is shown listing the .rqml files and the selected file is renamed to requirements.rqml.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-015" type="FR" title="Project resolution algorithm" status="draft" priority="must">
+        <statement>The extension SHALL resolve the active RQML project for any open file using the following algorithm: (1) take the active file's directory, (2) walk upward toward the workspace root(s), (3) in each directory check for requirements.rqml first, else any single *.rqml file, (4) the first matching directory becomes the project root. If walking reaches the workspace root without a match, the project is undefined. When both a nearer and a higher-level spec exist, the nearest directory wins.</statement>
+        <notes>
+          The algorithm enforces exactly one RQML spec per project unit, where a project unit is a package/app/service directory. The spec lives at the root of that unit, not necessarily at the git repo root. There is no repo-root "umbrella spec"—each unit is independent.
+          Naming convention: requirements.rqml is preferred. A single *.rqml fallback is accepted. Multiple *.rqml without requirements.rqml triggers the ambiguity rules (REQ-UI-012).
+        </notes>
+        <acceptance>
+          <criterion id="AC-UI-015-01">
+            <given>The active file is at path /repo/packages/foo/src/index.ts and /repo/packages/foo/requirements.rqml exists.</given>
+            <then>The resolved project root is /repo/packages/foo/ and the resolved spec is requirements.rqml.</then>
+          </criterion>
+          <criterion id="AC-UI-015-02">
+            <given>The active file is at path /repo/packages/foo/src/index.ts and /repo/packages/foo/myspec.rqml is the only .rqml file in that directory.</given>
+            <then>The resolved project root is /repo/packages/foo/ and the resolved spec is myspec.rqml.</then>
+          </criterion>
+          <criterion id="AC-UI-015-03">
+            <given>No .rqml file exists in any ancestor directory up to the workspace root.</given>
+            <then>The project is undefined and the extension shows "No RQML project detected".</then>
+          </criterion>
+          <criterion id="AC-UI-015-04">
+            <given>A spec exists at /repo/packages/foo/requirements.rqml and another at /repo/requirements.rqml.</given>
+            <when>The active file is under /repo/packages/foo/.</when>
+            <then>The resolved spec is /repo/packages/foo/requirements.rqml (nearest wins).</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-016" type="FR" title="Automatic project context switching" status="draft" priority="must">
+        <statement>When the user switches the active editor to a file belonging to a different RQML project unit, the extension SHALL automatically switch the project context. All sidebar views (tree, details, traces), the status bar indicator, the agent panel, and validation diagnostics SHALL update to reflect the newly resolved project.</statement>
+        <acceptance>
+          <criterion id="AC-UI-016-01">
+            <given>The user has files open from two different monorepo units, each with its own RQML spec.</given>
+            <when>The user switches the active editor tab from unit A to unit B.</when>
+            <then>The sidebar tree view, details, traces, status bar, and agent panel all update to reflect unit B's spec.</then>
+          </criterion>
+          <criterion id="AC-UI-016-02">
+            <when>The user switches to a file in a directory with no resolved RQML project.</when>
+            <then>The extension transitions to the "No RQML project detected" state.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-017" type="IR" title="Project resolution caching" status="draft" priority="should">
+        <statement>The extension SHOULD cache the resolved project root per file path for performance. The cache SHALL be invalidated on: file open/close events, active editor changes, and file system events affecting requirements.rqml or any *.rqml file in ancestor directories.</statement>
+        <acceptance>
+          <criterion id="AC-UI-017-01">
+            <given>The user has previously opened a file and the project was resolved.</given>
+            <when>The user reopens the same file without any .rqml files having been created, renamed, or deleted.</when>
+            <then>The project is resolved from cache without re-scanning ancestor directories.</then>
+          </criterion>
+          <criterion id="AC-UI-017-02">
+            <when>A .rqml file is created, renamed, or deleted in an ancestor directory of a cached file path.</when>
+            <then>The cache entry for affected file paths is invalidated and re-resolved on next access.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-018" type="FR" title="Multi-root workspace support" status="draft" priority="must">
+        <statement>In VS Code multi-root workspaces, the extension SHALL treat each workspace folder as an independent workspace root boundary for the upward directory search in the project resolution algorithm. The upward walk SHALL NOT cross workspace folder boundaries.</statement>
+        <acceptance>
+          <criterion id="AC-UI-018-01">
+            <given>A multi-root workspace contains folder A and folder B, each with their own .rqml specs.</given>
+            <when>The user edits a file in folder A.</when>
+            <then>The project resolution walks upward only within folder A and does not consider folder B.</then>
+          </criterion>
+          <criterion id="AC-UI-018-02">
+            <given>A multi-root workspace contains folder A (with a spec) and folder B (without a spec).</given>
+            <when>The user edits a file in folder B.</when>
+            <then>The project is undefined for folder B even if folder A has a spec.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-UI-019" type="CR" title="Trace scope per project unit" status="draft" priority="must">
+        <statement>Traceability views, graphs, and matrices SHALL operate exclusively within the resolved project unit's single spec. Cross-unit traceability across monorepo boundaries is out of scope.</statement>
+        <acceptance>
+          <criterion id="AC-UI-019-01">
+            <then>The traceability map, requirements-to-test matrix, and trace edges view only display data from the currently resolved spec file.</then>
+          </criterion>
+          <criterion id="AC-UI-019-02">
+            <then>No trace edges reference items in a different project unit's spec file.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-AUTH" title="Authentication and Subscription">
+      <description>Requirements for user authentication, login providers, and subscription tiers that gate access to certain features.</description>
+      <req id="REQ-AUTH-001" type="FR" title="GitHub login" status="draft" priority="must">
+        <statement>The extension SHALL allow users to log in using their GitHub account.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-001-01">
+            <when>The user initiates login.</when>
+            <then>The user is presented with a GitHub OAuth flow and can authenticate with their GitHub credentials.</then>
+          </criterion>
+          <criterion id="AC-AUTH-001-02">
+            <when>GitHub authentication succeeds.</when>
+            <then>The user is logged in and their identity is associated with the extension session.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-002" type="FR" title="Extensible authentication" status="draft" priority="should">
+        <statement>The authentication system SHOULD be designed to support additional login providers in the future.</statement>
+        <notes>Potential future providers may include Google, Microsoft, email/password, or SSO. The architecture should not be tightly coupled to GitHub.</notes>
+        <acceptance>
+          <criterion id="AC-AUTH-002-01">
+            <then>The authentication implementation uses an abstraction that allows adding new providers without major refactoring.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-003" type="FR" title="Login state persistence" status="draft" priority="must">
+        <statement>The extension SHALL persist the user's login state across VS Code sessions.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-003-01">
+            <given>A user who has previously logged in.</given>
+            <when>The user reopens VS Code.</when>
+            <then>The user remains logged in without needing to re-authenticate.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-004" type="FR" title="Logout" status="draft" priority="must">
+        <statement>The extension SHALL allow users to log out of their account.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-004-01">
+            <when>The user initiates logout.</when>
+            <then>The user's session is terminated and any stored credentials are cleared.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-005" type="UXR" title="Login UI entry point" status="draft" priority="must">
+        <statement>The extension SHALL provide a visible entry point for login in the RQML sidebar when the user is not logged in.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-005-01">
+            <given>The user is not logged in.</given>
+            <then>A login button or prompt is visible in the RQML sidebar.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AUTH-006" type="UXR" title="Logged-in user indicator" status="draft" priority="must">
+        <statement>The extension SHALL display an indicator showing the logged-in user's identity when authenticated.</statement>
+        <acceptance>
+          <criterion id="AC-AUTH-006-01">
+            <given>The user is logged in.</given>
+            <then>The user's GitHub username or avatar is visible in the RQML sidebar.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-001" type="FR" title="Subscription tiers" status="draft" priority="must">
+        <statement>The extension SHALL support three subscription tiers: free, pro, and enterprise.</statement>
+        <acceptance>
+          <criterion id="AC-SUB-001-01">
+            <then>The system recognizes and distinguishes between free, pro, and enterprise subscription levels.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-002" type="FR" title="Feature gating" status="draft" priority="must">
+        <statement>The extension SHALL restrict access to certain features based on the user's subscription tier.</statement>
+        <notes>Features requiring login or subscription should gracefully indicate the required tier and offer upgrade paths.</notes>
+        <acceptance>
+          <criterion id="AC-SUB-002-01">
+            <given>A feature requires a pro or enterprise subscription.</given>
+            <when>A user without the required tier attempts to use the feature.</when>
+            <then>The user is informed of the subscription requirement and presented with an option to upgrade.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-003" type="UXR" title="Subscription status display" status="draft" priority="must">
+        <statement>The extension SHALL display the user's current subscription tier when logged in.</statement>
+        <acceptance>
+          <criterion id="AC-SUB-003-01">
+            <given>The user is logged in.</given>
+            <then>The user's subscription tier (free, pro, or enterprise) is visible in the UI.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-SUB-004" type="FR" title="Subscription management link" status="draft" priority="should">
+        <statement>The extension SHOULD provide a link or action to manage subscription (upgrade, billing) via an external portal.</statement>
+        <acceptance>
+          <criterion id="AC-SUB-004-01">
+            <when>The user selects the subscription management action.</when>
+            <then>The user is directed to an external subscription management portal.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-CONFIG" title="Configuration and Settings">
+      <description>Requirements for user-configurable settings including API keys, LLM selection, and UI customization.</description>
+      <req id="REQ-CFG-001" type="FR" title="Settings UI" status="approved" priority="must">
+        <statement>The extension SHALL provide a settings screen accessible to the user for configuring extension behavior.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-001-01">
+            <then>A settings screen is accessible from the extension UI.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-002" type="FR" title="API key storage" status="approved" priority="must">
+        <statement>The settings screen SHALL allow users to store API keys required for LLM-powered features.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-002-01">
+            <when>The user enters an API key in the settings.</when>
+            <then>The API key is securely stored and available for LLM feature use.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-003" type="SR" title="Secure API key storage" status="approved" priority="must">
+        <statement>API keys SHALL be stored securely using VS Code's secret storage API.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-003-01">
+            <then>API keys are not stored in plain text and are protected by VS Code's secret storage mechanism.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-004" type="FR" title="LLM provider selection" status="approved" priority="must">
+        <statement>The settings screen SHALL allow users to select which LLM provider to use when multiple providers are available.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-004-01">
+            <given>The user has configured API keys for multiple LLM providers.</given>
+            <then>The settings screen displays a selection control to choose the active LLM provider.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-005" type="UXR" title="VS Code theme integration" status="approved" priority="must">
+        <statement>The extension SHALL follow the active VS Code colour theme. All views and webviews SHALL use VS Code CSS custom properties for foreground, background, border, and accent colours. No custom colour palette selection is provided.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-005-01">
+            <when>The user switches the VS Code colour theme (e.g., from light to dark).</when>
+            <then>All extension views and webviews adapt to the new theme automatically.</then>
+          </criterion>
+          <criterion id="AC-CFG-005-02">
+            <then>No colour palette setting or selection command is exposed to the user.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-007" type="FR" title="Settings persistence" status="approved" priority="must">
+        <statement>The extension SHALL persist user settings across VS Code sessions.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-007-01">
+            <given>The user has configured settings.</given>
+            <when>The user reopens VS Code.</when>
+            <then>Previously configured settings are retained.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-008" type="FR" title="LLM endpoint list view" status="draft" priority="must">
+        <statement>The settings screen SHALL display a list of all configured LLM endpoints, showing the provider name and a masked representation of the API key for each entry.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-008-01">
+            <then>The settings screen shows a list of configured LLM endpoints with provider names and masked API keys.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-009" type="SR" title="Hidden API keys in list" status="draft" priority="must">
+        <statement>API keys displayed in the LLM endpoint list SHALL be masked (e.g., showing only the last four characters) and SHALL NOT be fully visible to the user.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-009-01">
+            <then>Each API key in the endpoint list is displayed in a masked format such as "••••••••abcd".</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-010" type="FR" title="Active endpoint selection" status="draft" priority="must">
+        <statement>Each configured LLM endpoint in the list SHALL have a checkbox that allows the user to designate it as the active endpoint used by the agent.</statement>
+        <notes>Only one endpoint may be active at a time. Selecting one deselects any previously active endpoint.</notes>
+        <acceptance>
+          <criterion id="AC-CFG-010-01">
+            <when>The user checks the checkbox next to an endpoint.</when>
+            <then>That endpoint becomes the active LLM used by the agent and any previously active endpoint is deselected.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-011" type="FR" title="Remove endpoint" status="draft" priority="must">
+        <statement>The user SHALL be able to remove a configured LLM endpoint from the list, which also deletes the associated API key from secure storage.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-011-01">
+            <when>The user removes an endpoint from the list.</when>
+            <then>The endpoint is removed from the configuration and its API key is deleted from secure storage.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-012" type="FR" title="Add LLM endpoint dialog" status="draft" priority="must">
+        <statement>The settings screen SHALL include an "Add LLM endpoint" button that opens a dialog for configuring a new LLM endpoint, including provider selection and API key entry.</statement>
+        <acceptance>
+          <criterion id="AC-CFG-012-01">
+            <when>The user clicks the "Add LLM endpoint" button.</when>
+            <then>A dialog opens allowing the user to select a provider and enter an API key.</then>
+          </criterion>
+          <criterion id="AC-CFG-012-02">
+            <when>The user completes the dialog and confirms.</when>
+            <then>The new endpoint appears in the endpoint list and the API key is stored securely.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-API" title="External API Integration">
+      <description>Requirements for integration with the external RQML.ai backend API. Implementation deferred to a later phase.</description>
+      <req id="REQ-API-001" type="IR" title="Backend API base URL" status="draft" priority="must">
+        <statement>The extension SHALL use https://rqml.ai/api as the base URL for external API calls.</statement>
+        <notes>Implementation deferred. This requirement establishes the API endpoint for future backend integration.</notes>
+        <acceptance>
+          <criterion id="AC-API-001-01">
+            <then>All external API requests are directed to the https://rqml.ai/api endpoint.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-002" type="FR" title="Pro/enterprise feature API dependency" status="draft" priority="must">
+        <statement>Certain pro-tier and enterprise-tier features SHALL require communication with the external RQML.ai API.</statement>
+        <notes>Implementation deferred. Specific features requiring API access to be defined as they are developed.</notes>
+        <acceptance>
+          <criterion id="AC-API-002-01">
+            <given>A feature is designated as requiring backend API access.</given>
+            <when>The user invokes that feature.</when>
+            <then>The extension communicates with the RQML.ai API to fulfill the request.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-003" type="SR" title="Authenticated API requests" status="draft" priority="must">
+        <statement>API requests to RQML.ai SHALL be authenticated using the user's login credentials or session token.</statement>
+        <notes>Implementation deferred. Authentication mechanism to align with REQ-AUTH requirements.</notes>
+        <acceptance>
+          <criterion id="AC-API-003-01">
+            <given>The user is logged in.</given>
+            <when>The extension makes an API request to RQML.ai.</when>
+            <then>The request includes valid authentication credentials.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-004" type="FR" title="API error handling" status="draft" priority="must">
+        <statement>The extension SHALL gracefully handle API errors including network failures, timeouts, and server errors.</statement>
+        <notes>Implementation deferred.</notes>
+        <acceptance>
+          <criterion id="AC-API-004-01">
+            <when>An API request fails due to network or server error.</when>
+            <then>The user is shown an appropriate error message and the extension remains functional for offline features.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-API-005" type="FR" title="Offline mode for free features" status="draft" priority="must">
+        <statement>Features available in the free tier SHALL remain functional without API connectivity.</statement>
+        <acceptance>
+          <criterion id="AC-API-005-01">
+            <given>The extension cannot reach the RQML.ai API.</given>
+            <then>Free-tier features continue to work normally.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-EXPORT" title="Document Export">
+      <description>Requirements for exporting the RQML specification as readable documents in various formats.</description>
+      <req id="REQ-EXP-001" type="FR" title="Export to HTML" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as an HTML document.</statement>
+        <notes>Available in the free tier.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-001-01">
+            <when>The user selects the HTML export option.</when>
+            <then>A readable HTML document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-002" type="FR" title="Export to PDF" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as a PDF document.</statement>
+        <notes>Requires pro tier subscription.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-002-01">
+            <given>The user has a pro or enterprise subscription.</given>
+            <when>The user selects the PDF export option.</when>
+            <then>A readable PDF document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-003" type="FR" title="Export to Markdown" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as a Markdown document.</statement>
+        <notes>Requires pro tier subscription.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-003-01">
+            <given>The user has a pro or enterprise subscription.</given>
+            <when>The user selects the Markdown export option.</when>
+            <then>A readable Markdown document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-004" type="FR" title="Export to Word" status="draft" priority="must">
+        <statement>The extension SHALL allow users to export the RQML specification as a Microsoft Word document (.docx).</statement>
+        <notes>Requires pro tier subscription.</notes>
+        <acceptance>
+          <criterion id="AC-EXP-004-01">
+            <given>The user has a pro or enterprise subscription.</given>
+            <when>The user selects the Word export option.</when>
+            <then>A readable Word document representing the full specification is generated and saved.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-005" type="UXR" title="Export UI access" status="draft" priority="must">
+        <statement>The extension SHALL provide an "Export" action in the context menu of the root node ("RQML Spec") in the specification tree view.</statement>
+        <acceptance>
+          <criterion id="AC-EXP-005-01">
+            <when>The user right-clicks (or control-clicks on macOS) the root node in the tree view.</when>
+            <then>A context menu appears containing an "Export" action.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-006" type="UXR" title="Export format selection" status="draft" priority="must">
+        <statement>When initiating an export, the user SHALL be presented with a selection of available formats based on their subscription tier.</statement>
+        <acceptance>
+          <criterion id="AC-EXP-006-01">
+            <given>The user initiates an export.</given>
+            <then>A format selection is shown, with pro-tier formats visually distinguished or disabled for free-tier users.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-AGENT" title="Requirements Agent">
+      <description>An LLM-powered agent that monitors the RQML specification and codebase, assesses requirements quality, suggests improvements, and comments on spec-code synchronisation. The agent operates exclusively on the specification—it never modifies source code.</description>
+      <req id="REQ-AGT-001" type="FR" title="Agent panel tab" status="draft" priority="must">
+        <statement>The VS Code Panel SHALL include a tab with the default heading "RQML AGENT" that hosts the agent interface.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-001-01">
+            <then>A tab labeled "RQML AGENT" is present in the VS Code Panel area.</then>
+          </criterion>
+          <criterion id="AC-AGT-001-02">
+            <when>The user opens the RQML AGENT tab.</when>
+            <then>The agent interface is displayed with a prompt input area and a conversation history area.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-002" type="FR" title="Prompt input" status="draft" priority="must">
+        <statement>The agent SHALL accept written input from the user via a text prompt in the RQML AGENT panel.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-002-01">
+            <when>The user types a message in the prompt and submits it.</when>
+            <then>The message is sent to the configured LLM and a response is displayed in the conversation area.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-003" type="IR" title="Vercel AI SDK integration" status="draft" priority="must">
+        <statement>The agent SHALL use the Vercel AI SDK for all LLM communication, supporting multiple provider backends through a unified interface.</statement>
+        <notes>The Vercel AI SDK provides a provider-agnostic abstraction over OpenAI, Anthropic, Google, and other LLM APIs.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-003-01">
+            <then>LLM requests are routed through the Vercel AI SDK.</then>
+          </criterion>
+          <criterion id="AC-AGT-003-02">
+            <then>Switching between LLM providers does not require code changes—only configuration.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-004" type="FR" title="RQML file change monitoring" status="draft" priority="must">
+        <statement>The agent SHALL monitor changes to the RQML specification file and react to modifications by assessing the updated content.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-004-01">
+            <when>The RQML spec file is modified and saved.</when>
+            <then>The agent detects the change and may provide feedback on the updated specification in the conversation area.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-005" type="FR" title="Codebase change monitoring" status="draft" priority="must">
+        <statement>The agent SHALL monitor changes to the project codebase and react to modifications relevant to spec-code alignment.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-005-01">
+            <when>Source code files in the workspace are modified and saved.</when>
+            <then>The agent detects the change and may provide feedback on spec-code synchronisation in the conversation area.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-006" type="FR" title="Quality assessment" status="draft" priority="must">
+        <statement>The agent SHALL comment on the overall quality of the requirements specification, identifying weaknesses such as vague language, missing acceptance criteria, untraceable items, and structural gaps.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-006-01">
+            <when>The agent analyses the RQML specification (on event or user prompt).</when>
+            <then>The agent produces a quality assessment covering completeness, clarity, traceability, and structural integrity.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-007" type="FR" title="Change suggestions" status="draft" priority="must">
+        <statement>The agent SHALL suggest concrete changes and improvements to the RQML specification, presenting them as actionable proposals to the user.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-007-01">
+            <then>Suggestions are displayed as distinct, reviewable proposals in the conversation area, each describing the proposed change and its rationale.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-008" type="FR" title="User-confirmed modifications" status="draft" priority="must">
+        <statement>The agent SHALL only apply modifications to the RQML specification after explicit user confirmation. No changes SHALL be made autonomously.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-008-01">
+            <when>The agent proposes a change to the specification.</when>
+            <then>The user is presented with accept/reject/allow-all controls before the change is applied.</then>
+          </criterion>
+          <criterion id="AC-AGT-008-02">
+            <when>The user rejects a proposed change.</when>
+            <then>The RQML spec file remains unmodified.</then>
+          </criterion>
+          <criterion id="AC-AGT-008-03">
+            <when>The user accepts a proposed change.</when>
+            <then>The change is applied to the RQML spec file.</then>
+          </criterion>
+          <criterion id="AC-AGT-008-04">
+            <when>The user selects "allow all" for the current session.</when>
+            <then>Subsequent agent-proposed changes are applied automatically for the remainder of the coding session without further confirmation prompts.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-009" type="CR" title="No code modification" status="draft" priority="must">
+        <statement>The agent SHALL NOT modify any source code files. The agent operates exclusively on the RQML specification file.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-009-01">
+            <then>No source code file is ever written to or modified by the agent, regardless of user input or agent assessment.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-011" type="CR" title="Software engineering principles" status="draft" priority="must">
+        <statement>The agent SHALL follow and promote good software engineering principles at all times, including requirements completeness, unambiguous language, testability, and proper traceability.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-011-01">
+            <then>All agent-generated content adheres to established requirements engineering best practices (e.g., each requirement is atomic, testable, and uniquely identified).</then>
+          </criterion>
+          <criterion id="AC-AGT-011-02">
+            <then>The agent flags violations of software engineering principles when reviewing user-authored specification content.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-012" type="CR" title="XSD schema conformance" status="draft" priority="must">
+        <statement>The agent SHALL enforce conformance to the RQML XSD schema at all times. All agent-generated or agent-modified RQML content SHALL be valid against the schema. The agent SHALL observe and follow guidance embedded in XSD comments.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-012-01">
+            <then>Any RQML content produced by the agent validates against the RQML XSD schema without errors.</then>
+          </criterion>
+          <criterion id="AC-AGT-012-02">
+            <then>The agent's system prompt includes the RQML XSD schema content so that the LLM is aware of structural rules and embedded guidance.</then>
+          </criterion>
+          <criterion id="AC-AGT-012-03">
+            <when>The agent detects that the current RQML spec violates the XSD schema.</when>
+            <then>The agent reports the schema violation and proposes a corrective change.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-010" type="FR" title="Spec-code sync commentary" status="draft" priority="must">
+        <statement>The agent SHALL comment on the synchronisation status between the RQML specification and the project codebase, identifying requirements that appear unimplemented in code and code that appears unspecified in the spec.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-010-01">
+            <when>The agent analyses both the RQML spec and the codebase (on event or user prompt).</when>
+            <then>The agent identifies and reports requirements without apparent code implementation and code without corresponding spec entries.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-013" type="FR" title="Strictness level setting" status="draft" priority="must">
+        <statement>The extension settings SHALL include a strictness level selector with four options: relaxed, standard, strict, and certified. The agent SHALL adjust its behaviour according to the selected level.</statement>
+        <notes>
+          relaxed: Prototyping mode. Spec is advisory. Quick iteration allowed.
+          standard: Production default. Spec-first for features. Core traces required.
+          strict: Full traceability. All behaviour specified. No ghost features.
+          certified: Regulated/safety-critical. Audit-grade traces with metadata.
+        </notes>
+        <acceptance>
+          <criterion id="AC-AGT-013-01">
+            <then>The extension settings include a strictness selector with the four defined levels.</then>
+          </criterion>
+          <criterion id="AC-AGT-013-02">
+            <when>The user selects "relaxed" strictness.</when>
+            <then>The agent treats the specification as advisory and permits quick iteration without requiring full traceability.</then>
+          </criterion>
+          <criterion id="AC-AGT-013-03">
+            <when>The user selects "standard" strictness.</when>
+            <then>The agent enforces spec-first development for features and requires core trace edges.</then>
+          </criterion>
+          <criterion id="AC-AGT-013-04">
+            <when>The user selects "strict" strictness.</when>
+            <then>The agent requires full traceability, flags all unspecified behaviour, and blocks ghost features.</then>
+          </criterion>
+          <criterion id="AC-AGT-013-05">
+            <when>The user selects "certified" strictness.</when>
+            <then>The agent enforces audit-grade traceability with metadata, requires formal elicitation, and demands pre-approved specs before implementation.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-014" type="FR" title="AGENTS.md fallback" status="draft" priority="must">
+        <statement>When present, the extension settings strictness level SHALL override the strictness level declared in the project's AGENTS.md file. When no settings override is configured, the agent SHALL observe the strictness level and guidelines specified in AGENTS.md.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-014-01">
+            <given>The user has set a strictness level in extension settings.</given>
+            <then>The agent uses the settings value regardless of what AGENTS.md declares.</then>
+          </criterion>
+          <criterion id="AC-AGT-014-02">
+            <given>No strictness level is configured in extension settings.</given>
+            <when>An AGENTS.md file exists in the workspace root with a strictness declaration.</when>
+            <then>The agent uses the strictness level from AGENTS.md.</then>
+          </criterion>
+          <criterion id="AC-AGT-014-03">
+            <given>No strictness level is configured in settings and no AGENTS.md exists.</given>
+            <then>The agent defaults to "standard" strictness.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-015" type="FR" title="Streaming response display" status="draft" priority="must">
+        <statement>The agent SHALL stream LLM responses to the conversation area in real time as tokens are received, rather than waiting for the full response before displaying.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-015-01">
+            <when>The agent sends a prompt to the LLM.</when>
+            <then>Response text appears incrementally in the conversation area as tokens arrive from the LLM.</then>
+          </criterion>
+          <criterion id="AC-AGT-015-02">
+            <when>Streaming completes.</when>
+            <then>The streaming message transitions to a finalized state with no visual disruption.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-016" type="FR" title="Markdown rendering in conversation" status="draft" priority="must">
+        <statement>The agent conversation area SHALL render assistant responses as Markdown, including headings, lists, bold/italic text, links, and fenced code blocks with syntax highlighting.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-016-01">
+            <then>Assistant messages containing Markdown syntax are rendered as formatted HTML in the conversation area.</then>
+          </criterion>
+          <criterion id="AC-AGT-016-02">
+            <then>Fenced code blocks are rendered with syntax highlighting appropriate to the declared language.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-017" type="UXR" title="Code block action buttons" status="draft" priority="must">
+        <statement>Fenced code blocks in assistant responses SHALL display action buttons for "Copy" (copies code content to clipboard) and "Apply" (applies the code as a proposed change to the relevant file). Buttons SHALL appear on hover or focus.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-017-01">
+            <when>The user hovers over a fenced code block in an assistant response.</when>
+            <then>Copy and Apply action buttons are visible.</then>
+          </criterion>
+          <criterion id="AC-AGT-017-02">
+            <when>The user clicks the Copy button on a code block.</when>
+            <then>The code block content is copied to the system clipboard.</then>
+          </criterion>
+          <criterion id="AC-AGT-017-03">
+            <when>The user clicks the Apply button on a code block.</when>
+            <then>The code is proposed as a change to the relevant file, subject to the change confirmation flow (REQ-AGT-008).</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-018" type="FR" title="Mermaid diagram rendering" status="draft" priority="should">
+        <statement>The agent conversation area SHOULD render Mermaid diagram syntax in fenced code blocks (```mermaid) as inline SVG diagrams. Diagram colours SHALL adapt to the active VS Code theme.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-018-01">
+            <when>An assistant response contains a fenced code block with the language tag "mermaid".</when>
+            <then>The block is rendered as an inline SVG diagram instead of a code listing.</then>
+          </criterion>
+          <criterion id="AC-AGT-018-02">
+            <when>The VS Code colour theme changes.</when>
+            <then>Rendered Mermaid diagrams update their colours to match the new theme.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-019" type="FR" title="User choice dialog" status="draft" priority="must">
+        <statement>The agent SHALL be able to present the user with a multiple-choice question during a conversation turn via the askUser tool. The conversation SHALL pause until the user selects an option. The selected option SHALL be returned to the LLM as the tool result, and the conversation SHALL resume.</statement>
+        <notes>The askUser tool is invoked by the LLM when it needs clarification or a decision from the user. While the choice is pending, no further text or tool-call messages from the same turn SHALL be displayed.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-019-01">
+            <when>The LLM invokes the askUser tool with a question and options.</when>
+            <then>A choice card is displayed in the conversation area showing the question and selectable options.</then>
+          </criterion>
+          <criterion id="AC-AGT-019-02">
+            <when>The user selects an option from the choice card.</when>
+            <then>The selected option is sent back to the LLM as the tool result and conversation resumes.</then>
+          </criterion>
+          <criterion id="AC-AGT-019-03">
+            <when>The askUser tool is pending.</when>
+            <then>No additional streaming text or tool-call system messages from the same turn are displayed until the user responds.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-020" type="FR" title="Tool call approval" status="draft" priority="must">
+        <statement>When the agent invokes a tool that modifies files or has side effects beyond the RQML specification, the agent SHALL present the user with an approval prompt showing the tool name, target file path (if applicable), and a preview of the intended action. The user SHALL be able to approve, reject, or allow all tool calls for the remainder of the session.</statement>
+        <notes>This generalises the change confirmation flow (REQ-AGT-008) to cover arbitrary tool calls, not just spec modifications. The "allow all" option sets a session-scoped flag that auto-approves subsequent tool calls.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-020-01">
+            <when>The agent invokes a tool requiring approval.</when>
+            <then>An approval card is displayed showing the tool name, file path (if applicable), and a preview of the action.</then>
+          </criterion>
+          <criterion id="AC-AGT-020-02">
+            <when>The user approves a tool call.</when>
+            <then>The tool executes and the conversation continues.</then>
+          </criterion>
+          <criterion id="AC-AGT-020-03">
+            <when>The user rejects a tool call.</when>
+            <then>The tool is not executed and the agent is informed of the rejection.</then>
+          </criterion>
+          <criterion id="AC-AGT-020-04">
+            <when>The user selects "allow all" on a tool approval prompt.</when>
+            <then>All subsequent tool calls in the session are auto-approved without further prompts.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-021" type="FR" title="File and folder attachment" status="draft" priority="must">
+        <statement>The agent input area SHALL provide a file browser accessible via an attachment icon (paperclip) that allows the user to browse workspace files and folders, select items for attachment, and inject their contents into the agent context. Selected items SHALL appear as removable tags in the input area.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-021-01">
+            <when>The user clicks the attachment icon in the input area.</when>
+            <then>A file browser panel opens above the input area showing the workspace directory tree starting at the root.</then>
+          </criterion>
+          <criterion id="AC-AGT-021-02">
+            <when>The user clicks a file in the file browser.</when>
+            <then>The file is attached and a tag with the file name appears in the input area.</then>
+          </criterion>
+          <criterion id="AC-AGT-021-03">
+            <when>The user clicks a folder name in the file browser.</when>
+            <then>The browser navigates into that folder, showing its contents.</then>
+          </criterion>
+          <criterion id="AC-AGT-021-04">
+            <when>The user clicks the attach button on a folder entry.</when>
+            <then>The folder is attached as a unit and a tag with the folder name and trailing slash appears in the input area.</then>
+          </criterion>
+          <criterion id="AC-AGT-021-05">
+            <when>The user clicks the remove button on an attachment tag.</when>
+            <then>The attachment is removed from the input area and will not be included in subsequent prompts.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-022" type="FR" title="Attachment context injection" status="draft" priority="must">
+        <statement>When the user submits a prompt with file or folder attachments, the extension host SHALL read the contents of attached files (and recursively read files within attached folders up to a configurable depth) and inject them into the prompt as structured context before sending to the LLM.</statement>
+        <notes>Files larger than 100 KB are skipped. Folder recursion depth defaults to 3 levels. The injected context uses an &lt;attached-context&gt; block format with file path headers.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-022-01">
+            <when>The user submits a prompt with one or more attached files.</when>
+            <then>The file contents are read and appended to the prompt text as structured context before the LLM receives it.</then>
+          </criterion>
+          <criterion id="AC-AGT-022-02">
+            <when>An attached folder is included.</when>
+            <then>Files within the folder are recursively read (up to the configured depth) and included in the context.</then>
+          </criterion>
+          <criterion id="AC-AGT-022-03">
+            <when>An attached file exceeds 100 KB.</when>
+            <then>The file is skipped and not included in the injected context.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-023" type="UXR" title="Attachment persistence across prompts" status="draft" priority="must">
+        <statement>File and folder attachments SHALL persist in the input area across prompt submissions. Attachments are only removed when the user explicitly removes them via the tag remove button. Each subsequent prompt submission SHALL re-read and re-inject the attached file contents.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-023-01">
+            <when>The user submits a prompt with attachments.</when>
+            <then>The attachment tags remain visible in the input area after the prompt is sent.</then>
+          </criterion>
+          <criterion id="AC-AGT-023-02">
+            <when>The user submits a second prompt without changing attachments.</when>
+            <then>The same file contents are re-read and re-injected into the new prompt's context.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-024" type="FR" title="Image paste attachment" status="draft" priority="should">
+        <statement>The agent input area SHOULD support pasting images from the system clipboard. Pasted images SHALL be compressed (maximum 1024px on longest edge, JPEG quality stepping down from 85% to fit within ~1 MB base64), displayed as thumbnail previews in the input area, and included in the prompt as base64-encoded image content.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-024-01">
+            <when>The user pastes an image from the clipboard while the agent input has focus.</when>
+            <then>A thumbnail preview of the image appears in the input area.</then>
+          </criterion>
+          <criterion id="AC-AGT-024-02">
+            <when>The user submits a prompt with pasted images.</when>
+            <then>The images are included in the LLM request as base64-encoded image content.</then>
+          </criterion>
+          <criterion id="AC-AGT-024-03">
+            <when>The pasted image exceeds 1024px on its longest edge.</when>
+            <then>The image is scaled down proportionally before encoding.</then>
+          </criterion>
+          <criterion id="AC-AGT-024-04">
+            <when>The user clicks the remove button on an image thumbnail.</when>
+            <then>The image is removed from the input area and will not be included in the prompt.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-025" type="UXR" title="Input box bottom bar" status="draft" priority="must">
+        <statement>The agent input area SHALL display a bottom bar containing (from left to right): the RQML logo icon, a spacer, a model selector dropdown, an attachment icon button, and a help icon button. The RQML logo SHALL use the extension's bundled RQML icon resource.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-025-01">
+            <then>The input area bottom bar displays the RQML icon at the far left.</then>
+          </criterion>
+          <criterion id="AC-AGT-025-02">
+            <then>The model selector, attachment button, and help button are aligned to the right of the bottom bar.</then>
+          </criterion>
+          <criterion id="AC-AGT-025-03">
+            <when>The user clicks the help icon button.</when>
+            <then>The /help command is executed.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-026" type="UXR" title="Inline model selector" status="draft" priority="must">
+        <statement>The input box bottom bar SHALL include a dropdown (&lt;select&gt;) element displaying available models for the active endpoint. The user SHALL be able to switch the active model directly from this dropdown without opening a separate picker dialog.</statement>
+        <notes>This provides a lightweight, always-visible alternative to the QuickPick model picker (REQ-MDL-003). Both mechanisms update the same underlying model selection.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-026-01">
+            <then>A model selector dropdown is visible in the input box bottom bar showing the currently active model.</then>
+          </criterion>
+          <criterion id="AC-AGT-026-02">
+            <when>The user selects a different model from the dropdown.</when>
+            <then>The active model for the current endpoint is updated immediately.</then>
+          </criterion>
+          <criterion id="AC-AGT-026-03">
+            <when>No models are available (no endpoint configured).</when>
+            <then>The dropdown displays "No models available" and is disabled.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-027" type="UXR" title="Input history navigation" status="draft" priority="should">
+        <statement>The agent input area SHOULD support navigating previous prompt inputs using the Up and Down arrow keys when the cursor is at the beginning or end of the input field, respectively.</statement>
+        <acceptance>
+          <criterion id="AC-AGT-027-01">
+            <given>The user has submitted one or more prompts in the current session.</given>
+            <when>The user presses the Up arrow key with the cursor at position 0 in the input field.</when>
+            <then>The input field is populated with the most recent previous prompt.</then>
+          </criterion>
+          <criterion id="AC-AGT-027-02">
+            <when>The user presses the Up arrow key again.</when>
+            <then>The input field cycles to the next older prompt in the history.</then>
+          </criterion>
+          <criterion id="AC-AGT-027-03">
+            <when>The user presses the Down arrow key while navigating history.</when>
+            <then>The input field cycles to the next newer prompt, or clears to empty when past the most recent entry.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-CMD" title="Agent Slash Commands">
+      <description>Slash commands exposed through the RQML Agent prompt. Commands use a terminal-style syntax (/command [args] [--flags]) and are entered in the agent panel's text input.</description>
+      <req id="REQ-CMD-001" type="FR" title="Slash command interface" status="draft" priority="must">
+        <statement>The agent SHALL recognise input beginning with "/" as a slash command, parse the command name and any arguments or flags, and execute the corresponding handler. Unrecognised commands SHALL produce an error message listing similar valid commands.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-001-01">
+            <when>The user submits input beginning with "/" followed by a valid command name.</when>
+            <then>The agent executes the corresponding command handler rather than sending the input to the LLM as a free-text prompt.</then>
+          </criterion>
+          <criterion id="AC-CMD-001-02">
+            <when>The user submits an unrecognised slash command.</when>
+            <then>The agent displays an error message and suggests similar valid commands.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-002" type="UXR" title="Command autocomplete" status="draft" priority="must">
+        <statement>The agent prompt input SHALL provide autocomplete suggestions for command names and, where applicable, command arguments as the user types.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-002-01">
+            <when>The user types "/" in the prompt input.</when>
+            <then>A list of available commands is shown as autocomplete suggestions.</then>
+          </criterion>
+          <criterion id="AC-CMD-002-02">
+            <when>The user continues typing after "/".</when>
+            <then>The autocomplete list is filtered to matching commands.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-003" type="UXR" title="Clickable output references" status="draft" priority="must">
+        <statement>Command output that references requirement IDs, file paths, or diagnostic entries SHALL render those references as clickable links that navigate to the corresponding location.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-003-01">
+            <when>Command output contains a requirement ID (e.g., REQ-014).</when>
+            <then>The ID is rendered as a clickable link that opens and navigates to the requirement in the editor.</then>
+          </criterion>
+          <criterion id="AC-CMD-003-02">
+            <when>Command output contains a file path or code location.</when>
+            <then>The path is rendered as a clickable link that opens the file at the relevant location.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-004" type="FR" title="Help and discovery commands" status="draft" priority="must">
+        <statement>The agent SHALL provide help and discovery commands: /help [command] to display usage information for a specific or all commands, /? as an alias for /help, /commands to list all available commands, and /about to display extension metadata and active runtime configuration.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-004-01">
+            <when>The user runs /help without arguments.</when>
+            <then>A summary of all available commands is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-004-02">
+            <when>The user runs /help with a command name argument.</when>
+            <then>Detailed usage information for that specific command is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-004-03">
+            <when>The user runs /about.</when>
+            <then>Extension version, active workspace, RQML file path, and active provider/model are displayed.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-005" type="FR" title="Session management commands" status="draft" priority="must">
+        <statement>The agent SHALL provide session management commands: /clear to reset the chat transcript while preserving settings, /new [name] to start a named session, /compact [goal] to summarise the conversation into working memory, and /export [md|json] to export the session transcript and artifacts.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-005-01">
+            <when>The user runs /clear.</when>
+            <then>The conversation history is cleared and agent settings are preserved.</then>
+          </criterion>
+          <criterion id="AC-CMD-005-02">
+            <when>The user runs /new.</when>
+            <then>A new agent session is started with an empty conversation history.</then>
+          </criterion>
+          <criterion id="AC-CMD-005-03">
+            <when>The user runs /compact.</when>
+            <then>The conversation is summarised into a compact working memory that preserves key context while reducing token usage.</then>
+          </criterion>
+          <criterion id="AC-CMD-005-04">
+            <when>The user runs /export md or /export json.</when>
+            <then>The session transcript and key artifacts are exported in the requested format.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-006" type="FR" title="Provider and model management commands" status="draft" priority="must">
+        <statement>The agent SHALL provide provider-agnostic LLM management commands: /providers to list configured providers and connection status, /provider use to set the active provider, /models to list available models, /model use to set the active model, /keys to show key status without exposing secrets, /key set and /key unset to manage API keys via Secret Storage, /key test to verify connectivity, and /llm to show a one-line active configuration summary.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-006-01">
+            <when>The user runs /providers.</when>
+            <then>All configured providers are listed with their connection status, key presence, and any last error.</then>
+          </criterion>
+          <criterion id="AC-CMD-006-02">
+            <when>The user runs /key set with a provider name.</when>
+            <then>The user is prompted to enter an API key, which is stored securely in VS Code Secret Storage.</then>
+          </criterion>
+          <criterion id="AC-CMD-006-03">
+            <when>The user runs /key test.</when>
+            <then>A minimal connectivity test is performed against the active (or specified) provider and the result is reported.</then>
+          </criterion>
+          <criterion id="AC-CMD-006-04">
+            <when>The user runs /keys.</when>
+            <then>Key status is displayed for all providers without revealing any secret values.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-007" type="FR" title="Spec quality and health commands" status="draft" priority="must">
+        <statement>The agent SHALL provide spec quality commands: /status [--full] as the flagship quality assessment showing an overall score, schema validity, structure, requirement quality, traceability, and sync status; /lint [--fix] [--rules] to run lint rules with optional auto-fix; /validate [--schema] to validate against the XSD schema and emit diagnostics; and /score to show the scoring breakdown.</statement>
+        <notes>The /status command output includes: overall quality score (0–100) with grade, schema validity, structural completeness, requirement quality metrics (ambiguity, testability, acceptance criteria coverage), traceability coverage, spec-code drift summary, and timestamps. The --full flag adds prioritised issues, suggestions, and jump targets.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-007-01">
+            <when>The user runs /status.</when>
+            <then>A quality assessment summary is displayed including a score, schema validity, and sync status.</then>
+          </criterion>
+          <criterion id="AC-CMD-007-02">
+            <when>The user runs /status --full.</when>
+            <then>The summary is extended with prioritised issues grouped by category, suggestions, and clickable jump targets.</then>
+          </criterion>
+          <criterion id="AC-CMD-007-03">
+            <when>The user runs /validate.</when>
+            <then>The RQML file is validated against the XSD schema, diagnostics are emitted to the Problems panel, and a summary is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-007-04">
+            <when>The user runs /lint --fix.</when>
+            <then>Lint rules are executed and safe auto-fixes are applied to the RQML spec after user confirmation.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-008" type="FR" title="Sync and traceability commands" status="draft" priority="must">
+        <statement>The agent SHALL provide spec-code sync and traceability commands: /sync status [--full] to report drift between spec and code, /sync scan to rebuild the code index, /trace to show implementation and test evidence for a requirement, /link and /unlink to manage trace links, and /diff to show changes since a baseline.</statement>
+        <notes>Drift signals include: requirements with no code references, code paths with no requirement, stale tests versus acceptance criteria, and changed code hotspots since last spec update.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-008-01">
+            <when>The user runs /sync status.</when>
+            <then>A drift report is displayed identifying unimplemented requirements and unspecified code.</then>
+          </criterion>
+          <criterion id="AC-CMD-008-02">
+            <when>The user runs /trace with a requirement ID.</when>
+            <then>Implementation and test evidence for the requirement is displayed; if missing, candidate files/functions are suggested.</then>
+          </criterion>
+          <criterion id="AC-CMD-008-03">
+            <when>The user runs /link with a requirement ID and target.</when>
+            <then>A trace link is added or updated for the requirement.</then>
+          </criterion>
+          <criterion id="AC-CMD-008-04">
+            <when>The user runs /diff spec.</when>
+            <then>Changes to the spec since the last baseline or snapshot are displayed.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-009" type="FR" title="Implementation planning command" status="draft" priority="must">
+        <statement>The agent SHALL provide a /plan command that analyses the current spec, reports whether it is implementation-ready, identifies blocking issues with recommended fixes, and produces a staged implementation plan with goals, inputs, expected outputs, verification steps, and trace expectations for each stage.</statement>
+        <notes>The /plan command supports --full for detailed output and --focus to restrict analysis to a specific area or requirement. The agent stores the latest plan internally for use by the /cmd command.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-009-01">
+            <when>The user runs /plan.</when>
+            <then>A readiness verdict (READY or NOT READY) is displayed.</then>
+          </criterion>
+          <criterion id="AC-CMD-009-02">
+            <given>The spec is not implementation-ready.</given>
+            <when>The user runs /plan.</when>
+            <then>Specific blocking issues are listed, each with a recommended fix describing what to change in the spec.</then>
+          </criterion>
+          <criterion id="AC-CMD-009-03">
+            <when>The user runs /plan and the spec is ready (or has only warnings).</when>
+            <then>A numbered staged implementation plan is displayed where each stage includes goal, inputs, expected outputs, verification steps, and trace expectations.</then>
+          </criterion>
+          <criterion id="AC-CMD-009-04">
+            <when>The user runs /plan --focus with a requirement ID or area name.</when>
+            <then>The plan is scoped to the specified area rather than the full spec.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-010" type="FR" title="Coding agent command generation" status="draft" priority="must">
+        <statement>The agent SHALL provide a /cmd command that generates generic, copy-pasteable instructions for external coding agents based on the latest /plan output. The output SHALL include three blocks: an agent prompt with structured instructions, a context-to-load list of files and directories, and a verification block with commands to run.</statement>
+        <notes>The /cmd command supports two modes: /cmd next (default) generates instructions for the next incomplete stage, and /cmd all generates instructions for every stage of the plan. Output is designed to work across terminal agents (Claude Code, Codex CLI), IDE agents (Copilot Chat, Cursor), and web agents.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-010-01">
+            <when>The user runs /cmd (or /cmd next).</when>
+            <then>Instructions are generated for the next incomplete stage of the current plan, including AGENT PROMPT, CONTEXT TO LOAD, and VERIFY blocks.</then>
+          </criterion>
+          <criterion id="AC-CMD-010-02">
+            <when>The user runs /cmd all.</when>
+            <then>Instructions are generated for every stage of the plan in order, each with AGENT PROMPT, CONTEXT TO LOAD, and VERIFY blocks.</then>
+          </criterion>
+          <criterion id="AC-CMD-010-03">
+            <when>The user runs /cmd without a prior /plan.</when>
+            <then>The agent notifies the user that no plan exists and suggests running /plan first.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-011" type="FR" title="Diagnostics and troubleshooting commands" status="draft" priority="must">
+        <statement>The agent SHALL provide diagnostics commands: /doctor to check extension health (schema availability, validator engine, provider connectivity, workspace permissions, indexing status), /logs [--tail N] to display redacted extension logs, and /feedback to open the issue reporting flow.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-011-01">
+            <when>The user runs /doctor.</when>
+            <then>A health report is displayed covering schema, validator, provider, permissions, and indexing status.</then>
+          </criterion>
+          <criterion id="AC-CMD-011-02">
+            <when>The user runs /logs.</when>
+            <then>Recent extension and agent logs are displayed with secrets redacted.</then>
+          </criterion>
+          <criterion id="AC-CMD-011-03">
+            <when>The user runs /feedback.</when>
+            <then>The feedback or issue reporting flow is opened.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-012" type="FR" title="Command Palette access" status="draft" priority="must">
+        <statement>Agent slash commands that perform standalone operations SHALL also be registered as VS Code extension commands accessible through the Command Palette (Shift+Cmd+P / Ctrl+Shift+P). Commands that require arguments SHALL collect them via VS Code quick-pick or input-box prompts when invoked from the palette. Output SHALL be displayed in the agent panel.</statement>
+        <notes>Commands suitable for the Command Palette include: /status, /validate, /lint, /score, /sync status, /sync scan, /plan, /cmd, /doctor, /about, /clear, /new, /export, /providers, /keys, /key test, and /feedback. Session-bound conversational commands such as /compact and /trace with complex arguments may be excluded. All palette commands SHALL use the "RQML:" prefix in their title (e.g., "RQML: Status", "RQML: Validate", "RQML: Plan").</notes>
+        <acceptance>
+          <criterion id="AC-CMD-012-01">
+            <when>The user opens the Command Palette and types "RQML".</when>
+            <then>All registered RQML agent commands appear in the filtered results.</then>
+          </criterion>
+          <criterion id="AC-CMD-012-02">
+            <when>The user invokes an agent command from the Command Palette.</when>
+            <then>The command executes identically to its slash-command counterpart and output appears in the agent panel.</then>
+          </criterion>
+          <criterion id="AC-CMD-012-03">
+            <given>A command requires arguments (e.g., /trace requires a REQ-ID).</given>
+            <when>The user invokes the command from the Command Palette.</when>
+            <then>VS Code prompts for the required arguments via quick-pick or input-box before executing.</then>
+          </criterion>
+          <criterion id="AC-CMD-012-04">
+            <when>The agent panel is not visible and a command is invoked from the Command Palette.</when>
+            <then>The agent panel is automatically opened to display the command output.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+    <reqPackage id="PKG-MODEL" title="Model Catalog and Selection">
+      <description>A curated, extensible catalog of LLM models with metadata, a provider-grouped QuickPick selection UI, Vercel AI SDK routing, and failure handling. The catalog adds model-level granularity on top of the existing endpoint-level configuration (PKG-CONFIG) and exposes model management through agent slash commands (PKG-CMD).</description>
+      <req id="REQ-MDL-001" type="FR" title="Default model catalog" status="draft" priority="must">
+        <statement>The extension SHALL ship a built-in catalog of known LLM models organised by provider. Each catalog entry SHALL include: model ID (the identifier passed to the provider SDK), display name, provider key, capabilities list (e.g., chat, code, vision, function-calling), context window size (in tokens), and a recommended flag indicating whether the model is a suggested default.</statement>
+        <notes>The catalog SHALL include entries for at least OpenAI, Anthropic, Google, and Azure OpenAI providers at initial release. The catalog is a static data structure bundled with the extension and updated with extension releases.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-001-01">
+            <then>The extension contains a built-in catalog data structure with model entries for OpenAI, Anthropic, Google, and Azure OpenAI providers.</then>
+          </criterion>
+          <criterion id="AC-MDL-001-02">
+            <then>Each catalog entry contains the fields: modelId, displayName, provider, capabilities, contextWindow, and recommended.</then>
+          </criterion>
+          <criterion id="AC-MDL-001-03">
+            <then>At least one model per supported provider has the recommended flag set to true.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-002" type="FR" title="User model customisations" status="draft" priority="must">
+        <statement>Users SHALL be able to customise the model catalog by: (a) adding custom model entries not present in the default catalog, (b) hiding or removing default catalog entries so they do not appear in the model picker, and (c) overriding metadata fields (display name, capabilities, context window) of default entries. User customisations SHALL be persisted in VS Code settings and merged with the default catalog at runtime.</statement>
+        <notes>Custom models require at minimum a modelId and provider. The merge strategy is: user additions are appended, user hides remove entries from the effective catalog, and user overrides replace individual fields on default entries.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-002-01">
+            <when>The user adds a custom model entry via settings.</when>
+            <then>The custom model appears in the effective catalog and is available in the model picker.</then>
+          </criterion>
+          <criterion id="AC-MDL-002-02">
+            <when>The user hides a default catalog entry via settings.</when>
+            <then>The hidden model no longer appears in the model picker.</then>
+          </criterion>
+          <criterion id="AC-MDL-002-03">
+            <when>The user overrides a metadata field on a default catalog entry.</when>
+            <then>The overridden value is used in place of the default value throughout the extension.</then>
+          </criterion>
+          <criterion id="AC-MDL-002-04">
+            <given>The user has added custom models, hidden defaults, and overridden metadata.</given>
+            <when>The user restarts VS Code.</when>
+            <then>All customisations are retained and the effective catalog reflects them.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-003" type="UXR" title="QuickPick model picker" status="draft" priority="must">
+        <statement>The extension SHALL provide a VS Code QuickPick-based model picker that displays available models grouped by provider. The currently selected model SHALL be visually highlighted. Each item in the picker SHALL show the model display name, model ID, context window size, and capability badges. The picker SHALL support type-ahead filtering.</statement>
+        <notes>The QuickPick picker is invoked from the /model use command (when called without arguments), the Command Palette ("RQML: Select Model"), and the settings UI. Provider groups are rendered as QuickPick separators.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-003-01">
+            <when>The user invokes the model picker.</when>
+            <then>A VS Code QuickPick dialog appears showing models grouped by provider with separator labels.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-02">
+            <then>The currently active model is highlighted or marked with a check icon in the picker.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-03">
+            <then>Each picker item displays the model display name, model ID, context window size, and capability badges.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-04">
+            <when>The user types in the QuickPick search field.</when>
+            <then>The list is filtered by matching against model display name, model ID, and provider name.</then>
+          </criterion>
+          <criterion id="AC-MDL-003-05">
+            <when>The user selects a model from the picker.</when>
+            <then>The selected model becomes the active model for the active endpoint.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-004" type="FR" title="Model selection persistence" status="draft" priority="must">
+        <statement>The selected model for each configured endpoint SHALL be persisted in VS Code settings so that the selection survives across VS Code sessions. When no model is explicitly selected for an endpoint, the extension SHALL use the recommended model for that endpoint's provider.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-004-01">
+            <given>The user has selected a model for the active endpoint.</given>
+            <when>The user restarts VS Code.</when>
+            <then>The previously selected model remains active for that endpoint.</then>
+          </criterion>
+          <criterion id="AC-MDL-004-02">
+            <given>No model has been explicitly selected for an endpoint.</given>
+            <when>The extension resolves the model for that endpoint.</when>
+            <then>The recommended model for the endpoint's provider is used as the default.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-005" type="IR" title="Vercel AI SDK model routing" status="draft" priority="must">
+        <statement>The extension SHALL translate a model catalog entry into the correct Vercel AI SDK provider function call. The routing logic SHALL use the catalog entry's provider key to select the SDK provider factory (e.g., createOpenAI, createAnthropic, createGoogleGenerativeAI) and the catalog entry's modelId as the argument to the factory-returned function. The routing SHALL support all providers present in the default catalog.</statement>
+        <notes>This requirement refines the existing Vercel AI SDK integration (REQ-AGT-003) by making the model selection catalog-driven rather than relying on a free-form model string or hardcoded defaults. The existing LlmService.createModel method is the primary integration point.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-005-01">
+            <given>The user has selected a model from the catalog.</given>
+            <when>The extension creates a language model for LLM communication.</when>
+            <then>The correct Vercel AI SDK provider factory is invoked with the catalog entry's modelId.</then>
+          </criterion>
+          <criterion id="AC-MDL-005-02">
+            <given>The user selects an OpenAI model with modelId "gpt-4o".</given>
+            <then>The extension calls createOpenAI({apiKey}).('gpt-4o') via the Vercel AI SDK.</then>
+          </criterion>
+          <criterion id="AC-MDL-005-03">
+            <given>The user selects an Anthropic model with modelId "claude-sonnet-4-5-20250929".</given>
+            <then>The extension calls createAnthropic({apiKey}).('claude-sonnet-4-5-20250929') via the Vercel AI SDK.</then>
+          </criterion>
+          <criterion id="AC-MDL-005-04">
+            <then>Adding a new provider to the catalog requires only a new provider-to-factory mapping in the routing configuration, not changes to the routing logic itself.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-006" type="FR" title="Model unavailability error handling" status="draft" priority="must">
+        <statement>When a selected model is unavailable (API error, model deprecated, rate-limited, or network failure), the extension SHALL display a clear error message identifying the model and failure reason, suggest alternative models from the same provider in the catalog, and offer to switch to an alternative.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-006-01">
+            <when>An LLM request fails due to model unavailability.</when>
+            <then>An error message is displayed identifying the model name, the failure reason, and a list of alternative models from the same provider.</then>
+          </criterion>
+          <criterion id="AC-MDL-006-02">
+            <when>An error message suggests alternative models.</when>
+            <then>The user can select an alternative directly from the error notification to switch the active model.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-007" type="FR" title="Fallback model" status="draft" priority="should">
+        <statement>The extension SHOULD support an optional fallback model per endpoint. When configured and the primary model fails, the extension SHALL automatically retry the request with the fallback model and notify the user that a fallback was used.</statement>
+        <notes>Fallback is opt-in. It can be configured per endpoint in VS Code settings. If no fallback is configured, the extension follows the standard error handling of REQ-MDL-006.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-007-01">
+            <given>A fallback model is configured for the active endpoint.</given>
+            <when>The primary model fails.</when>
+            <then>The extension retries the request with the fallback model and displays a notification indicating the fallback was used.</then>
+          </criterion>
+          <criterion id="AC-MDL-007-02">
+            <given>No fallback model is configured.</given>
+            <when>The primary model fails.</when>
+            <then>Standard error handling (REQ-MDL-006) applies without automatic retry.</then>
+          </criterion>
+          <criterion id="AC-MDL-007-03">
+            <given>A fallback model is configured.</given>
+            <when>Both the primary and fallback models fail.</when>
+            <then>An error is shown indicating both models failed, with the failure reasons for each.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-008" type="FR" title="/models catalog command" status="draft" priority="must">
+        <statement>The /models slash command SHALL list all models in the effective catalog (default entries merged with user customisations) for the active endpoint's provider. The output SHALL group models by provider, mark the currently active model, and display the model ID, display name, context window, and capabilities for each entry.</statement>
+        <notes>This requirement refines the existing /models command defined in REQ-CMD-006. The current implementation only shows the active endpoint's model string; this requirement upgrades it to show the full catalog for the active provider.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-008-01">
+            <when>The user runs /models.</when>
+            <then>All models for the active endpoint's provider are listed with model ID, display name, context window, and capabilities.</then>
+          </criterion>
+          <criterion id="AC-MDL-008-02">
+            <then>The currently active model is marked with an indicator (e.g., asterisk or "active" label).</then>
+          </criterion>
+          <criterion id="AC-MDL-008-03">
+            <when>The user runs /models with a --all flag.</when>
+            <then>Models for all providers in the catalog are listed, grouped by provider.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-009" type="FR" title="/model use command" status="draft" priority="must">
+        <statement>The /model use slash command SHALL set the active model for the current endpoint. When called with a model name or ID argument, it SHALL match against the effective catalog and set the active model. When called without arguments, it SHALL open the QuickPick model picker (REQ-MDL-003).</statement>
+        <notes>This requirement refines the existing /model use command defined in REQ-CMD-006. Model matching should be case-insensitive and support partial matches with disambiguation when multiple matches exist.</notes>
+        <acceptance>
+          <criterion id="AC-MDL-009-01">
+            <when>The user runs /model use gpt-4o.</when>
+            <then>The model matching "gpt-4o" in the catalog becomes the active model for the current endpoint.</then>
+          </criterion>
+          <criterion id="AC-MDL-009-02">
+            <when>The user runs /model use without arguments.</when>
+            <then>The QuickPick model picker opens for interactive selection.</then>
+          </criterion>
+          <criterion id="AC-MDL-009-03">
+            <when>The user runs /model use with an ambiguous partial name matching multiple models.</when>
+            <then>A disambiguation prompt is shown listing the matching models.</then>
+          </criterion>
+          <criterion id="AC-MDL-009-04">
+            <when>The user runs /model use with a name that matches no catalog entry.</when>
+            <then>An error message is shown with suggestions for similar model names.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-010" type="FR" title="/model test connectivity command" status="draft" priority="may">
+        <statement>The /model test slash command MAY be provided to verify connectivity and model availability. When invoked, the command SHALL send a minimal test request to the active (or specified) model and report success or failure with latency, model confirmation, and any error details.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-010-01">
+            <when>The user runs /model test.</when>
+            <then>A minimal request is sent to the active model and the result is displayed including success/failure status and response latency.</then>
+          </criterion>
+          <criterion id="AC-MDL-010-02">
+            <when>The user runs /model test with a model name argument.</when>
+            <then>The test targets the specified model rather than the active model.</then>
+          </criterion>
+          <criterion id="AC-MDL-010-03">
+            <when>The connectivity test fails.</when>
+            <then>The error message includes the failure reason and suggests checking the API key, network connection, and model availability.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-011" type="FR" title="Command Palette model commands" status="draft" priority="must">
+        <statement>Model catalog operations SHALL be accessible via the VS Code Command Palette. The following commands SHALL be registered: "RQML: Select Model" (opens the QuickPick picker), "RQML: List Models" (shows catalog in the agent panel), and "RQML: Test Model" (runs the connectivity test). Commands requiring arguments SHALL collect them via quick-pick or input-box prompts.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-011-01">
+            <when>The user opens the Command Palette and types "RQML: Select Model".</when>
+            <then>The QuickPick model picker opens.</then>
+          </criterion>
+          <criterion id="AC-MDL-011-02">
+            <when>The user opens the Command Palette and types "RQML: List Models".</when>
+            <then>The model catalog listing is displayed in the agent panel.</then>
+          </criterion>
+          <criterion id="AC-MDL-011-03">
+            <when>The user opens the Command Palette and types "RQML: Test Model".</when>
+            <then>The model connectivity test runs for the active model and output appears in the agent panel.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MDL-012" type="FR" title="Catalog extensibility" status="draft" priority="should">
+        <statement>The model catalog architecture SHOULD be designed so that adding support for a new LLM provider requires only: (a) adding catalog entries for the provider's models, and (b) registering a provider-to-SDK-factory mapping. No changes to the catalog merging logic, QuickPick UI, or persistence layer SHALL be required when adding a new provider.</statement>
+        <acceptance>
+          <criterion id="AC-MDL-012-01">
+            <then>The catalog data structure uses a provider key that is not hard-coded to a fixed set of providers.</then>
+          </criterion>
+          <criterion id="AC-MDL-012-02">
+            <given>A developer adds a new provider's models to the default catalog and registers an SDK factory mapping.</given>
+            <then>The new provider's models appear in the QuickPick picker, /models output, and SDK routing without any changes to those subsystems.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
+  </requirements>
+  <trace>
+    <traceEdge id="TR-001" from="REQ-UI-007" to="REQ-SUB-002" type="dependsOn">
+      <notes>Detail view access (REQ-UI-007) depends on subscription tier feature gating (REQ-SUB-002) as it may be restricted to pro tier.</notes>
+    </traceEdge>
+    <traceEdge id="TR-002" from="REQ-API-002" to="REQ-SUB-001" type="dependsOn">
+      <notes>API-dependent features (REQ-API-002) depend on subscription tier definitions (REQ-SUB-001) to determine which features require backend access.</notes>
+    </traceEdge>
+    <traceEdge id="TR-003" from="REQ-API-003" to="REQ-AUTH-001" type="dependsOn">
+      <notes>Authenticated API requests (REQ-API-003) depend on GitHub login (REQ-AUTH-001) for user credentials.</notes>
+    </traceEdge>
+    <traceEdge id="TR-004" from="REQ-API-005" to="REQ-SUB-002" type="dependsOn">
+      <notes>Offline mode for free features (REQ-API-005) depends on feature gating (REQ-SUB-002) to distinguish free vs. paid features.</notes>
+    </traceEdge>
+    <traceEdge id="TR-005" from="REQ-EXP-002" to="REQ-SUB-002" type="dependsOn">
+      <notes>PDF export (REQ-EXP-002) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
+    </traceEdge>
+    <traceEdge id="TR-006" from="REQ-EXP-003" to="REQ-SUB-002" type="dependsOn">
+      <notes>Markdown export (REQ-EXP-003) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
+    </traceEdge>
+    <traceEdge id="TR-007" from="REQ-EXP-004" to="REQ-SUB-002" type="dependsOn">
+      <notes>Word export (REQ-EXP-004) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
+    </traceEdge>
+    <traceEdge id="TR-008" from="REQ-EXP-006" to="REQ-SUB-001" type="dependsOn">
+      <notes>Export format selection UI (REQ-EXP-006) depends on subscription tier definitions (REQ-SUB-001) to display available formats.</notes>
+    </traceEdge>
+    <traceEdge id="TR-009" from="REQ-EXP-005" to="REQ-UI-006G" type="dependsOn">
+      <notes>Export UI access (REQ-EXP-005) depends on the tree root node (REQ-UI-006G) as the context menu is attached to it.</notes>
+    </traceEdge>
+    <traceEdge id="TR-010" from="REQ-UI-006J" to="REQ-UI-003" type="refines">
+      <notes>Traces view (REQ-UI-006J) refines the sidebar layout (REQ-UI-003) by specifying the third region for traceability information.</notes>
+    </traceEdge>
+    <traceEdge id="TR-011" from="REQ-UI-006K" to="REQ-UI-006J" type="dependsOn">
+      <notes>Clickable trace IDs (REQ-UI-006K) depends on the Traces view (REQ-UI-006J) being present in the sidebar.</notes>
+    </traceEdge>
+    <traceEdge id="TR-012" from="REQ-UI-006L" to="REQ-UI-006K" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on clickable IDs in Traces view (REQ-UI-006K) to trigger navigation.</notes>
+    </traceEdge>
+    <traceEdge id="TR-013" from="REQ-UI-006L" to="REQ-UI-005" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on the Overview tree view (REQ-UI-005) to highlight and reveal the target item.</notes>
+    </traceEdge>
+    <traceEdge id="TR-014" from="REQ-UI-006L" to="REQ-UI-006" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on the Details view (REQ-UI-006) to display the target item's properties.</notes>
+    </traceEdge>
+    <traceEdge id="TR-015" from="REQ-UI-006L" to="REQ-UI-006J" type="dependsOn">
+      <notes>Synchronized view updates (REQ-UI-006L) depends on the Traces view (REQ-UI-006J) to display the target item's trace edges.</notes>
+    </traceEdge>
+    <traceEdge id="TR-016" from="REQ-AGT-002" to="REQ-AGT-001" type="dependsOn">
+      <notes>Prompt input (REQ-AGT-002) depends on the agent panel tab (REQ-AGT-001) existing to host the input field.</notes>
+    </traceEdge>
+    <traceEdge id="TR-017" from="REQ-AGT-003" to="REQ-CFG-010" type="dependsOn">
+      <notes>Vercel AI SDK integration (REQ-AGT-003) depends on an active endpoint being selected (REQ-CFG-010) to know which provider and key to use.</notes>
+    </traceEdge>
+    <traceEdge id="TR-018" from="REQ-AGT-006" to="REQ-AGT-003" type="dependsOn">
+      <notes>Quality assessment (REQ-AGT-006) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM communication.</notes>
+    </traceEdge>
+    <traceEdge id="TR-019" from="REQ-AGT-007" to="REQ-AGT-006" type="dependsOn">
+      <notes>Change suggestions (REQ-AGT-007) depend on quality assessment (REQ-AGT-006) to identify what needs improving.</notes>
+    </traceEdge>
+    <traceEdge id="TR-020" from="REQ-AGT-008" to="REQ-AGT-007" type="dependsOn">
+      <notes>User-confirmed modifications (REQ-AGT-008) depend on change suggestions (REQ-AGT-007) to have proposals to confirm.</notes>
+    </traceEdge>
+    <traceEdge id="TR-021" from="REQ-AGT-010" to="REQ-AGT-004" type="dependsOn">
+      <notes>Spec-code sync commentary (REQ-AGT-010) depends on RQML file change monitoring (REQ-AGT-004) to track spec changes.</notes>
+    </traceEdge>
+    <traceEdge id="TR-022" from="REQ-AGT-010" to="REQ-AGT-005" type="dependsOn">
+      <notes>Spec-code sync commentary (REQ-AGT-010) depends on codebase change monitoring (REQ-AGT-005) to track code changes.</notes>
+    </traceEdge>
+    <traceEdge id="TR-023" from="REQ-CFG-010" to="REQ-CFG-008" type="dependsOn">
+      <notes>Active endpoint selection (REQ-CFG-010) depends on the endpoint list view (REQ-CFG-008) to present the selection UI.</notes>
+    </traceEdge>
+    <traceEdge id="TR-024" from="REQ-CFG-011" to="REQ-CFG-008" type="dependsOn">
+      <notes>Remove endpoint (REQ-CFG-011) depends on the endpoint list view (REQ-CFG-008) to present the removal UI.</notes>
+    </traceEdge>
+    <traceEdge id="TR-025" from="REQ-CFG-012" to="REQ-CFG-008" type="dependsOn">
+      <notes>Add LLM endpoint dialog (REQ-CFG-012) depends on the endpoint list view (REQ-CFG-008) as the destination for new entries.</notes>
+    </traceEdge>
+    <traceEdge id="TR-026" from="REQ-CFG-009" to="REQ-CFG-003" type="refines">
+      <notes>Hidden API keys in list (REQ-CFG-009) refines secure API key storage (REQ-CFG-003) for the display context.</notes>
+    </traceEdge>
+    <traceEdge id="TR-027" from="REQ-AGT-006" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Quality assessment (REQ-AGT-006) directly satisfies the goal of preserving software engineering rigor (GOAL-SE-PRINCIPLES).</notes>
+    </traceEdge>
+    <traceEdge id="TR-028" from="REQ-AGT-010" to="GOAL-LLM-CONTEXT" type="satisfies">
+      <notes>Spec-code sync commentary (REQ-AGT-010) satisfies the goal of maintaining LLM coding context (GOAL-LLM-CONTEXT) by keeping the spec aligned with implementation.</notes>
+    </traceEdge>
+    <traceEdge id="TR-029" from="REQ-AGT-011" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Software engineering principles constraint (REQ-AGT-011) directly satisfies the goal of preserving software engineering rigor (GOAL-SE-PRINCIPLES).</notes>
+    </traceEdge>
+    <traceEdge id="TR-030" from="REQ-AGT-012" to="REQ-UI-013B" type="dependsOn">
+      <notes>XSD schema conformance (REQ-AGT-012) depends on XSD schema validation (REQ-UI-013B) as the schema must be loaded and available for the agent to reference.</notes>
+    </traceEdge>
+    <traceEdge id="TR-031" from="REQ-AGT-012" to="REQ-AGT-008" type="constrains">
+      <notes>XSD schema conformance (REQ-AGT-012) constrains user-confirmed modifications (REQ-AGT-008)—any agent-proposed change must be schema-valid before it can be applied.</notes>
+    </traceEdge>
+    <traceEdge id="TR-032" from="REQ-AGT-011" to="REQ-AGT-007" type="constrains">
+      <notes>Software engineering principles (REQ-AGT-011) constrain change suggestions (REQ-AGT-007)—all suggestions must adhere to SE best practices.</notes>
+    </traceEdge>
+    <traceEdge id="TR-033" from="REQ-AGT-013" to="REQ-AGT-006" type="constrains">
+      <notes>Strictness level (REQ-AGT-013) constrains quality assessment (REQ-AGT-006)—the depth and rigour of assessment varies by level.</notes>
+    </traceEdge>
+    <traceEdge id="TR-034" from="REQ-AGT-013" to="REQ-AGT-010" type="constrains">
+      <notes>Strictness level (REQ-AGT-013) constrains spec-code sync commentary (REQ-AGT-010)—ghost feature tolerance varies by level.</notes>
+    </traceEdge>
+    <traceEdge id="TR-035" from="REQ-AGT-014" to="REQ-AGT-013" type="refines">
+      <notes>AGENTS.md fallback (REQ-AGT-014) refines strictness level setting (REQ-AGT-013) by defining the resolution order when multiple sources declare a level.</notes>
+    </traceEdge>
+    <traceEdge id="TR-036" from="REQ-AGT-013" to="REQ-CFG-001" type="dependsOn">
+      <notes>Strictness level setting (REQ-AGT-013) depends on the settings UI (REQ-CFG-001) to present the selector.</notes>
+    </traceEdge>
+    <traceEdge id="TR-037" from="REQ-CMD-001" to="REQ-AGT-001" type="dependsOn">
+      <notes>Slash command interface (REQ-CMD-001) depends on the agent panel tab (REQ-AGT-001) to host the prompt input where commands are entered.</notes>
+    </traceEdge>
+    <traceEdge id="TR-038" from="REQ-CMD-001" to="REQ-AGT-002" type="dependsOn">
+      <notes>Slash command interface (REQ-CMD-001) depends on prompt input (REQ-AGT-002) as the mechanism through which commands are submitted.</notes>
+    </traceEdge>
+    <traceEdge id="TR-039" from="REQ-CMD-006" to="REQ-CFG-008" type="dependsOn">
+      <notes>Provider and model management commands (REQ-CMD-006) depend on the LLM endpoint list (REQ-CFG-008) for the underlying endpoint configuration.</notes>
+    </traceEdge>
+    <traceEdge id="TR-040" from="REQ-CMD-006" to="REQ-CFG-003" type="dependsOn">
+      <notes>Provider and model management commands (REQ-CMD-006) depend on secure API key storage (REQ-CFG-003) for /key set and /key unset operations.</notes>
+    </traceEdge>
+    <traceEdge id="TR-041" from="REQ-CMD-007" to="REQ-AGT-006" type="dependsOn">
+      <notes>Spec quality commands (REQ-CMD-007) depend on quality assessment (REQ-AGT-006) for the underlying analysis capability.</notes>
+    </traceEdge>
+    <traceEdge id="TR-042" from="REQ-CMD-007" to="REQ-UI-013B" type="dependsOn">
+      <notes>Spec quality commands (REQ-CMD-007) depend on XSD schema validation (REQ-UI-013B) for the /validate command.</notes>
+    </traceEdge>
+    <traceEdge id="TR-043" from="REQ-CMD-008" to="REQ-AGT-010" type="dependsOn">
+      <notes>Sync and traceability commands (REQ-CMD-008) depend on spec-code sync commentary (REQ-AGT-010) for the underlying drift analysis.</notes>
+    </traceEdge>
+    <traceEdge id="TR-044" from="REQ-CMD-008" to="REQ-AGT-004" type="dependsOn">
+      <notes>Sync and traceability commands (REQ-CMD-008) depend on RQML file change monitoring (REQ-AGT-004) for tracking spec changes.</notes>
+    </traceEdge>
+    <traceEdge id="TR-045" from="REQ-CMD-008" to="REQ-AGT-005" type="dependsOn">
+      <notes>Sync and traceability commands (REQ-CMD-008) depend on codebase change monitoring (REQ-AGT-005) for tracking code changes.</notes>
+    </traceEdge>
+    <traceEdge id="TR-046" from="REQ-CMD-009" to="REQ-AGT-003" type="dependsOn">
+      <notes>Implementation planning command (REQ-CMD-009) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM analysis of the spec.</notes>
+    </traceEdge>
+    <traceEdge id="TR-047" from="REQ-CMD-010" to="REQ-CMD-009" type="dependsOn">
+      <notes>Coding agent command generation (REQ-CMD-010) depends on implementation planning (REQ-CMD-009) as /cmd generates instructions from the latest /plan output.</notes>
+    </traceEdge>
+    <traceEdge id="TR-048" from="REQ-CMD-009" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Implementation planning (REQ-CMD-009) satisfies the goal of preserving software engineering rigor by enforcing spec-first planning before code generation.</notes>
+    </traceEdge>
+    <traceEdge id="TR-049" from="REQ-CMD-010" to="GOAL-LLM-CONTEXT" type="satisfies">
+      <notes>Coding agent command generation (REQ-CMD-010) satisfies the goal of maintaining LLM coding context by providing structured, spec-derived prompts to coding agents.</notes>
+    </traceEdge>
+    <traceEdge id="TR-050" from="REQ-CMD-007" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Spec quality commands (REQ-CMD-007) satisfy the goal of preserving software engineering rigor by providing quality assessment and linting of the specification.</notes>
+    </traceEdge>
+    <traceEdge id="TR-051" from="REQ-CMD-012" to="REQ-CMD-001" type="dependsOn">
+      <notes>Command Palette access (REQ-CMD-012) depends on the slash command interface (REQ-CMD-001) as palette commands delegate to the same handlers.</notes>
+    </traceEdge>
+    <traceEdge id="TR-052" from="REQ-CMD-012" to="REQ-AGT-001" type="dependsOn">
+      <notes>Command Palette access (REQ-CMD-012) depends on the agent panel tab (REQ-AGT-001) as the output destination for palette-invoked commands.</notes>
+    </traceEdge>
+    <!-- PKG-MODEL trace edges -->
+    <traceEdge id="TR-053" from="REQ-MDL-001" to="REQ-CFG-004" type="refines">
+      <notes>The default model catalog (REQ-MDL-001) refines LLM provider selection (REQ-CFG-004) by adding model-level granularity within each provider.</notes>
+    </traceEdge>
+    <traceEdge id="TR-054" from="REQ-MDL-002" to="REQ-MDL-001" type="dependsOn">
+      <notes>User model customisations (REQ-MDL-002) depend on the default model catalog (REQ-MDL-001) as the base to merge against.</notes>
+    </traceEdge>
+    <traceEdge id="TR-055" from="REQ-MDL-002" to="REQ-CFG-007" type="dependsOn">
+      <notes>User model customisations (REQ-MDL-002) depend on settings persistence (REQ-CFG-007) to survive across sessions.</notes>
+    </traceEdge>
+    <traceEdge id="TR-056" from="REQ-MDL-003" to="REQ-MDL-001" type="dependsOn">
+      <notes>The QuickPick model picker (REQ-MDL-003) depends on the default model catalog (REQ-MDL-001) for the list of models to display.</notes>
+    </traceEdge>
+    <traceEdge id="TR-057" from="REQ-MDL-003" to="REQ-MDL-002" type="dependsOn">
+      <notes>The QuickPick model picker (REQ-MDL-003) depends on user customisations (REQ-MDL-002) for the effective catalog (merged defaults + overrides).</notes>
+    </traceEdge>
+    <traceEdge id="TR-058" from="REQ-MDL-003" to="REQ-CFG-010" type="dependsOn">
+      <notes>The QuickPick model picker (REQ-MDL-003) depends on active endpoint selection (REQ-CFG-010) to scope displayed models by provider and highlight the active model.</notes>
+    </traceEdge>
+    <traceEdge id="TR-059" from="REQ-MDL-004" to="REQ-CFG-007" type="dependsOn">
+      <notes>Model selection persistence (REQ-MDL-004) depends on settings persistence (REQ-CFG-007) for the underlying storage mechanism.</notes>
+    </traceEdge>
+    <traceEdge id="TR-060" from="REQ-MDL-004" to="REQ-CFG-010" type="dependsOn">
+      <notes>Model selection persistence (REQ-MDL-004) depends on active endpoint selection (REQ-CFG-010) because model selection is scoped per endpoint.</notes>
+    </traceEdge>
+    <traceEdge id="TR-061" from="REQ-MDL-004" to="REQ-MDL-001" type="dependsOn">
+      <notes>Model selection persistence (REQ-MDL-004) depends on the default catalog (REQ-MDL-001) for recommended-model fallback when no explicit selection exists.</notes>
+    </traceEdge>
+    <traceEdge id="TR-062" from="REQ-MDL-005" to="REQ-AGT-003" type="refines">
+      <notes>Vercel AI SDK model routing (REQ-MDL-005) refines the existing Vercel AI SDK integration (REQ-AGT-003) by making model resolution catalog-driven rather than free-form.</notes>
+    </traceEdge>
+    <traceEdge id="TR-063" from="REQ-MDL-005" to="REQ-MDL-001" type="dependsOn">
+      <notes>Vercel AI SDK model routing (REQ-MDL-005) depends on the default model catalog (REQ-MDL-001) for the provider-to-factory mapping and model metadata.</notes>
+    </traceEdge>
+    <traceEdge id="TR-064" from="REQ-MDL-005" to="REQ-MDL-004" type="dependsOn">
+      <notes>Vercel AI SDK model routing (REQ-MDL-005) depends on model selection persistence (REQ-MDL-004) to know which model is active.</notes>
+    </traceEdge>
+    <traceEdge id="TR-065" from="REQ-MDL-006" to="REQ-MDL-005" type="dependsOn">
+      <notes>Model unavailability error handling (REQ-MDL-006) depends on Vercel AI SDK model routing (REQ-MDL-005) as the point where failures are detected.</notes>
+    </traceEdge>
+    <traceEdge id="TR-066" from="REQ-MDL-006" to="REQ-MDL-001" type="dependsOn">
+      <notes>Model unavailability error handling (REQ-MDL-006) depends on the default catalog (REQ-MDL-001) to suggest alternative models from the same provider.</notes>
+    </traceEdge>
+    <traceEdge id="TR-067" from="REQ-MDL-007" to="REQ-MDL-006" type="refines">
+      <notes>Fallback model (REQ-MDL-007) refines error handling (REQ-MDL-006) by adding automatic retry with a preconfigured alternative before surfacing the error.</notes>
+    </traceEdge>
+    <traceEdge id="TR-068" from="REQ-MDL-007" to="REQ-MDL-005" type="dependsOn">
+      <notes>Fallback model (REQ-MDL-007) depends on Vercel AI SDK model routing (REQ-MDL-005) to route the retry request through the correct provider factory.</notes>
+    </traceEdge>
+    <traceEdge id="TR-069" from="REQ-MDL-007" to="REQ-CFG-007" type="dependsOn">
+      <notes>Fallback model configuration (REQ-MDL-007) depends on settings persistence (REQ-CFG-007) to store the fallback model selection per endpoint.</notes>
+    </traceEdge>
+    <traceEdge id="TR-070" from="REQ-MDL-008" to="REQ-CMD-006" type="refines">
+      <notes>The /models catalog command (REQ-MDL-008) refines the existing /models command in REQ-CMD-006 by upgrading it from single-model display to full catalog listing.</notes>
+    </traceEdge>
+    <traceEdge id="TR-071" from="REQ-MDL-008" to="REQ-MDL-001" type="dependsOn">
+      <notes>The /models catalog command (REQ-MDL-008) depends on the default catalog (REQ-MDL-001) for model data to display.</notes>
+    </traceEdge>
+    <traceEdge id="TR-072" from="REQ-MDL-008" to="REQ-MDL-002" type="dependsOn">
+      <notes>The /models catalog command (REQ-MDL-008) depends on user customisations (REQ-MDL-002) to show the effective catalog.</notes>
+    </traceEdge>
+    <traceEdge id="TR-073" from="REQ-MDL-009" to="REQ-CMD-006" type="refines">
+      <notes>The /model use command (REQ-MDL-009) refines the existing /model use command in REQ-CMD-006 by adding catalog-based matching and QuickPick fallback.</notes>
+    </traceEdge>
+    <traceEdge id="TR-074" from="REQ-MDL-009" to="REQ-MDL-003" type="dependsOn">
+      <notes>The /model use command (REQ-MDL-009) depends on the QuickPick model picker (REQ-MDL-003) for the no-argument interactive selection flow.</notes>
+    </traceEdge>
+    <traceEdge id="TR-075" from="REQ-MDL-009" to="REQ-MDL-004" type="dependsOn">
+      <notes>The /model use command (REQ-MDL-009) depends on model selection persistence (REQ-MDL-004) to save the user's choice.</notes>
+    </traceEdge>
+    <traceEdge id="TR-076" from="REQ-MDL-010" to="REQ-MDL-005" type="dependsOn">
+      <notes>The /model test command (REQ-MDL-010) depends on Vercel AI SDK model routing (REQ-MDL-005) to send the test request through the correct provider.</notes>
+    </traceEdge>
+    <traceEdge id="TR-077" from="REQ-MDL-010" to="REQ-CMD-006" type="refines">
+      <notes>The /model test command (REQ-MDL-010) refines the provider and model management command group (REQ-CMD-006) by adding a model-level connectivity test beyond the existing /key test.</notes>
+    </traceEdge>
+    <traceEdge id="TR-078" from="REQ-MDL-011" to="REQ-CMD-012" type="dependsOn">
+      <notes>Command Palette model commands (REQ-MDL-011) depend on the Command Palette access framework (REQ-CMD-012) for registration and argument collection.</notes>
+    </traceEdge>
+    <traceEdge id="TR-079" from="REQ-MDL-011" to="REQ-MDL-003" type="dependsOn">
+      <notes>The "RQML: Select Model" palette command (REQ-MDL-011) depends on the QuickPick model picker (REQ-MDL-003) for the selection UI.</notes>
+    </traceEdge>
+    <traceEdge id="TR-080" from="REQ-MDL-011" to="REQ-AGT-001" type="dependsOn">
+      <notes>Command Palette model commands (REQ-MDL-011) depend on the agent panel tab (REQ-AGT-001) as the output destination for list and test commands.</notes>
+    </traceEdge>
+    <traceEdge id="TR-081" from="REQ-MDL-012" to="REQ-MDL-001" type="constrains">
+      <notes>Catalog extensibility (REQ-MDL-012) constrains the default model catalog design (REQ-MDL-001) by requiring the data structure and provider key to not be hard-coded to a fixed set.</notes>
+    </traceEdge>
+    <traceEdge id="TR-082" from="REQ-MDL-012" to="REQ-MDL-005" type="constrains">
+      <notes>Catalog extensibility (REQ-MDL-012) constrains Vercel AI SDK model routing (REQ-MDL-005) by requiring the provider-to-factory mapping to be configuration-driven rather than hard-coded.</notes>
+    </traceEdge>
+    <traceEdge id="TR-083" from="REQ-UI-011A" to="REQ-UI-013B" type="dependsOn">
+      <notes>Version-aware XSD loading (REQ-UI-011A) provides the correct schema for XSD schema validation (REQ-UI-013B).</notes>
+    </traceEdge>
+    <traceEdge id="TR-084" from="REQ-UI-011A" to="REQ-AGT-012" type="dependsOn">
+      <notes>Version-aware XSD loading (REQ-UI-011A) provides the correct schema for agent XSD conformance (REQ-AGT-012).</notes>
+    </traceEdge>
+    <!-- New agent UI feature trace edges -->
+    <traceEdge id="TR-085" from="REQ-AGT-015" to="REQ-AGT-003" type="dependsOn">
+      <notes>Streaming response display (REQ-AGT-015) depends on Vercel AI SDK integration (REQ-AGT-003) for the streaming API.</notes>
+    </traceEdge>
+    <traceEdge id="TR-086" from="REQ-AGT-015" to="REQ-AGT-001" type="dependsOn">
+      <notes>Streaming response display (REQ-AGT-015) depends on the agent panel tab (REQ-AGT-001) to host the conversation area.</notes>
+    </traceEdge>
+    <traceEdge id="TR-087" from="REQ-AGT-016" to="REQ-AGT-015" type="dependsOn">
+      <notes>Markdown rendering (REQ-AGT-016) depends on streaming display (REQ-AGT-015) as rendered content arrives via the stream.</notes>
+    </traceEdge>
+    <traceEdge id="TR-088" from="REQ-AGT-017" to="REQ-AGT-016" type="dependsOn">
+      <notes>Code block action buttons (REQ-AGT-017) depend on Markdown rendering (REQ-AGT-016) for the code blocks to attach to.</notes>
+    </traceEdge>
+    <traceEdge id="TR-089" from="REQ-AGT-017" to="REQ-AGT-008" type="dependsOn">
+      <notes>The Apply button (REQ-AGT-017) depends on user-confirmed modifications (REQ-AGT-008) for the change proposal flow.</notes>
+    </traceEdge>
+    <traceEdge id="TR-090" from="REQ-AGT-018" to="REQ-AGT-016" type="dependsOn">
+      <notes>Mermaid diagram rendering (REQ-AGT-018) depends on Markdown rendering (REQ-AGT-016) for fenced code block detection.</notes>
+    </traceEdge>
+    <traceEdge id="TR-091" from="REQ-AGT-018" to="REQ-CFG-005" type="dependsOn">
+      <notes>Mermaid diagram theming (REQ-AGT-018) depends on VS Code theme integration (REQ-CFG-005) for colour adaptation.</notes>
+    </traceEdge>
+    <traceEdge id="TR-092" from="REQ-AGT-019" to="REQ-AGT-003" type="dependsOn">
+      <notes>User choice dialog (REQ-AGT-019) depends on Vercel AI SDK integration (REQ-AGT-003) for the askUser tool mechanism.</notes>
+    </traceEdge>
+    <traceEdge id="TR-093" from="REQ-AGT-019" to="REQ-AGT-015" type="dependsOn">
+      <notes>User choice dialog (REQ-AGT-019) depends on streaming display (REQ-AGT-015) as it suppresses streaming while the choice is pending.</notes>
+    </traceEdge>
+    <traceEdge id="TR-094" from="REQ-AGT-020" to="REQ-AGT-008" type="refines">
+      <notes>Tool call approval (REQ-AGT-020) refines user-confirmed modifications (REQ-AGT-008) by generalising the approval pattern to arbitrary tool calls.</notes>
+    </traceEdge>
+    <traceEdge id="TR-095" from="REQ-AGT-021" to="REQ-AGT-001" type="dependsOn">
+      <notes>File and folder attachment (REQ-AGT-021) depends on the agent panel tab (REQ-AGT-001) to host the input area and file browser.</notes>
+    </traceEdge>
+    <traceEdge id="TR-096" from="REQ-AGT-022" to="REQ-AGT-021" type="dependsOn">
+      <notes>Attachment context injection (REQ-AGT-022) depends on file/folder attachment (REQ-AGT-021) for the list of attached paths.</notes>
+    </traceEdge>
+    <traceEdge id="TR-097" from="REQ-AGT-022" to="REQ-AGT-002" type="dependsOn">
+      <notes>Attachment context injection (REQ-AGT-022) depends on prompt input (REQ-AGT-002) as the mechanism that triggers content reading and injection.</notes>
+    </traceEdge>
+    <traceEdge id="TR-098" from="REQ-AGT-023" to="REQ-AGT-021" type="refines">
+      <notes>Attachment persistence (REQ-AGT-023) refines file/folder attachment (REQ-AGT-021) by specifying that tags survive across prompt submissions.</notes>
+    </traceEdge>
+    <traceEdge id="TR-099" from="REQ-AGT-024" to="REQ-AGT-001" type="dependsOn">
+      <notes>Image paste attachment (REQ-AGT-024) depends on the agent panel tab (REQ-AGT-001) to host the input area where images are pasted.</notes>
+    </traceEdge>
+    <traceEdge id="TR-100" from="REQ-AGT-025" to="REQ-AGT-001" type="dependsOn">
+      <notes>Input box bottom bar (REQ-AGT-025) depends on the agent panel tab (REQ-AGT-001) to host the input area.</notes>
+    </traceEdge>
+    <traceEdge id="TR-101" from="REQ-AGT-026" to="REQ-MDL-004" type="dependsOn">
+      <notes>Inline model selector (REQ-AGT-026) depends on model selection persistence (REQ-MDL-004) to read and write the active model.</notes>
+    </traceEdge>
+    <traceEdge id="TR-102" from="REQ-AGT-026" to="REQ-AGT-025" type="dependsOn">
+      <notes>Inline model selector (REQ-AGT-026) depends on the input box bottom bar (REQ-AGT-025) as its container.</notes>
+    </traceEdge>
+    <traceEdge id="TR-103" from="REQ-AGT-027" to="REQ-AGT-002" type="refines">
+      <notes>Input history navigation (REQ-AGT-027) refines prompt input (REQ-AGT-002) by adding history recall to the text input.</notes>
+    </traceEdge>
+    <!-- Monorepo / project resolution trace edges -->
+    <traceEdge id="TR-104" from="REQ-UI-015" to="REQ-UI-011" type="dependsOn">
+      <notes>Project resolution algorithm (REQ-UI-015) depends on spec creation (REQ-UI-011) as spec creation determines where the spec file exists for resolution.</notes>
+    </traceEdge>
+    <traceEdge id="TR-105" from="REQ-UI-012" to="REQ-UI-015" type="dependsOn">
+      <notes>Ambiguous spec resolution (REQ-UI-012) depends on project resolution algorithm (REQ-UI-015) as ambiguity is detected during the resolution walk.</notes>
+    </traceEdge>
+    <traceEdge id="TR-106" from="REQ-UI-016" to="REQ-UI-015" type="dependsOn">
+      <notes>Automatic project context switching (REQ-UI-016) depends on project resolution algorithm (REQ-UI-015) to determine the new project when the active editor changes.</notes>
+    </traceEdge>
+    <traceEdge id="TR-107" from="REQ-UI-016" to="REQ-UI-003" type="dependsOn">
+      <notes>Automatic project context switching (REQ-UI-016) depends on the sidebar layout (REQ-UI-003) as the sidebar views must update on context switch.</notes>
+    </traceEdge>
+    <traceEdge id="TR-108" from="REQ-UI-016" to="REQ-UI-010" type="dependsOn">
+      <notes>Automatic project context switching (REQ-UI-016) depends on the status bar indicator (REQ-UI-010) which must update on context switch.</notes>
+    </traceEdge>
+    <traceEdge id="TR-109" from="REQ-UI-017" to="REQ-UI-015" type="refines">
+      <notes>Project resolution caching (REQ-UI-017) refines project resolution algorithm (REQ-UI-015) by adding a performance optimization layer.</notes>
+    </traceEdge>
+    <traceEdge id="TR-110" from="REQ-UI-018" to="REQ-UI-015" type="constrains">
+      <notes>Multi-root workspace support (REQ-UI-018) constrains project resolution algorithm (REQ-UI-015) by defining workspace folder boundaries for the upward walk.</notes>
+    </traceEdge>
+    <traceEdge id="TR-111" from="REQ-UI-019" to="REQ-UI-015" type="dependsOn">
+      <notes>Trace scope per project unit (REQ-UI-019) depends on project resolution algorithm (REQ-UI-015) to determine the active unit boundary.</notes>
+    </traceEdge>
+    <traceEdge id="TR-112" from="REQ-UI-019" to="REQ-UI-006J" type="constrains">
+      <notes>Trace scope per project unit (REQ-UI-019) constrains the traces view (REQ-UI-006J) to only show trace edges within the resolved unit.</notes>
+    </traceEdge>
+    <traceEdge id="TR-113" from="REQ-UI-011A" to="REQ-UI-015" type="dependsOn">
+      <notes>Version-aware XSD loading (REQ-UI-011A) depends on project resolution (REQ-UI-015) to know which spec file to read the version from.</notes>
+    </traceEdge>
+  </trace>
+</rqml>

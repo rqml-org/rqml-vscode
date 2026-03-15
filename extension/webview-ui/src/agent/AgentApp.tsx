@@ -17,6 +17,7 @@ export const AgentApp: React.FC = () => {
     startupStatus,
     availableModels,
     selectedModelId,
+    specHealth,
     sendPrompt,
     acceptChange,
     rejectChange,
@@ -86,6 +87,7 @@ export const AgentApp: React.FC = () => {
         attachedFiles={attachedFiles}
         onAttachFile={handleAttachFile}
         onRemoveFile={handleRemoveFile}
+        specHealth={specHealth}
       />
     </div>
   );

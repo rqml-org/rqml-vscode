@@ -45,16 +45,22 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
     const logoUri = webviewView.webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'resources', 'RQML_logo_transparent.png')
     );
-    const rqmlIconUri = webviewView.webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'resources', 'rqml.png')
-    );
+
+    // Colored RQML icon variants for spec health indicator
+    const iconColors = ['gray', 'yellow', 'green', 'red', 'blue'] as const;
+    const rqmlIcons: Record<string, string> = {};
+    for (const color of iconColors) {
+      rqmlIcons[color] = webviewView.webview.asWebviewUri(
+        vscode.Uri.joinPath(this.extensionUri, 'resources', `rqml-${color}.png`)
+      ).toString();
+    }
 
     webviewView.webview.html = getWebviewContent(
       webviewView.webview,
       this.extensionUri,
       'agent',
       'RQML AGENT',
-      { logoUri: logoUri.toString(), rqmlIconUri: rqmlIconUri.toString() }
+      { logoUri: logoUri.toString(), rqmlIcons: JSON.stringify(rqmlIcons) }
     );
 
     // Handle messages from webview
@@ -71,6 +77,16 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         this.postToWebview(msg);
       })
     );
+
+    // Listen for spec state changes and push health updates to webview
+    const specService = getSpecService();
+    this.disposables.push(
+      specService.onDidChangeSpec(() => {
+        this.sendSpecHealth();
+      })
+    );
+    // Send initial spec health after a short delay (spec may not be loaded yet)
+    setTimeout(() => this.sendSpecHealth(), 500);
 
     webviewView.onDidDispose(() => {
       this.disposables.forEach(d => d.dispose());
@@ -182,6 +198,10 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         await this.sendModelList();
         break;
       }
+      case 'requestSpecHealth': {
+        this.sendSpecHealth();
+        break;
+      }
       case 'selectModel': {
         const { modelId } = message.payload as { modelId: string };
         await this.handleSelectModel(modelId);
@@ -198,6 +218,49 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         break;
       }
     }
+  }
+
+  /**
+   * Determine and send the spec health color to the webview.
+   *
+   * gray:   No spec
+   * yellow: Spec exists but is not implementation-ready
+   * green:  Spec is implementation-ready; code behind spec
+   * red:    Spec exists but is behind code
+   * blue:   Spec is implementation-ready and code is in sync
+   */
+  private sendSpecHealth(): void {
+    const specService = getSpecService();
+    const state = specService.state;
+
+    let health: 'gray' | 'yellow' | 'green' | 'red' | 'blue' = 'gray';
+
+    if (state.status === 'none') {
+      health = 'gray';
+    } else if (state.status === 'multiple' || state.status === 'invalid') {
+      health = 'yellow';
+    } else if (state.status === 'single' && state.document) {
+      // Determine completeness from document sections
+      const doc = state.document;
+      const reqSection = doc.sections.get('requirements');
+      const goalSection = doc.sections.get('goals');
+      const hasRequirements = reqSection?.present && (reqSection.items.length > 0);
+      const hasGoals = goalSection?.present && (goalSection.items.length > 0);
+
+      if (!hasRequirements && !hasGoals) {
+        // Spec file exists but is essentially empty
+        health = 'yellow';
+      } else {
+        // Has content — default to green (spec ready, code may lag behind)
+        // TODO: integrate with sync service for red/blue detection
+        health = 'green';
+      }
+    }
+
+    this.postToWebview({
+      type: 'specHealth',
+      payload: { health },
+    });
   }
 
   /**

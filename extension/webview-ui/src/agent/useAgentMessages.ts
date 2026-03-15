@@ -65,6 +65,8 @@ export interface StartupStatus {
   nextStep: string;
 }
 
+export type SpecHealthColor = 'gray' | 'yellow' | 'green' | 'red' | 'blue';
+
 export interface AgentState {
   messages: Message[];
   endpointStatus: EndpointStatus;
@@ -73,6 +75,7 @@ export interface AgentState {
   startupStatus: StartupStatus | null;
   availableModels: AvailableModel[];
   selectedModelId: string;
+  specHealth: SpecHealthColor;
 }
 
 let msgCounter = 0;
@@ -88,6 +91,7 @@ export function useAgentMessages() {
   const [startupStatus, setStartupStatus] = useState<StartupStatus | null>(null);
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState('');
+  const [specHealth, setSpecHealth] = useState<SpecHealthColor>('gray');
   const autoApproveRef = useRef(false);
   const autoApproveToolsRef = useRef(false);
   const vscode = getVsCodeApi();
@@ -97,6 +101,7 @@ export function useAgentMessages() {
     vscode.postMessage({ type: 'requestEndpoints' });
     vscode.postMessage({ type: 'requestCommandList' });
     vscode.postMessage({ type: 'requestStartupStatus' });
+    vscode.postMessage({ type: 'requestSpecHealth' });
     vscode.postMessage({ type: 'requestModelList' });
 
     function handleMessage(event: MessageEvent) {
@@ -259,6 +264,12 @@ export function useAgentMessages() {
           break;
         }
 
+        case 'specHealth': {
+          const { health } = msg.payload as { health: SpecHealthColor };
+          setSpecHealth(health);
+          break;
+        }
+
         case 'toolApprovalRequest': {
           const { approvalId, toolName, filePath, preview } = msg.payload as {
             approvalId: string; toolName: string; filePath?: string; preview?: string;
@@ -380,6 +391,7 @@ export function useAgentMessages() {
     startupStatus,
     availableModels,
     selectedModelId,
+    specHealth,
     sendPrompt,
     acceptChange,
     rejectChange,

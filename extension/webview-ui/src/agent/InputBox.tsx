@@ -2,7 +2,15 @@
 // Supports image pasting from clipboard with thumbnail preview
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { FileBrowser } from './FileBrowser';
-import type { EndpointStatus, ImageAttachment, FileAttachment, AvailableModel } from './useAgentMessages';
+import type { EndpointStatus, ImageAttachment, FileAttachment, AvailableModel, SpecHealthColor } from './useAgentMessages';
+
+const SPEC_HEALTH_TOOLTIPS: Record<string, string> = {
+  gray: 'No RQML spec file found.',
+  yellow: 'Spec exists but is not implementation-ready.',
+  green: 'Spec is implementation-ready. Code is behind spec.',
+  red: 'Spec exists but is behind the code.',
+  blue: 'Spec is implementation-ready and code is in sync.',
+};
 
 const MAX_DIMENSION = 1024;
 const MAX_ENCODED_SIZE = 1024 * 1024 * 1.37; // ~1MB raw ≈ 1.37MB base64
@@ -46,6 +54,7 @@ interface InputBoxProps {
   attachedFiles: FileAttachment[];
   onAttachFile: (path: string, isDirectory: boolean) => void;
   onRemoveFile: (path: string) => void;
+  specHealth: SpecHealthColor;
 }
 
 export const InputBox: React.FC<InputBoxProps> = ({
@@ -59,6 +68,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
   attachedFiles,
   onAttachFile,
   onRemoveFile,
+  specHealth,
 }) => {
   const [value, setValue] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -311,13 +321,19 @@ export const InputBox: React.FC<InputBoxProps> = ({
           </div>
         )}
         <div className="input-bottom-bar">
-          {(window as any).__WEBVIEW_DATA__?.rqmlIconUri && (
-            <img
-              className="input-rqml-icon"
-              src={(window as any).__WEBVIEW_DATA__.rqmlIconUri}
-              alt="RQML"
-            />
-          )}
+          {(() => {
+            const iconsRaw = (window as any).__WEBVIEW_DATA__?.rqmlIcons;
+            const icons = iconsRaw ? (typeof iconsRaw === 'string' ? JSON.parse(iconsRaw) : iconsRaw) : null;
+            const src = icons?.[specHealth];
+            return src ? (
+              <img
+                className="input-rqml-icon"
+                src={src}
+                alt="RQML"
+                title={SPEC_HEALTH_TOOLTIPS[specHealth]}
+              />
+            ) : null;
+          })()}
           <div className="input-bottom-spacer" />
           <select
             className="model-selector"
