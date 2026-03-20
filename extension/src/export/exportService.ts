@@ -1,56 +1,88 @@
-// Export orchestrator: resolves template, transforms data, dispatches to generator
+// Export orchestrator: LLM-driven pipeline
+// Transforms spec data → LLM generates content → format generator renders file
 
+import type { LanguageModel } from 'ai';
 import type { RqmlDocument } from '../services/rqmlParser';
-import type { ExportConfig, ReportTemplate, ExportData } from './generators/types';
-import { REPORT_TEMPLATES } from './reportTemplates';
+import type { ExportConfig, ExportData } from './generators/types';
 import { transformToExportData } from './rqmlToExportData';
+import { LlmReportGenerator } from './llmReportGenerator';
 import { PptxGenerator } from './generators/pptxGenerator';
+import { DocxGenerator } from './generators/docxGenerator';
+import { PdfGenerator } from './generators/pdfGenerator';
+import { XlsxGenerator } from './generators/xlsxGenerator';
+import { getLlmService } from '../services/llmService';
+import { getConfigurationService } from '../services/configurationService';
+import { getModelCatalogService } from '../services/modelCatalogService';
 
 type ProgressCallback = (stage: string, percent: number) => void;
 
 export class ExportService {
+  private llmGenerator = new LlmReportGenerator();
+
   async export(
     config: ExportConfig,
     doc: RqmlDocument,
     onProgress?: ProgressCallback
   ): Promise<Buffer> {
-    // 1. Resolve template
-    onProgress?.('Resolving report template...', 10);
-    const template = await this.resolveTemplate(config);
-
-    // 2. Transform spec data per selection
-    onProgress?.('Preparing data...', 30);
+    // 1. Transform spec data per selection
+    onProgress?.('Preparing specification data...', 10);
     const data = transformToExportData(doc, config.selectedSections);
 
-    // 3. Dispatch to format-specific generator
-    onProgress?.('Generating file...', 50);
+    // 2. Resolve LLM model
+    onProgress?.('Connecting to AI model...', 20);
+    const model = await this.resolveModel(config);
+
+    // 3. Generate content via LLM
+    const report = await this.llmGenerator.generate({
+      model,
+      reportType: config.reportType,
+      format: config.format,
+      exportData: data,
+      guidance: config.guidance,
+      onProgress,
+    });
+
+    // 4. Render to target format
+    onProgress?.('Rendering document...', 80);
     const generator = this.getGenerator(config.format);
-    const buffer = await generator.generate(template, data);
+    const buffer = await generator.generate(report, data);
 
     onProgress?.('Done', 100);
     return buffer;
   }
 
-  private async resolveTemplate(config: ExportConfig): Promise<ReportTemplate> {
-    if (config.reportType === 'other') {
-      // TODO: Phase 4 — LLM-generated template from config.customPrompt
-      // For now, fall back to full-spec template
-      return REPORT_TEMPLATES['full-spec'];
+  private async resolveModel(config: ExportConfig): Promise<LanguageModel> {
+    // If a specific endpoint/model was selected in the wizard, use that
+    if (config.modelEndpointId && config.modelId) {
+      const configService = getConfigurationService();
+      const catalogService = getModelCatalogService();
+      const endpoints = configService.getEndpoints();
+      const endpoint = endpoints.find(e => e.id === config.modelEndpointId);
+
+      if (endpoint) {
+        const apiKey = await configService.getEndpointApiKey(endpoint.id);
+        if (apiKey) {
+          return await catalogService.createModelFromCatalog(endpoint.provider, config.modelId, apiKey);
+        }
+      }
     }
 
-    const template = REPORT_TEMPLATES[config.reportType];
-    if (!template) {
-      throw new Error(`Unknown report type: ${config.reportType}`);
-    }
-    return template;
+    // Fall back to the active endpoint
+    return await getLlmService().getModel();
   }
 
   private getGenerator(format: string) {
     switch (format) {
       case 'pptx':
         return new PptxGenerator();
+      case 'docx':
+        return new DocxGenerator();
+      case 'pdf':
+        return new PdfGenerator();
+      case 'xlsx':
+        return new XlsxGenerator();
       default:
-        throw new Error(`Export format "${format}" is not yet supported.`);
+        throw new Error(`Export format "${format}" is not supported.`);
     }
   }
 }

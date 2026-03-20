@@ -1,20 +1,31 @@
 // Shared types for the export pipeline
+// REQ-EXP-005: LLM-driven export functionality
+
+import type { GeneratedReport } from '../schemas/reportOutput';
 
 export type ExportFormat = 'pptx' | 'docx' | 'xlsx' | 'pdf';
 
 export type ReportTypeId =
   | 'full-spec'
-  | 'executive-summary'
+  | 'functionality-overview'
+  | 'investor-presentation'
+  | 'project-status'
+  | 'release-readiness'
+  | 'api-integration-spec'
+  | 'verification-acceptance'
+  | 'baseline-release-spec'
+  | 'stakeholder-review'
+  | 'project-status-snapshot'
+  | 'requirements-register'
   | 'traceability-matrix'
-  | 'quality-assessment'
-  | 'implementation-status'
-  | 'stakeholder-overview'
-  | 'other';
+  | 'requirements-tests-matrix'
+  | 'interface-inventory';
 
-export interface ReportTypeInfo {
+export interface ReportTypeDefinition {
   id: ReportTypeId;
   label: string;
   description: string;
+  formats: ExportFormat[];
 }
 
 export interface SelectedSection {
@@ -26,32 +37,13 @@ export interface SelectedSection {
 export interface ExportConfig {
   format: ExportFormat;
   reportType: ReportTypeId;
-  customPrompt?: string;
   selectedSections: SelectedSection[];
-}
-
-export type SlideLayout =
-  | 'title'
-  | 'section-header'
-  | 'content'
-  | 'table'
-  | 'two-column'
-  | 'summary';
-
-export interface SlideDefinition {
-  title: string;
-  layout: SlideLayout;
-  /** Which data to pull: a section name, 'meta', 'traces', 'stats', or 'custom' */
-  dataSource: string;
-  /** Static or template text for custom content */
-  content?: string;
-}
-
-export interface ReportTemplate {
-  id: ReportTypeId;
-  label: string;
-  description: string;
-  slides: SlideDefinition[];
+  /** Endpoint to use for LLM generation */
+  modelEndpointId?: string;
+  /** Specific model within the endpoint */
+  modelId?: string;
+  /** Additional user guidance for the LLM */
+  guidance?: string;
 }
 
 /** Flat export-ready representation of spec data, scoped to selected sections */
@@ -88,7 +80,7 @@ export interface ExportData {
 }
 
 export interface ExportGenerator {
-  generate(template: ReportTemplate, data: ExportData): Promise<Buffer>;
+  generate(report: GeneratedReport, metadata: ExportData): Promise<Buffer>;
 }
 
 /** Section tree node sent to the webview for the checkbox selector */

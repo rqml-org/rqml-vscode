@@ -523,7 +523,10 @@
     "@ai-sdk/openai": "^3.0.26",
     "@xmldom/xmldom": "^0.8.11",
     "ai": "^6.0.77",
+    "docx": "^9.6.1",
+    "exceljs": "^4.4.0",
     "fast-xml-parser": "^4.5.1",
+    "pdfkit": "^0.18.0",
     "pptxgenjs": "^4.0.1",
     "xmllint-wasm": "^5.1.0",
     "zod": "^3.22.0"
@@ -541,6 +544,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
+    "@types/pdfkit": "^0.17.5",
     "@types/vscode": "^1.108.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",

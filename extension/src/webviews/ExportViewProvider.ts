@@ -3,8 +3,11 @@
 
 import * as vscode from 'vscode';
 import { getSpecService } from '../services/specService';
+import { getConfigurationService } from '../services/configurationService';
+import { getModelCatalogService } from '../services/modelCatalogService';
 import { getWebviewContent } from './shared/getWebviewContent';
 import type { ExportConfig, SectionTreeNode } from '../export/generators/types';
+import { REPORT_REGISTRY } from '../export/reportRegistry';
 import { ExportService } from '../export/exportService';
 
 export class ExportViewProvider {
@@ -73,6 +76,14 @@ export class ExportViewProvider {
         this.sendSectionTree();
         break;
       }
+      case 'requestReportTypes': {
+        this.sendReportTypes();
+        break;
+      }
+      case 'requestModelList': {
+        this.sendModelList();
+        break;
+      }
       case 'startExport': {
         const config = message.payload as ExportConfig;
         await this.runExport(config);
@@ -89,6 +100,40 @@ export class ExportViewProvider {
         break;
       }
     }
+  }
+
+  private sendReportTypes(): void {
+    if (!this.panel) return;
+    this.panel.webview.postMessage({
+      type: 'setReportTypes',
+      payload: { registry: REPORT_REGISTRY },
+    });
+  }
+
+  private sendModelList(): void {
+    if (!this.panel) return;
+    const configService = getConfigurationService();
+    const catalogService = getModelCatalogService();
+    const endpoints = configService.getEndpoints();
+
+    const models: { endpointId: string; endpointName: string; modelId: string; displayName: string }[] = [];
+
+    for (const endpoint of endpoints) {
+      const catalogModels = catalogService.getModelsForProvider(endpoint.provider);
+      for (const m of catalogModels) {
+        models.push({
+          endpointId: endpoint.id,
+          endpointName: endpoint.name,
+          modelId: m.modelId,
+          displayName: m.displayName,
+        });
+      }
+    }
+
+    this.panel.webview.postMessage({
+      type: 'setModelList',
+      payload: { models },
+    });
   }
 
   private sendSectionTree(): void {

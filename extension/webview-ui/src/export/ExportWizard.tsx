@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
-import { FormatStep } from './steps/FormatStep';
-import { ReportTypeStep } from './steps/ReportTypeStep';
+import { ReportFormatStep } from './steps/ReportFormatStep';
 import { SectionSelectStep } from './steps/SectionSelectStep';
+import { LlmGuidanceStep } from './steps/LlmGuidanceStep';
 
-type ExportFormat = 'pptx' | 'docx' | 'xlsx' | 'pdf';
-type Step = 'format' | 'report-type' | 'sections';
+type Step = 'report-format' | 'sections' | 'llm-guidance';
 
-const STEPS: Step[] = ['format', 'report-type', 'sections'];
+const STEPS: Step[] = ['report-format', 'sections', 'llm-guidance'];
 const STEP_LABELS: Record<Step, string> = {
-  'format': '1. Format',
-  'report-type': '2. Report Type',
-  'sections': '3. Sections',
+  'report-format': '1. Report & Format',
+  'sections': '2. Sections',
+  'llm-guidance': '3. AI & Guidance',
 };
 
 interface SelectedSections {
-  [sectionName: string]: string[]; // empty array = all items
+  [sectionName: string]: string[];
 }
 
 function getVsCodeApi() {
@@ -24,11 +23,13 @@ function getVsCodeApi() {
 const vscode = getVsCodeApi();
 
 export const ExportWizard: React.FC = () => {
-  const [step, setStep] = useState<Step>('format');
-  const [format, setFormat] = useState<ExportFormat>('pptx');
-  const [reportType, setReportType] = useState('full-spec');
-  const [customPrompt, setCustomPrompt] = useState('');
+  const [step, setStep] = useState<Step>('report-format');
+  const [reportType, setReportType] = useState('');
+  const [format, setFormat] = useState('');
   const [selectedSections, setSelectedSections] = useState<SelectedSections>({});
+  const [endpointId, setEndpointId] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [guidance, setGuidance] = useState('');
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState<{ stage: string; percent: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +39,8 @@ export const ExportWizard: React.FC = () => {
   const stepIndex = STEPS.indexOf(step);
 
   const canGoNext = () => {
-    if (step === 'format') return true;
-    if (step === 'report-type') return reportType !== 'other' || customPrompt.trim().length > 0;
+    if (step === 'report-format') return reportType !== '' && format !== '';
+    if (step === 'sections') return Object.keys(selectedSections).length > 0;
     return true;
   };
 
@@ -51,6 +52,11 @@ export const ExportWizard: React.FC = () => {
   const goBack = () => {
     const idx = STEPS.indexOf(step);
     if (idx > 0) setStep(STEPS[idx - 1]);
+  };
+
+  const handleReportFormatSelect = (rt: string, fmt: string) => {
+    setReportType(rt);
+    setFormat(fmt);
   };
 
   const handleExport = () => {
@@ -67,8 +73,10 @@ export const ExportWizard: React.FC = () => {
       payload: {
         format,
         reportType,
-        customPrompt: reportType === 'other' ? customPrompt : undefined,
         selectedSections: sections,
+        modelEndpointId: endpointId || undefined,
+        modelId: modelId || undefined,
+        guidance: guidance.trim() || undefined,
       },
     });
   };
@@ -82,14 +90,15 @@ export const ExportWizard: React.FC = () => {
     setDone(false);
     setExportedFilename('');
     setError(null);
-    setStep('format');
-    setFormat('pptx');
-    setReportType('full-spec');
-    setCustomPrompt('');
+    setStep('report-format');
+    setReportType('');
+    setFormat('');
     setSelectedSections({});
+    setEndpointId('');
+    setModelId('');
+    setGuidance('');
   };
 
-  // Listen for messages from extension host
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
       const msg = event.data;
@@ -149,21 +158,29 @@ export const ExportWizard: React.FC = () => {
           </div>
         ) : (
           <>
-            {step === 'format' && (
-              <FormatStep format={format} onSelect={setFormat} />
-            )}
-            {step === 'report-type' && (
-              <ReportTypeStep
+            {step === 'report-format' && (
+              <ReportFormatStep
                 reportType={reportType}
-                onSelect={setReportType}
-                customPrompt={customPrompt}
-                onCustomPromptChange={setCustomPrompt}
+                format={format}
+                onSelect={handleReportFormatSelect}
+                vscode={vscode}
               />
             )}
             {step === 'sections' && (
               <SectionSelectStep
                 selectedSections={selectedSections}
                 onChangeSelection={setSelectedSections}
+                vscode={vscode}
+              />
+            )}
+            {step === 'llm-guidance' && (
+              <LlmGuidanceStep
+                endpointId={endpointId}
+                modelId={modelId}
+                guidance={guidance}
+                onEndpointChange={setEndpointId}
+                onModelChange={setModelId}
+                onGuidanceChange={setGuidance}
                 vscode={vscode}
               />
             )}
@@ -199,7 +216,7 @@ export const ExportWizard: React.FC = () => {
             Back
           </button>
           <div className="export-footer-spacer" />
-          {step !== 'sections' ? (
+          {step !== 'llm-guidance' ? (
             <button
               className="export-btn primary"
               onClick={goNext}
@@ -211,7 +228,7 @@ export const ExportWizard: React.FC = () => {
             <button
               className="export-btn primary"
               onClick={handleExport}
-              disabled={exporting || Object.keys(selectedSections).length === 0}
+              disabled={exporting || (!endpointId && !modelId)}
             >
               {exporting ? 'Exporting...' : 'Export'}
             </button>

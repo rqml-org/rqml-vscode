@@ -63,121 +63,121 @@
   font-size: 13px;
 }
 
-/* Format Step */
-.export-format-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-}
-
-.export-format-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 16px 12px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
-  background: var(--vscode-editor-background);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.export-format-card:hover:not(.disabled) {
-  border-color: var(--vscode-focusBorder);
-  background: var(--vscode-list-hoverBackground);
-}
-
-.export-format-card.selected {
-  border-color: var(--vscode-focusBorder);
-  background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
-}
-
-.export-format-card.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.export-format-icon {
-  font-size: 24px;
-}
-
-.export-format-label {
+/* Report & Format Step */
+.report-format-step .step-description {
+  margin: 0 0 12px;
+  color: var(--vscode-descriptionForeground);
   font-size: 13px;
-  font-weight: 500;
 }
 
-.export-format-badge {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-}
-
-/* Report Type Step */
-.export-report-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.export-report-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.export-report-option:hover {
-  background: var(--vscode-list-hoverBackground);
-}
-
-.export-report-option.selected {
-  border-color: var(--vscode-focusBorder);
-  background: var(--vscode-list-activeSelectionBackground);
-}
-
-.export-report-option input[type="radio"] {
-  margin-top: 3px;
-  flex-shrink: 0;
-}
-
-.export-report-option-text {
+.report-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.export-report-option-label {
-  font-weight: 500;
-  font-size: 13px;
+.report-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background 0.15s;
 }
 
-.export-report-option-desc {
-  font-size: 12px;
+.report-row:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.report-row.selected {
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.report-label {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-formats {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.format-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 3px;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.format-btn:hover {
+  border-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+}
+
+.format-btn.active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-background);
+}
+
+/* LLM & Guidance Step */
+.llm-guidance-step {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.llm-no-config {
+  padding: 20px;
+  text-align: center;
   color: var(--vscode-descriptionForeground);
 }
 
-/* Custom Prompt (Other) */
-.export-custom-prompt {
+.llm-no-config p {
+  margin: 0 0 8px;
+}
+
+.llm-model-section,
+.llm-guidance-section {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 8px;
 }
 
-.export-custom-prompt-label {
+.llm-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--vscode-foreground);
 }
 
-.export-custom-prompt-input {
+.llm-select {
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+}
+
+.llm-select:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.llm-textarea {
   padding: 8px;
   border: 1px solid var(--vscode-input-border);
   border-radius: 3px;
@@ -188,7 +188,7 @@
   resize: vertical;
 }
 
-.export-custom-prompt-input:focus {
+.llm-textarea:focus {
   outline: none;
   border-color: var(--vscode-focusBorder);
 }
