@@ -161,6 +161,27 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         this.postToWebview({ type: 'commandList', payload: { names } });
         break;
       }
+      case 'stopGeneration': {
+        agentService.stopGeneration();
+        break;
+      }
+      case 'requestPlanStatus': {
+        const content = await agentService.readPlanFile();
+        this.postToWebview({ type: 'planStatus', payload: { exists: content !== null } });
+        break;
+      }
+      case 'openPlan': {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) break;
+        const uri = vscode.Uri.joinPath(folders[0].uri, '.rqml/rqml-implementation-plan.md');
+        try {
+          await vscode.workspace.fs.stat(uri);
+          await vscode.commands.executeCommand('markdown.showPreview', uri);
+        } catch {
+          vscode.window.showWarningMessage('No implementation plan found. Use /plan to generate one.');
+        }
+        break;
+      }
       case 'navigateToRequirement': {
         // REQ-CMD-003: Navigate to a requirement ID in the spec file
         const { id } = message.payload as { id: string };

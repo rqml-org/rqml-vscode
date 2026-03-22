@@ -58,6 +58,9 @@ export class AgentService {
   private approvalInProgress = false;
   private approvalQueue: Array<() => void> = [];
 
+  // Abort controller for cancelling in-flight LLM streams
+  private currentAbort: AbortController | undefined;
+
   // /implement askUser state
   private pendingUserChoices = new Map<string, { resolve: (choice: string) => void }>();
   // Gate: when askUser is pending, write tools (writeFile, updateSpec) must wait
@@ -228,6 +231,16 @@ export class AgentService {
   }
 
   /**
+   * Abort the current LLM stream, if any.
+   */
+  stopGeneration(): void {
+    if (this.currentAbort) {
+      this.currentAbort.abort();
+      this.currentAbort = undefined;
+    }
+  }
+
+  /**
    * Stream a response from the LLM, including system prompt with context.
    * All tools are available in regular chat — slash commands are shortcuts, not gates.
    */
@@ -247,10 +260,13 @@ export class AgentService {
         tools = createImplementTools(folders[0].uri.fsPath, this);
       }
 
+      this.currentAbort = new AbortController();
+
       const result = streamText({
         model,
         system: systemPrompt,
         messages: this.conversationHistory,
+        abortSignal: this.currentAbort.signal,
         ...(tools ? { tools, stopWhen: stepCountIs(15) } : {}),
       });
 
@@ -1077,12 +1093,15 @@ export class AgentService {
       const { createImplementTools } = await import('./implementTools.js');
       const tools = createImplementTools(workspaceRoot, this);
 
+      this.currentAbort = new AbortController();
+
       const result = streamText({
         model,
         system: systemPrompt,
         messages: this.conversationHistory,
         tools,
         stopWhen: stepCountIs(15),
+        abortSignal: this.currentAbort.signal,
       });
 
       // Each text segment gets its own message ID so tool-call system messages

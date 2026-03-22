@@ -92,6 +92,7 @@ export function useAgentMessages() {
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState('');
   const [specHealth, setSpecHealth] = useState<SpecHealthColor>('gray');
+  const [planExists, setPlanExists] = useState(false);
   const autoApproveRef = useRef(false);
   const autoApproveToolsRef = useRef(false);
   const vscode = getVsCodeApi();
@@ -103,6 +104,7 @@ export function useAgentMessages() {
     vscode.postMessage({ type: 'requestStartupStatus' });
     vscode.postMessage({ type: 'requestSpecHealth' });
     vscode.postMessage({ type: 'requestModelList' });
+    vscode.postMessage({ type: 'requestPlanStatus' });
 
     function handleMessage(event: MessageEvent) {
       const msg = event.data;
@@ -133,6 +135,8 @@ export function useAgentMessages() {
             change?: { changeId: string; description: string; diff?: string; status: string };
           };
           setIsLoading(false);
+          // Refresh plan status (e.g. after /plan creates a plan file)
+          vscode.postMessage({ type: 'requestPlanStatus' });
           const endStreamId = `stream-${id}`;
           setMessages(prev => {
             const changeInfo: ChangeInfo | undefined = change
@@ -249,6 +253,7 @@ export function useAgentMessages() {
 
         case 'commandDone': {
           setIsLoading(false);
+          vscode.postMessage({ type: 'requestPlanStatus' });
           break;
         }
 
@@ -267,6 +272,12 @@ export function useAgentMessages() {
         case 'specHealth': {
           const { health } = msg.payload as { health: SpecHealthColor };
           setSpecHealth(health);
+          break;
+        }
+
+        case 'planStatus': {
+          const { exists } = msg.payload as { exists: boolean };
+          setPlanExists(exists);
           break;
         }
 
@@ -342,6 +353,15 @@ export function useAgentMessages() {
     });
   }, []);
 
+  const openPlan = useCallback(() => {
+    vscode.postMessage({ type: 'openPlan' });
+  }, []);
+
+  const stopGeneration = useCallback(() => {
+    vscode.postMessage({ type: 'stopGeneration' });
+    setIsLoading(false);
+  }, []);
+
   const acceptChange = useCallback((changeId: string) => {
     vscode.postMessage({ type: 'acceptChange', payload: { changeId } });
   }, []);
@@ -392,7 +412,10 @@ export function useAgentMessages() {
     availableModels,
     selectedModelId,
     specHealth,
+    planExists,
+    openPlan,
     sendPrompt,
+    stopGeneration,
     acceptChange,
     rejectChange,
     allowAllChanges,

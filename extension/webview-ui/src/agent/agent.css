@@ -22,6 +22,7 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--agent-spacing);
+  padding-bottom: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -537,7 +538,13 @@
 .input-box {
   flex: none;
   padding: 8px var(--agent-spacing);
-  background: var(--vscode-panel-background, var(--vscode-editor-background));
+  max-width: 640px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 10;
 }
 
 .input-textarea-wrapper {
@@ -557,7 +564,7 @@
   width: 100%;
   min-height: 36px;
   max-height: 150px;
-  padding: 8px 10px;
+  padding: 8px 36px 8px 10px;
   border: none;
   outline: none;
   resize: none;
@@ -571,6 +578,46 @@
 
 .input-textarea::placeholder {
   color: var(--vscode-input-placeholderForeground, rgba(127, 127, 127, 0.6));
+}
+
+/* ── Send / Stop button ── */
+
+.input-textarea-row {
+  position: relative;
+}
+
+.input-send-btn {
+  all: unset;
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+  box-sizing: border-box;
+}
+
+.input-send-btn:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.input-send-btn:disabled {
+  display: none;
+}
+
+.input-send-btn.stop {
+  background: var(--vscode-errorForeground, #f44747);
+  color: #fff;
+  opacity: 1;
 }
 
 /* ── Image preview strip (below textarea) ── */
@@ -671,9 +718,14 @@
   padding: 0;
 }
 
-.input-icon-btn:hover {
+.input-icon-btn:hover:not(.disabled) {
   opacity: 1;
   background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.15));
+}
+
+.input-icon-btn.disabled {
+  opacity: 0.2;
+  cursor: default;
 }
 
 /* ── Slash autocomplete dropdown ── */

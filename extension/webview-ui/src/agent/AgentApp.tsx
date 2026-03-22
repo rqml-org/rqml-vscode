@@ -18,7 +18,10 @@ export const AgentApp: React.FC = () => {
     availableModels,
     selectedModelId,
     specHealth,
+    planExists,
+    openPlan,
     sendPrompt,
+    stopGeneration,
     acceptChange,
     rejectChange,
     allowAllChanges,
@@ -78,6 +81,7 @@ export const AgentApp: React.FC = () => {
       />
       <InputBox
         onSubmit={sendPrompt}
+        onStop={stopGeneration}
         isLoading={isLoading}
         endpointStatus={endpointStatus}
         commandNames={commandNames}
@@ -88,6 +92,8 @@ export const AgentApp: React.FC = () => {
         onAttachFile={handleAttachFile}
         onRemoveFile={handleRemoveFile}
         specHealth={specHealth}
+        planExists={planExists}
+        onOpenPlan={openPlan}
       />
     </div>
   );

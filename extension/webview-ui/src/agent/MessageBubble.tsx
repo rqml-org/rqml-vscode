@@ -138,7 +138,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     const isToolCall = message.content.startsWith('Calling tool:');
     return (
       <div className={`message message-system${interactive ? ' system-interactive' : ''}${isToolCall ? ' system-toolcall' : ''}`}>
-        {!message.userChoice && message.content}
+        {!message.userChoice && (
+          <span dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
+        )}
         {message.toolApproval && (
           <ToolApprovalCard
             approval={message.toolApproval}

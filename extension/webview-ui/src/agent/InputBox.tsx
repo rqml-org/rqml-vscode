@@ -45,6 +45,7 @@ function compressImage(dataUrl: string): Promise<{ dataUrl: string; mediaType: s
 
 interface InputBoxProps {
   onSubmit: (text: string, images?: ImageAttachment[], files?: FileAttachment[]) => void;
+  onStop: () => void;
   isLoading: boolean;
   endpointStatus: EndpointStatus;
   commandNames: string[];
@@ -55,10 +56,13 @@ interface InputBoxProps {
   onAttachFile: (path: string, isDirectory: boolean) => void;
   onRemoveFile: (path: string) => void;
   specHealth: SpecHealthColor;
+  planExists: boolean;
+  onOpenPlan: () => void;
 }
 
 export const InputBox: React.FC<InputBoxProps> = ({
   onSubmit,
+  onStop,
   isLoading,
   endpointStatus,
   commandNames,
@@ -69,6 +73,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
   onAttachFile,
   onRemoveFile,
   specHealth,
+  planExists,
+  onOpenPlan,
 }) => {
   const [value, setValue] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -277,16 +283,40 @@ export const InputBox: React.FC<InputBoxProps> = ({
             ))}
           </div>
         )}
-        <textarea
-          ref={textareaRef}
-          className="input-textarea"
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={isLoading}
-          rows={1}
-        />
+        <div className="input-textarea-row">
+          <textarea
+            ref={textareaRef}
+            className="input-textarea"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={isLoading}
+            rows={1}
+          />
+          {isLoading ? (
+            <button
+              className="input-send-btn stop"
+              onClick={onStop}
+              title="Stop generation"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="3" y="3" width="10" height="10" rx="1" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              className="input-send-btn"
+              onMouseDown={e => { e.preventDefault(); submit(); }}
+              disabled={!value.trim()}
+              title="Send message"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1.724 1.053a.5.5 0 0 1 .541-.054l12 6a.5.5 0 0 1 0 .894l-12 6A.5.5 0 0 1 1.5 13.5v-4.379l6.776-1.121L1.5 6.879V2.5a.5.5 0 0 1 .224-.447Z" />
+              </svg>
+            </button>
+          )}
+        </div>
         {images.length > 0 && (
           <div className="image-previews">
             {images.map(img => (
@@ -368,6 +398,16 @@ export const InputBox: React.FC<InputBoxProps> = ({
             <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
               <path fillRule="evenodd" clipRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm0-1.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11Z" />
               <path d="M7.25 10.5a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM8 4.5A2.25 2.25 0 0 0 5.75 6.75h1.5a.75.75 0 0 1 1.5 0c0 .414-.336.75-.75.75a.75.75 0 0 0-.75.75V9h1.5v-.34A2.25 2.25 0 0 0 8 4.5Z" />
+            </svg>
+          </button>
+          <button
+            className={`input-icon-btn${planExists ? '' : ' disabled'}`}
+            onClick={planExists ? onOpenPlan : undefined}
+            title="Open implementation plan"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 2h8l4 4v8H2V2Zm1 1v10h10V6.5H9.5V3H3Zm7 .7V6h2.3L10 3.7Z" />
+              <path d="M4.5 8h5v1h-5V8Zm0 2h7v1h-7v-1Zm0 2h4v1h-4v-1Z" />
             </svg>
           </button>
         </div>
