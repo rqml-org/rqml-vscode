@@ -1,0 +1,19 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/vscode/",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/vscode/:match*",
+      "destination": "/:match*"
+    },
+    {
+      "source": "/vscode",
+      "destination": "/"
+    }
+  ]
+}

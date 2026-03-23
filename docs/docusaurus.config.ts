@@ -11,10 +11,10 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://stakkar.github.io',
-  baseUrl: '/rqml-vscode/',
+  url: 'https://rqml.dev',
+  baseUrl: '/vscode/',
 
-  organizationName: 'stakkar',
+  organizationName: 'rqml-org',
   projectName: 'rqml-vscode',
 
   onBrokenLinks: 'throw',
