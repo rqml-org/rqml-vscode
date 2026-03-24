@@ -1,208 +1,162 @@
-<p align="center">
-  <img src="resources/RQML_logo_transparent.png" alt="RQML" width="128" />
-</p>
+# RQML for Visual Studio Code
 
-<h1 align="center">RQML for VS Code</h1>
+**Build from requirements, not from drifting prompts.**
 
-<p align="center">
-  <strong>Your requirements are the product. The code is derived.</strong>
-</p>
+RQML brings the **Requirements Markup Language** into Visual Studio Code so you can write, browse, review, trace, and evolve a living software requirements specification alongside your codebase.
 
-<p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=Stakkar.rqml-vscode"><img src="https://img.shields.io/visual-studio-marketplace/v/Stakkar.rqml-vscode?label=VS%20Code%20Marketplace" alt="VS Code Marketplace" /></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=Stakkar.rqml-vscode"><img src="https://img.shields.io/visual-studio-marketplace/i/Stakkar.rqml-vscode" alt="Installs" /></a>
-  <a href="https://rqml.org"><img src="https://img.shields.io/badge/spec-rqml.org-blue" alt="RQML Spec" /></a>
-</p>
+Instead of leaving system intent scattered across chats, tickets, and tribal knowledge, RQML gives you a durable spec in the repository — one that works for both humans and coding agents.
 
----
+![RQML in Visual Studio Code](images/RQML-hero-callouts.png)
 
-LLMs write most of the code now. But without structured intent, every session starts from scratch — context is lost, quality drifts, and the codebase becomes the only source of truth.
+## What is RQML?
 
-**RQML changes that.** It's an [open XML standard](https://rqml.org) for capturing requirements that both humans and LLMs can read. This extension brings RQML into VS Code with an AI-powered agent that keeps your specification and codebase in sync — so your LLMs always have the context they need to produce better code.
+RQML is a structured requirements format for modern software development. It is designed to be **LLM-first while still human readable**, so your project intent can live in version control as long-term engineering context.
 
-<!-- TODO: Replace with hero screenshot or GIF -->
-> ![RQML Agent in action](images/rqml-extension-UI-annotated.png)
-> *The RQML Agent monitors your spec and codebase, flags quality issues, and suggests improvements — all from within VS Code.*
+Learn more:
 
-## Why RQML?
+- **Specification and docs:** [rqml.org](https://rqml.org)
+- **Extension site:** [rqml.dev](https://rqml.dev)
+- **RQML standard repository:** [github.com/rqml-org/rqml](https://github.com/rqml-org/rqml)
+- **Extension repository:** [github.com/rqml-org/rqml-vscode](https://github.com/rqml-org/rqml-vscode)
 
-| Without RQML | With RQML |
-|---|---|
-| Each LLM session starts from zero context | Persistent, structured context across every session |
-| Requirements live in scattered tickets and docs | Single `.rqml` file is the source of truth |
-| Code quality depends on prompt craftsmanship | Code quality is anchored to verified requirements |
-| No traceability between intent and implementation | Full traceability from goals to code to tests |
-| Repeated prompting burns tokens | Reusable context reduces token consumption over time |
+## Why this extension?
 
-## Features
+You can edit `.rqml` files as text — but that is only part of the story.
 
-### AI-Powered Requirements Agent
+This extension turns RQML into a practical working environment inside VS Code. It helps you move between raw source, stakeholder-friendly views, traceability, verification, and implementation planning without losing the thread.
 
-A dedicated agent panel that monitors your RQML specification and codebase in real time. It catches quality issues, suggests improvements, and flags when code drifts from the spec — without ever modifying your source code.
+Use it to:
 
-<!-- TODO: Replace with agent panel screenshot -->
-> ![Agent Panel](images/agent-panel.png)
+- browse your specification from a dedicated sidebar
+- work in native RQML language mode when you want full control
+- switch between different stakeholder views of the same spec
+- inspect details and trace links for any selected item
+- understand coverage across goals, requirements, verification, and implementation
+- use **RQML Agent** to improve specs, plan work, and drive coding-agent workflows
 
-- Continuous quality assessment: flags vague language, missing acceptance criteria, untraceable requirements
-- Spec-code drift detection: notifies you when code changes don't match the specification
-- Change proposals with diff preview — nothing is applied without your approval
-- Configurable strictness levels: **relaxed**, **standard**, **strict**, **certified**
+## Key features
 
-### 30+ Slash Commands
+### RQML Browser
 
-A terminal-style command system for power users. Type `/` in the agent prompt to access everything from quality scoring to implementation planning.
+Navigate the structure of your specification from a dedicated sidebar. Browse packages, requirements, goals, scenarios, interfaces, verification assets, traceability, and more.
 
-<!-- TODO: Replace with slash command screenshot -->
-> ![Slash Commands](images/slash-commands.png)
+The browser is designed to make large specs feel navigable rather than overwhelming.
 
-**Quality & Validation**
-- `/status` — Full quality assessment with scoring breakdown
-- `/score` — Quick scoring summary
-- `/lint` — Run lint rules with optional auto-fix
-- `/validate` — Validate against the RQML XSD schema
+![RQML Browser](images/RQML-browser-screenshot.png)
 
-**Implementation Planning**
-- `/plan` — Analyse spec readiness and generate a staged implementation plan
-- `/cmd` — Generate copy-pasteable instructions for your coding agent (Cursor, Claude Code, Copilot, etc.)
+### Multiple stakeholder views
 
-**Sync & Traceability**
-- `/sync status` — Report drift between spec and code
-- `/trace REQ-ID` — Show implementation and test evidence for any requirement
+Different audiences need different views of the same spec.
 
-**Session & LLM Management**
-- `/providers`, `/models`, `/model use` — Switch between LLM providers and models on the fly
-- `/model test` — Verify connectivity and measure latency
-- `/clear`, `/new`, `/export` — Manage conversation sessions
+RQML for VS Code lets you work with views such as:
 
-### Multi-Provider LLM Support
+- **Document view** for readable spec review
+- **Requirements matrix** for verification and coverage discussions
+- **Trace graph** for relationships across goals, requirements, scenarios, tests, implementation, and stakeholders
 
-Bring your own API key. The extension works with all major LLM providers through the Vercel AI SDK.
+![RQML document and matrix views](images/RQML-doc-and-matrix-views.png)
 
-| Provider | Models |
-|---|---|
-| **OpenAI** | GPT-5.2, GPT-5.2 Pro, GPT-5.1, GPT-5, GPT-4o, and more |
-| **Anthropic** | Claude Opus 4.6, Claude Sonnet 4.5, Claude Haiku 4.5 |
-| **Google** | Gemini 3 Pro, Gemini 3 Flash, Gemini 2.0 Flash |
-| **Azure OpenAI** | All Azure-hosted OpenAI models |
+![RQML trace graph](images/RQML-traceview-screenshot.png)
 
-- QuickPick model selector grouped by provider
-- Automatic endpoint switching when you pick a model from a different provider
-- Per-endpoint model persistence
-- Fallback model configuration for resilience
+### Native RQML editing
 
-### Specification Explorer
+Work directly with your source when you want precision and control.
 
-A full sidebar experience for navigating your RQML specification.
+The extension includes built-in language support for `.rqml` files, while the surrounding views mean you do not need to live in raw XML all day.
 
-<!-- TODO: Replace with sidebar screenshot -->
-> ![Sidebar](images/sidebar.png)
+![RQML browser and language mode](images/RQML-overview-and-language-mode.png)
 
-- **Tree View** — Navigate the full spec hierarchy: goals, requirements, features, test cases, traces
-- **Details Panel** — Inspect properties of any selected element
-- **Trace Panel** — Visualise traceability links
-- Four dedicated views accessible from the toolbar:
-  - **Document** — WYSIWYG full-spec rendering
-  - **Graph** — Traceability map
-  - **Matrix** — Requirements-to-test-cases grid with status coloring
-  - **Ideas** — AI-generated suggestions for spec improvements
+### Details and traceability inspection
 
-### Document Export
+Select an item and inspect its metadata and relationships in context.
 
-Share your specification with stakeholders in their preferred format.
+This makes it easier to review requirement IDs, types, status, priority, source location, and trace links such as:
 
-- **HTML** (free) — Clean, readable web document
-- **PDF** (pro) — Professional printable output
-- **Markdown** (pro) — For inclusion in repos and wikis
-- **Word** (pro) — For enterprise review workflows
+- satisfies
+- verifiedBy
+- implements
+- dependsOn
+- conformsTo
 
-## Quick Start
+That is useful for engineering reviews, implementation planning, and keeping code aligned with intent.
 
-### 1. Install the extension
+### RQML Agent
 
-Search for **"RQML"** in the VS Code Extension Marketplace, or:
+RQML Agent helps you turn a specification into forward motion.
 
-```
-code --install-extension Stakkar.rqml-vscode
-```
+It can help you:
 
-### 2. Create your first RQML spec
+- build out the spec structure
+- assess specification quality
+- identify missing coverage and structural gaps
+- plan implementation from the spec
+- generate commands and direction for coding agents
 
-Open the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run:
+![RQML Agent](images/RQML-agent.png)
 
-```
-RQML: Create Spec
-```
+## Typical workflow
 
-This generates a `requirements.rqml` file in your project root with starter structure.
+1. Create a single `.rqml` file in your project root.
+2. Define goals, requirements, scenarios, verification, and traceability.
+3. Review the spec through the browser, document view, matrix view, and trace graph.
+4. Use RQML Agent to strengthen the spec and plan implementation.
+5. Keep the spec and code in sync as the system evolves.
 
-### 3. Connect an LLM
+A common starting point is `requirements.rqml`, but a more descriptive root filename also works.
 
-Open the Command Palette and run **RQML: Add LLM Endpoint**. Choose your provider, paste your API key, and you're ready.
+## Who this is for
 
-### 4. Start the agent
+RQML for VS Code is especially useful for:
 
-Click the RQML icon in the Activity Bar to open the sidebar, then open the **RQML Agent** panel. Type `/help` to see what the agent can do, or just start asking questions about your requirements.
+- teams building with coding agents and wanting a stable source of truth
+- engineers who want requirements, verification, and implementation tied together
+- product-minded developers who want intent to live in the repository
+- projects that have outgrown prompt-only development
 
-### 5. (Optional) Add AGENTS.md
+## Getting started
 
-Download [`AGENTS.md`](https://rqml.org/AGENTS.md) to your project root. This tells your coding agents (Cursor, Claude Code, etc.) to follow spec-first development using your RQML file as the source of truth.
+1. Install the extension.
+2. Open your project in VS Code.
+3. Add a root `.rqml` file such as `requirements.rqml`.
+4. Start small and grow the spec as the system grows.
 
-## Extension Settings
+A minimal RQML file can look like this:
 
-This extension contributes the following settings:
-
-| Setting | Description |
-|---|---|
-| `rqml.llmEndpoints` | Configured LLM endpoints |
-| `rqml.activeEndpointId` | Currently active endpoint |
-| `rqml.modelSelections` | Per-endpoint model selections |
-| `rqml.modelCatalog.customModels` | User-added model entries |
-| `rqml.modelCatalog.hiddenModels` | Hidden default catalog entries |
-| `rqml.modelCatalog.overrides` | Metadata overrides for catalog models |
-| `rqml.modelCatalog.fallbackModels` | Fallback model per endpoint |
-| `rqml.strictnessLevel` | Agent strictness: relaxed, standard, strict, certified |
-
-API keys are stored securely using VS Code's built-in SecretStorage API and are never written to settings files.
-
-## How RQML Works with Your Coding Agent
-
-```
-                    ┌─────────────┐
-                    │  RQML Spec  │ ← Source of truth
-                    │  (.rqml)    │
-                    └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │  RQML    │ │  Coding  │ │  Your    │
-        │  Agent   │ │  Agent   │ │  Team    │
-        │ (this    │ │ (Cursor, │ │          │
-        │  ext.)   │ │  Claude  │ │          │
-        │          │ │  Code…)  │ │          │
-        └──────────┘ └──────────┘ └──────────┘
-          Reviews &    Generates     Reviews &
-          improves     code from     approves
-          the spec     the spec      changes
+```xml
+<rqml xmlns="https://rqml.org/schema/2.1.0" version="2.1.0" docId="DOC-001" status="draft">
+  <meta>
+    <title>My System</title>
+    <system>my-system</system>
+  </meta>
+  <requirements>
+    <req id="REQ-001" type="FR" title="Do the thing" status="draft" priority="must">
+      <statement>The system SHALL do the thing.</statement>
+    </req>
+  </requirements>
+</rqml>
 ```
 
-The RQML extension is the **spec side** of the workflow. It maintains, validates, and improves your requirements. Your coding agent reads the spec and generates code from it. The result: code that is traceable, intentional, and aligned with documented requirements.
+## Philosophy
 
-## Learn More
+RQML is built around a simple idea:
 
-- [RQML Specification](https://rqml.org) — The open standard
-- [Quick Start Guide](https://rqml.org/docs/quick-start) — Get started in 5 minutes
-- [User Guide](https://rqml.org/docs/user-guide) — Full documentation
-- [Schema Reference](https://rqml.org/docs/reference) — XSD schema and element reference
+**intent should be first-class project context.**
 
-## Feedback & Issues
+Not hidden in chat logs.
+Not trapped in tickets.
+Not inferred only from code after the fact.
 
-Found a bug or have a feature request? [Open an issue](https://github.com/stakkar/rqml-vscode/issues) on GitHub.
+The extension exists to make that way of working practical inside VS Code.
 
----
+## Documentation and links
 
-<p align="center">
-  <em>You maintain the spec. The code is derived.</em>
-  <br/>
-  <a href="https://rqml.org">rqml.org</a>
-</p>
+- **RQML website:** [rqml.org](https://rqml.org)
+- **Extension website:** [rqml.dev](https://rqml.dev)
+- **Standard repository:** [github.com/rqml-org/rqml](https://github.com/rqml-org/rqml)
+- **Extension repository:** [github.com/rqml-org/rqml-vscode](https://github.com/rqml-org/rqml-vscode)
+
+## Feedback and issues
+
+Ideas, issues, and contributions are welcome in the GitHub repositories.
+
+If you are exploring spec-first development, LLM-assisted engineering, or traceable requirements in code repositories, RQML is built for exactly that workflow.
