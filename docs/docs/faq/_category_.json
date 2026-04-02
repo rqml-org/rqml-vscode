@@ -1,6 +1,6 @@
 {
   "label": "FAQ",
-  "position": 4,
+  "position": 5,
   "link": {
     "type": "generated-index",
     "description": "Frequently asked questions about the RQML VS Code extension."

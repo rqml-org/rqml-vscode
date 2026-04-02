@@ -2,46 +2,38 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Introduction
 
-Let's discover **Docusaurus in less than 5 minutes**.
+**RQML for VS Code** is a requirements engineering extension that brings structured, spec-driven development into your editor. It lets you write, browse, trace, and evolve living requirements specifications alongside your code — with built-in support for LLM coding agents.
 
-## Getting Started
+## What is RQML?
 
-Get started by **creating a new site**.
+RQML (Requirements Markup Language) is an XML-based format for writing machine-readable, human-reviewable software requirements. An RQML spec captures goals, requirements, acceptance criteria, scenarios, test cases, and traceability links in a single versioned file that lives in your repository.
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+## What does the extension do?
 
-### What you'll need
+The RQML VS Code extension provides:
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+- **RQML Browser** — A sidebar with tree view, details panel, and traces panel for navigating your spec
+- **Language support** — Syntax highlighting, validation, and diagnostics for `.rqml` files
+- **Document views** — Readable document view, requirements matrix, and trace graph visualizations
+- **RQML Agent** — An LLM-powered assistant that guides you through the [Spec → Design → Plan → Code](./development-process/index.md) workflow
+- **Exports** — Generate reports in PDF, Word, PowerPoint, Excel, and Markdown using LLM-driven content generation
 
-## Generate a new site
+## Who is it for?
 
-Generate a new Docusaurus site using the **classic template**.
+- **Teams building with coding agents** who need a stable source of truth that outlasts any single prompt
+- **Engineers** who want requirements, verification, and implementation tied together in version control
+- **Product-minded developers** who want system intent to live in the repository, not in Slack threads
+- **Projects that have outgrown prompt-only development** and need structure without heavyweight tooling
 
-The classic template will automatically be added to your project after you run the command:
+## Quick start
 
-```bash
-npm init docusaurus@latest my-website classic
-```
+1. **Install** the RQML extension from the VS Code marketplace
+2. **Create a spec** — Click "Create RQML Spec" in the RQML Browser sidebar, or run `RQML: Init Spec` from the Command Palette
+3. **Elicit requirements** — Open the RQML Agent panel and type `/elicit` to start a guided requirements gathering session
+4. **Design** — Use `/design new <topic>` to make and record architectural decisions
+5. **Plan** — Run `/plan --full` to generate a staged implementation plan
+6. **Implement** — Use `/implement` to execute the plan with the agent, or `/cmd` to generate prompts for your preferred coding agent
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
-
-The command also installs all necessary dependencies you need to run Docusaurus.
-
-## Start your site
-
-Run the development server:
-
-```bash
-cd my-website
-npm run start
-```
-
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
-
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
-
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+See the [Development Process](./development-process/index.md) section for a detailed walkthrough of each stage, or the [User Guide](./user-guide/index.md) for a tour of the extension's features.
