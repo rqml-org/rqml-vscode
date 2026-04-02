@@ -294,28 +294,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
             disabled={isLoading}
             rows={1}
           />
-          {isLoading ? (
-            <button
-              className="input-send-btn stop"
-              onClick={onStop}
-              title="Stop generation"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="3" y="3" width="10" height="10" rx="1" />
-              </svg>
-            </button>
-          ) : (
-            <button
-              className="input-send-btn"
-              onMouseDown={e => { e.preventDefault(); submit(); }}
-              disabled={!value.trim()}
-              title="Send message"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M1.724 1.053a.5.5 0 0 1 .541-.054l12 6a.5.5 0 0 1 0 .894l-12 6A.5.5 0 0 1 1.5 13.5v-4.379l6.776-1.121L1.5 6.879V2.5a.5.5 0 0 1 .224-.447Z" />
-              </svg>
-            </button>
-          )}
         </div>
         {images.length > 0 && (
           <div className="image-previews">
@@ -410,6 +388,28 @@ export const InputBox: React.FC<InputBoxProps> = ({
               <path d="M4.5 8h5v1h-5V8Zm0 2h7v1h-7v-1Zm0 2h4v1h-4v-1Z" />
             </svg>
           </button>
+          {isLoading ? (
+            <button
+              className="input-send-btn stop"
+              onClick={onStop}
+              title="Stop generation"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="3" y="3" width="10" height="10" rx="1" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              className="input-send-btn"
+              onMouseDown={e => { e.preventDefault(); submit(); }}
+              disabled={!value.trim()}
+              title="Send message"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1.724 1.053a.5.5 0 0 1 .541-.054l12 6a.5.5 0 0 1 0 .894l-12 6A.5.5 0 0 1 1.5 13.5v-4.379l6.776-1.121L1.5 6.879V2.5a.5.5 0 0 1 .224-.447Z" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -63,6 +63,7 @@ export interface AvailableModel {
 export interface StartupStatus {
   summary: string;
   nextStep: string;
+  specLoaded: boolean;
 }
 
 export type SpecHealthColor = 'gray' | 'yellow' | 'green' | 'red' | 'blue';
@@ -264,8 +265,8 @@ export function useAgentMessages() {
         }
 
         case 'startupStatus': {
-          const { summary, nextStep } = msg.payload as { summary: string; nextStep: string };
-          setStartupStatus({ summary, nextStep });
+          const { summary, nextStep, specLoaded } = msg.payload as { summary: string; nextStep: string; specLoaded: boolean };
+          setStartupStatus({ summary, nextStep, specLoaded });
           break;
         }
 

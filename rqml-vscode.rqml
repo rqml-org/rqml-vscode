@@ -1467,6 +1467,71 @@
           </criterion>
         </acceptance>
       </req>
+      <req id="REQ-CMD-016" type="FR" title="Design decision command" status="draft" priority="must">
+        <statement>The agent SHALL provide a /design command that guides the user through architectural design decisions, classifies each decision, evaluates ADR-worthiness, and records accepted decisions as Architecture Decision Records (ADRs). The command SHALL support the following modes: /design new to start a new decision, /design review to revisit an existing ADR, /design decide to finalize a proposed ADR, /design overview to summarize current architecture from the ADR set, and /design list to show existing ADRs with statuses. When invoked without arguments the agent SHALL infer intent from context.</statement>
+        <notes>Every design issue must be classified as one of: required_by_spec (directly mandated by RQML/spec rules), derived_from_requirements (effectively forced by requirements/constraints), discretionary_design_choice (real choice with alternatives), or implementation_detail (too low-level for ADR). Only the first three classifications may lead to an ADR. The agent must assess ADR-worthiness before writing: a decision is ADR-worthy when there are multiple plausible options, the choice affects architecture or workflow, it constrains future work, or it affects more than one component. The /design command is the Design stage of the Spec→Design→Plan→Code workflow.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-016-01">
+            <when>The user runs /design new with a topic or description.</when>
+            <then>The agent classifies the decision, evaluates ADR-worthiness, explores options with pros/cons, and proposes a decision. If ADR-worthy, an ADR file is created in .rqml/adr/.</then>
+          </criterion>
+          <criterion id="AC-CMD-016-02">
+            <when>The user runs /design review with an ADR identifier or topic.</when>
+            <then>The agent reads the referenced ADR, analyses it against current requirements and implementation state, and proposes updates or supersession if warranted.</then>
+          </criterion>
+          <criterion id="AC-CMD-016-03">
+            <when>The user runs /design decide.</when>
+            <then>A previously proposed ADR is finalized with status set to Accepted.</then>
+          </criterion>
+          <criterion id="AC-CMD-016-04">
+            <when>The user runs /design overview.</when>
+            <then>A summary of current architecture and key design decisions is displayed, synthesized from existing ADRs.</then>
+          </criterion>
+          <criterion id="AC-CMD-016-05">
+            <when>The user runs /design list.</when>
+            <then>All existing ADRs are listed with their number, title, status, classification, and date.</then>
+          </criterion>
+          <criterion id="AC-CMD-016-06">
+            <when>The agent determines a topic is not ADR-worthy (classification is implementation_detail or the decision is trivially mandated).</when>
+            <then>The agent helps reason about the topic but explicitly states that no ADR is created.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-017" type="FR" title="ADR file management" status="draft" priority="must">
+        <statement>ADR files SHALL be stored in a .rqml/adr/ directory co-located with the RQML spec file. The directory SHALL be created on demand when the first ADR is written. ADR filenames SHALL use a zero-padded four-digit numeric prefix followed by a kebab-case slug derived from the decision title (e.g., 0003-monorepo-handling.md). Numbering SHALL be sequential and monotonically increasing, determined by scanning the existing .rqml/adr/ directory. In monorepo setups with multiple RQML specs, each spec SHALL have its own .rqml/ directory.</statement>
+        <notes>The ADR document identifier inside the file (e.g., ADR-0003) must match the filename prefix. The markdown template includes required fields: Status, Date, Classification, Related requirements, Related ADRs, Affected components, Context, Decision drivers, Options considered (with pros/cons), Decision, Consequences (positive and negative), and Supersession.</notes>
+        <acceptance>
+          <criterion id="AC-CMD-017-01">
+            <when>The first ADR is created and .rqml/adr/ does not exist.</when>
+            <then>The directory is created automatically before writing the ADR file.</then>
+          </criterion>
+          <criterion id="AC-CMD-017-02">
+            <when>An ADR is created.</when>
+            <then>The filename follows the pattern NNNN-kebab-case-slug.md where NNNN is the next sequential number after scanning existing files.</then>
+          </criterion>
+          <criterion id="AC-CMD-017-03">
+            <when>An ADR is created.</when>
+            <then>The file content follows the standard ADR markdown template with all required fields populated.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CMD-018" type="FR" title="ADR lifecycle management" status="draft" priority="must">
+        <statement>ADRs SHALL support the following statuses: Proposed, Accepted, Superseded, Deprecated, and Rejected. New ADRs SHALL default to Accepted when the /design workflow concludes with a clear chosen decision, or Proposed if the user wants the ADR drafted but not finalized. When a later decision replaces an earlier one, the old ADR SHALL be marked Superseded with a reference to the new ADR, and a new ADR SHALL be created — history SHALL NOT be overwritten. Old ADRs SHALL NOT be deleted unless the user explicitly requests destructive cleanup.</statement>
+        <acceptance>
+          <criterion id="AC-CMD-018-01">
+            <when>A /design new workflow concludes with a clear decision.</when>
+            <then>The created ADR has status Accepted.</then>
+          </criterion>
+          <criterion id="AC-CMD-018-02">
+            <when>The user requests a draft ADR without finalizing.</when>
+            <then>The created ADR has status Proposed.</then>
+          </criterion>
+          <criterion id="AC-CMD-018-03">
+            <when>A new decision supersedes an existing ADR.</when>
+            <then>The old ADR status is changed to Superseded with a reference to the new ADR, and a new ADR is created.</then>
+          </criterion>
+        </acceptance>
+      </req>
     </reqPackage>
     <reqPackage id="PKG-MODEL" title="Model Catalog and Selection">
       <description>A curated, extensible catalog of LLM models with metadata, a provider-grouped QuickPick selection UI, Vercel AI SDK routing, and failure handling. The catalog adds model-level granularity on top of the existing endpoint-level configuration (PKG-CONFIG) and exposes model management through agent slash commands (PKG-CMD).</description>
@@ -2079,6 +2144,22 @@
     </traceEdge>
     <traceEdge id="TR-128" from="REQ-CMD-013" to="GOAL-LLM-CONTEXT" type="satisfies">
       <notes>Implementation agent command (REQ-CMD-013) satisfies the goal of maintaining LLM coding context by generating code directly from spec-derived plans.</notes>
+    </traceEdge>
+    <!-- Design command and ADR trace edges -->
+    <traceEdge id="TR-129" from="REQ-CMD-016" to="REQ-AGT-003" type="dependsOn">
+      <notes>Design command (REQ-CMD-016) depends on LLM streaming (REQ-AGT-003) for interactive design reasoning.</notes>
+    </traceEdge>
+    <traceEdge id="TR-130" from="REQ-CMD-016" to="REQ-CMD-009" type="dependsOn">
+      <notes>Design decisions (REQ-CMD-016) feed into implementation planning (REQ-CMD-009); design should precede planning.</notes>
+    </traceEdge>
+    <traceEdge id="TR-131" from="REQ-CMD-016" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Structured design decisions with ADRs (REQ-CMD-016) preserve software engineering rigor by documenting architectural choices and their rationale.</notes>
+    </traceEdge>
+    <traceEdge id="TR-132" from="REQ-CMD-017" to="REQ-CMD-016" type="refines">
+      <notes>ADR file management conventions (REQ-CMD-017) refine the design command (REQ-CMD-016) with concrete storage and naming rules.</notes>
+    </traceEdge>
+    <traceEdge id="TR-133" from="REQ-CMD-018" to="REQ-CMD-016" type="refines">
+      <notes>ADR lifecycle management (REQ-CMD-018) refines the design command (REQ-CMD-016) with status transitions and history preservation rules.</notes>
     </traceEdge>
   </trace>
 </rqml>

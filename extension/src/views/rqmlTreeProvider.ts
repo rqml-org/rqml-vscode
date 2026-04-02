@@ -99,7 +99,7 @@ const STATUS_COLORS: Record<string, vscode.ThemeColor> = {
 };
 
 /** Tree item types */
-export type TreeNodeType = 'root' | 'section' | 'item' | 'message';
+export type TreeNodeType = 'root' | 'section' | 'item' | 'message' | 'action';
 
 /** Tree node data */
 export interface TreeNode {
@@ -213,10 +213,23 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
     item.contextValue = this.getContextValue(element);
     item.iconPath = this.getIcon(element);
 
-    // Message nodes (e.g. XSD warning)
+    // Message nodes (e.g. XSD warning, no-spec info)
     if (element.type === 'message') {
-      item.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('editorWarning.foreground'));
+      item.iconPath = new vscode.ThemeIcon('info', new vscode.ThemeColor('editorInfo.foreground'));
       item.contextValue = 'rqmlMessage';
+      return item;
+    }
+
+    // Action nodes (clickable CTA buttons)
+    if (element.type === 'action') {
+      item.iconPath = new vscode.ThemeIcon('add');
+      item.contextValue = 'rqmlAction';
+      if (element.id === 'create-spec-action') {
+        item.command = {
+          command: 'rqml-vscode.initSpec',
+          title: 'Create RQML Spec',
+        };
+      }
       return item;
     }
 
@@ -243,8 +256,14 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   async getChildren(element?: TreeNode): Promise<TreeNode[]> {
-    // Root level: show the "RQML Spec" root node
+    // Root level
     if (!element) {
+      if (this.specState?.status === 'none') {
+        return [
+          { type: 'message' as const, label: 'No RQML specification found', id: 'no-spec-msg' },
+          { type: 'action' as const, label: 'Create RQML Spec', id: 'create-spec-action' },
+        ];
+      }
       return [this.createRootNode()];
     }
 
@@ -309,10 +328,12 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
     let label = 'RQML Spec';
     if (state?.status === 'none') {
       label = 'RQML Spec (no file)';
-    } else if (state?.status === 'multiple') {
-      label = 'RQML Spec (error)';
     } else if (state?.status === 'invalid') {
       label = 'RQML Spec (invalid)';
+    } else if (state?.status === 'single' && state.files.length > 1 && state.activeSpecUri) {
+      // Show active filename when multiple specs exist
+      const fileName = state.activeSpecUri.fsPath.split('/').pop() || '';
+      label = `RQML Spec (${fileName})`;
     }
 
     return {
@@ -360,7 +381,7 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
   }
 
   private getCollapsibleState(node: TreeNode): vscode.TreeItemCollapsibleState {
-    if (node.type === 'message') {
+    if (node.type === 'message' || node.type === 'action') {
       return vscode.TreeItemCollapsibleState.None;
     }
 

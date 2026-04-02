@@ -19,10 +19,12 @@ export function createDiagnosticsCommands(): SlashCommand[] {
       const specState = spec.state;
       if (specState.document) {
         lines.push(`Spec: loaded (\`${specState.document.docId}\`)`);
+        if (specState.files.length > 1) {
+          const active = specState.activeSpecUri?.fsPath.split('/').pop() || 'unknown';
+          lines.push(`Spec files: ${specState.files.length} found, active: \`${active}\``);
+        }
       } else if (specState.status === 'none') {
         lines.push('Spec: no .rqml file found');
-      } else if (specState.status === 'multiple') {
-        lines.push(`Spec: multiple .rqml files found (${specState.files.length})`);
       } else if (specState.status === 'invalid') {
         lines.push(`Spec: invalid — ${specState.error || 'parse error'}`);
       }

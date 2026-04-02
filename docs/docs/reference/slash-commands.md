@@ -284,6 +284,34 @@ Elicit and draft new requirements through guided LLM questioning.
 
 **Requires:** LLM endpoint configured
 
+### `/design`
+
+Explore and document architectural design decisions as Architecture Decision Records (ADRs).
+
+```
+/design
+/design new <topic>
+/design review <ADR-ID | keyword>
+/design decide <ADR-ID | keyword>
+/design overview
+/design list
+```
+
+| Subcommand | Description |
+|---|---|
+| `new <topic>` | Start a new design decision — classifies, assesses ADR-worthiness, explores options |
+| `review <ADR>` | Revisit an existing ADR against current requirements and implementation |
+| `decide <ADR>` | Finalize a proposed ADR (sets status to Accepted) |
+| `overview` | Summarize current architecture from the ADR set |
+| `list` | List existing ADRs with status, classification, and date |
+| *(none)* | Infer intent: overview if ADRs exist, help if none |
+
+ADR lookup accepts a number (`1`, `0001`, `ADR-0001`) or a keyword from the filename slug.
+
+ADRs are stored in `.rqml/adr/` with filenames like `0001-auth-strategy.md`. See the [Design stage documentation](../development-process/design.md) for details on the ADR template, classification model, and lifecycle.
+
+**Requires:** LLM endpoint configured
+
 ### `/plan`
 
 Review the current implementation plan and propose next steps, or regenerate the entire plan.
@@ -300,7 +328,7 @@ Review the current implementation plan and propose next steps, or regenerate the
 | `--full` | Regenerate the entire plan from scratch |
 | `<target>` | Scope the plan to a specific requirement or package |
 
-The plan is persisted to `.rqml/rqml-implementation-plan.md`.
+The plan is persisted to `.rqml/plan.md`.
 
 **Requires:** Spec loaded, LLM endpoint configured
 

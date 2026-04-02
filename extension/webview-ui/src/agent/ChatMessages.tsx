@@ -1,7 +1,8 @@
 // Scrollable chat message list with auto-scroll
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import type { Message, StartupStatus } from './useAgentMessages';
 import { MessageBubble } from './MessageBubble';
+import { getVsCodeApi } from '../shared/vscodeApi';
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -51,6 +52,14 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
             <div className="status-card">
               <div className="status-summary">{startupStatus.summary}</div>
               <div className="status-next-step">{startupStatus.nextStep}</div>
+              {!startupStatus.specLoaded && (
+                <button
+                  className="init-spec-btn"
+                  onClick={() => getVsCodeApi().postMessage({ type: 'initSpec' })}
+                >
+                  Create RQML Spec
+                </button>
+              )}
             </div>
           ) : (
             <div className="status-card">

@@ -142,42 +142,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   // Initialize spec service with extension path for XSD resolution
-  specService.initialize(context.extensionPath);
+  specService.initialize(context.extensionPath, context);
 
-  // Update status bar on spec changes
+  // Update status bar and context key on spec changes
   specService.onDidChangeSpec((state) => {
     updateStatusBar(state);
+    vscode.commands.executeCommand('setContext', 'rqml.specStatus', state.status);
   });
 
   // Initial load
   const initialState = await specService.refresh();
   updateStatusBar(initialState);
+  vscode.commands.executeCommand('setContext', 'rqml.specStatus', initialState.status);
 
   // REQ-UI-006J: Set initial document for trace lookup
   detailsProvider.setDocument(initialState.document);
   tracesProvider.setDocument(initialState.document);
 
-  // REQ-UI-011: Offer spec creation if no file found
-  if (initialState.status === 'none') {
-    const hasWorkspace = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0;
-    if (hasWorkspace) {
-      const action = await vscode.window.showInformationMessage(
-        'No RQML specification found in this workspace. Would you like to create one?',
-        'Init Spec',
-        'Later'
-      );
-      if (action === 'Init Spec') {
-        await specService.initSpec();
-      }
-    }
-  }
-
-  // REQ-UI-012: Show error if multiple spec files
-  if (initialState.status === 'multiple') {
-    vscode.window.showErrorMessage(
-      `Multiple RQML spec files found in workspace root. Please keep only one .rqml file.`
-    );
-  }
+  // REQ-UI-011: Spec creation is offered via persistent CTAs in the
+  // tree view ("Create RQML Spec" action node) and agent webview banner.
 
   // Clean up on deactivation
   context.subscriptions.push({
@@ -199,31 +182,33 @@ function updateStatusBar(state: SpecState): void {
       statusBarItem.text = '$(circle-slash) No RQML Spec';
       statusBarItem.tooltip = 'No RQML specification file found. Click to create one.';
       statusBarItem.backgroundColor = undefined;
-      break;
-
-    case 'multiple':
-      statusBarItem.text = '$(error) RQML Error';
-      statusBarItem.tooltip = state.error || 'Multiple RQML spec files found';
-      statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+      statusBarItem.command = 'rqml-vscode.showSpecStatus';
       break;
 
     case 'invalid':
       statusBarItem.text = '$(warning) Spec Invalid';
       statusBarItem.tooltip = state.error || 'RQML specification is invalid';
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+      statusBarItem.command = 'rqml-vscode.showSpecStatus';
       break;
 
-    case 'single':
+    case 'single': {
+      const hasMultiple = state.files.length > 1;
+      const fileName = state.activeSpecUri?.fsPath.split('/').pop();
       if (state.xsdAvailable === false) {
-        statusBarItem.text = '$(warning) RQML Spec';
+        statusBarItem.text = hasMultiple ? `$(warning) RQML: ${fileName}` : '$(warning) RQML Spec';
         statusBarItem.tooltip = `Schema rqml-${state.xsdVersion}.xsd not available. XSD validation disabled.`;
         statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
       } else {
-        statusBarItem.text = '$(check) RQML Spec';
-        statusBarItem.tooltip = 'RQML specification loaded. Click for details.';
+        statusBarItem.text = hasMultiple ? `$(check) RQML: ${fileName}` : '$(check) RQML Spec';
+        statusBarItem.tooltip = hasMultiple
+          ? `Active: ${fileName}. Click to switch spec files.`
+          : 'RQML specification loaded. Click for details.';
         statusBarItem.backgroundColor = undefined;
       }
+      statusBarItem.command = hasMultiple ? 'rqml-vscode.selectSpec' : 'rqml-vscode.showSpecStatus';
       break;
+    }
   }
 
   statusBarItem.show();

@@ -51,6 +51,14 @@ export function registerCommands(
     })
   );
 
+  // Select/switch between spec files
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rqml-vscode.selectSpec', async () => {
+      const specService = getSpecService();
+      await specService.selectSpec();
+    })
+  );
+
   // Select tree node (internal command for details view update)
   context.subscriptions.push(
     vscode.commands.registerCommand('rqml-vscode.selectTreeNode', (node: TreeNode) => {

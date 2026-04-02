@@ -76,6 +76,10 @@
         "title": "RQML: Init Spec"
       },
       {
+        "command": "rqml-vscode.selectSpec",
+        "title": "RQML: Select Spec File"
+      },
+      {
         "command": "rqml-vscode.openDocumentView",
         "title": "Open RQML Document",
         "icon": "$(file)"

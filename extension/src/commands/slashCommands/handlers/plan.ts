@@ -1,11 +1,11 @@
 // REQ-CMD-009: Implementation planning command
-// Persists the plan to .rqml/rqml-implementation-plan.md
+// Persists the plan to .rqml/plan.md
 
 import * as vscode from 'vscode';
 import type { SlashCommand, ParsedCommand, CommandContext } from '../types';
 
 const PLAN_DIR = '.rqml';
-const PLAN_FILE = 'rqml-implementation-plan.md';
+const PLAN_FILE = 'plan.md';
 const PLAN_REL_PATH = `${PLAN_DIR}/${PLAN_FILE}`;
 
 const AGENT_CONTEXT =
@@ -147,7 +147,7 @@ export function createPlanCommands(): SlashCommand[] {
         const prompt = buildPlanPrompt(target, isFull, existingPlan);
         await ctx.streamPrompt(prompt);
 
-        // Persist the plan to .rqml/rqml-implementation-plan.md
+        // Persist the plan to .rqml/plan.md
         const content = ctx.services.agent.getLastStreamContent();
         if (content) {
           const cleaned = stripProposalBlocks(content);

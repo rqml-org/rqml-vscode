@@ -7,6 +7,7 @@ import { createProviderCommands } from './handlers/provider';
 import { createQualityCommands } from './handlers/quality';
 import { createSyncCommands } from './handlers/sync';
 import { createElicitCommands } from './handlers/elicit';
+import { createDesignCommands } from './handlers/design';
 import { createPlanCommands } from './handlers/plan';
 import { createCmdCommands } from './handlers/cmd';
 import { createImplementCommands } from './handlers/implement';
@@ -46,6 +47,11 @@ export function createCommandRegistry(): CommandRegistry {
 
   // Elicitation
   for (const cmd of createElicitCommands()) {
+    registry.register(cmd);
+  }
+
+  // REQ-CMD-016: Design decisions and ADRs
+  for (const cmd of createDesignCommands()) {
     registry.register(cmd);
   }
 

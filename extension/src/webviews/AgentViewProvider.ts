@@ -155,6 +155,10 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         this.postToWebview({ type: 'startupStatus', payload: status });
         break;
       }
+      case 'initSpec': {
+        await vscode.commands.executeCommand('rqml-vscode.initSpec');
+        break;
+      }
       case 'requestCommandList': {
         // REQ-CMD-002: Send command names to webview for autocomplete
         const names = agentService.commandRegistry.getAllNames();
@@ -173,7 +177,7 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
       case 'openPlan': {
         const folders = vscode.workspace.workspaceFolders;
         if (!folders?.length) break;
-        const uri = vscode.Uri.joinPath(folders[0].uri, '.rqml/rqml-implementation-plan.md');
+        const uri = vscode.Uri.joinPath(folders[0].uri, '.rqml/plan.md');
         try {
           await vscode.workspace.fs.stat(uri);
           await vscode.commands.executeCommand('markdown.showPreview', uri);
@@ -258,7 +262,7 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
 
     if (state.status === 'none') {
       health = 'gray';
-    } else if (state.status === 'multiple' || state.status === 'invalid') {
+    } else if (state.status === 'invalid') {
       health = 'yellow';
     } else if (state.status === 'single' && state.document) {
       // Determine completeness from document sections

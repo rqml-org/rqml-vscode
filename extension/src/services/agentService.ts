@@ -414,25 +414,26 @@ export class AgentService {
     parts.push('');
 
     // Development process — intrinsic, not overridable by AGENTS.md
-    parts.push('## Development Process');
-    parts.push('You enforce this process. These are the slash commands available to the user:');
+    parts.push('## Development Process: Spec → Design → Plan → Code');
+    parts.push('You enforce this process. Always nudge the user towards this workflow:');
     parts.push('');
-    parts.push('1. **Elicit** (`/elicit`) — Guided requirements gathering through structured questions');
-    parts.push('2. **Status** (`/status`) — Review spec health, coverage gaps, and readiness');
-    parts.push('3. **Plan** (`/plan`) — Review the implementation plan and propose next steps (--full to regenerate)');
-    parts.push('4. **Implement** (`/cmd` to generate prompts, `/implement` to run agentic coding)');
+    parts.push('1. **Spec** (`/elicit`) — Gather and document requirements in the RQML spec');
+    parts.push('2. **Design** (`/design`) — Make and record architectural decisions as ADRs in `.rqml/adr/`');
+    parts.push('3. **Plan** (`/plan`) — Create a staged implementation plan from spec + design + codebase');
+    parts.push('4. **Code** (`/cmd` to generate prompts, `/implement` to run agentic coding)');
     parts.push('5. **Verify** (`/sync`, `/validate`, `/lint`, `/score`) — Check spec↔code sync, validate, and lint');
     parts.push('');
     parts.push('When the user asks to build something without requirements in the spec, direct them to `/elicit`.');
+    parts.push('When the user jumps to planning or coding without design decisions for significant architectural choices, suggest `/design new`.');
     parts.push('Enforcement varies by strictness: at `relaxed` suggest the process; at `certified` require it.');
     parts.push('');
 
     // Plan management — the agent owns the plan file implicitly
     parts.push('## Plan Management');
-    parts.push('You maintain the implementation plan file (`.rqml/rqml-implementation-plan.md`) implicitly.');
+    parts.push('You maintain the implementation plan file (`.rqml/plan.md`) implicitly.');
     parts.push('When the user asks to implement something:');
     parts.push('- If a plan exists (shown in the Implementation Plan section below), use it to determine the next unfinished stage and proceed.');
-    parts.push('- If NO plan exists, generate one using the writeFile tool (path: `.rqml/rqml-implementation-plan.md`), then proceed with the first stage.');
+    parts.push('- If NO plan exists, generate one using the writeFile tool (path: `.rqml/plan.md`), then proceed with the first stage.');
     parts.push('Never ask the user whether to create a plan or whether a plan exists. Just find it or create it and move forward.');
     parts.push('After completing a stage, update the plan file to mark that stage as complete (change `- [ ]` to `- [x]`).');
     parts.push('');
@@ -481,11 +482,20 @@ export class AgentService {
       parts.push('');
     }
 
+    // Include ADR summaries if any exist
+    const adrSummary = await this.readAdrSummary();
+    if (adrSummary) {
+      parts.push('## Architecture Decision Records');
+      parts.push('Current ADRs from `.rqml/adr/`:');
+      parts.push(adrSummary);
+      parts.push('');
+    }
+
     // Include persistent plan file if available
     const planContent = await this.readPlanFile();
     if (planContent) {
       parts.push('## Implementation Plan');
-      parts.push('Current plan from `.rqml/rqml-implementation-plan.md`:');
+      parts.push('Current plan from `.rqml/plan.md`:');
       parts.push(planContent);
       parts.push('');
     }
@@ -851,7 +861,7 @@ export class AgentService {
   /**
    * Build a startup status summary for the webview welcome screen.
    */
-  async getStartupStatus(): Promise<{ summary: string; nextStep: string }> {
+  async getStartupStatus(): Promise<{ summary: string; nextStep: string; specLoaded: boolean }> {
     const specService = getSpecService();
     const specState = specService.state;
     const specLoaded = !!specState.document;
@@ -887,7 +897,7 @@ export class AgentService {
       nextStep = 'Type /plan to review progress, or ask me to implement the next stage.';
     }
 
-    return { summary, nextStep };
+    return { summary, nextStep, specLoaded };
   }
 
   /**
@@ -1227,14 +1237,23 @@ export class AgentService {
     // Process context
     parts.push('## Process Context');
     parts.push('This is step 4 (Implement) in the RQML development process.');
-    parts.push('If no plan is provided below, generate a staged plan and save it to `.rqml/rqml-implementation-plan.md` using the writeFile tool, then implement the first stage.');
+    parts.push('If no plan is provided below, generate a staged plan and save it to `.rqml/plan.md` using the writeFile tool, then implement the first stage.');
     parts.push('');
+
+    // Include ADR summaries if any exist
+    const adrSummary = await this.readAdrSummary();
+    if (adrSummary) {
+      parts.push('## Architecture Decision Records');
+      parts.push('Respect these design decisions during implementation:');
+      parts.push(adrSummary);
+      parts.push('');
+    }
 
     // Include persistent plan file if available
     const planContent = await this.readPlanFile();
     if (planContent) {
       parts.push('## Implementation Plan');
-      parts.push('Current plan from `.rqml/rqml-implementation-plan.md`:');
+      parts.push('Current plan from `.rqml/plan.md`:');
       parts.push(planContent);
       parts.push('');
     }
@@ -1313,14 +1332,45 @@ export class AgentService {
     return this.lastStreamContent;
   }
 
-  /** Read the persistent implementation plan from .rqml/rqml-implementation-plan.md */
+  /** Read the persistent implementation plan from .rqml/plan.md */
   async readPlanFile(): Promise<string | null> {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders?.length) return null;
     try {
-      const uri = vscode.Uri.joinPath(folders[0].uri, '.rqml/rqml-implementation-plan.md');
+      const uri = vscode.Uri.joinPath(folders[0].uri, '.rqml/plan.md');
       const bytes = await vscode.workspace.fs.readFile(uri);
       return Buffer.from(bytes).toString('utf-8');
+    } catch {
+      return null;
+    }
+  }
+
+  /** Read ADR summaries from .rqml/adr/ for system prompt context */
+  async readAdrSummary(): Promise<string | null> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) return null;
+    try {
+      const dirUri = vscode.Uri.joinPath(folders[0].uri, '.rqml/adr');
+      const entries = await vscode.workspace.fs.readDirectory(dirUri);
+      const mdFiles = entries
+        .filter(([name, type]) => type === vscode.FileType.File && name.endsWith('.md'))
+        .sort(([a], [b]) => a.localeCompare(b));
+      if (mdFiles.length === 0) return null;
+
+      const summaries: string[] = [];
+      for (const [name] of mdFiles) {
+        const uri = vscode.Uri.joinPath(dirUri, name);
+        const bytes = await vscode.workspace.fs.readFile(uri);
+        const content = Buffer.from(bytes).toString('utf-8');
+        const titleMatch = content.match(/^#\s+(.+)/m);
+        const statusMatch = content.match(/^-\s*Status:\s*(.+)/m);
+        const classMatch = content.match(/^-\s*Classification:\s*(.+)/m);
+        summaries.push(
+          `- **${titleMatch?.[1] || name}** — ${statusMatch?.[1]?.trim() || 'Unknown'}` +
+          (classMatch ? ` (${classMatch[1].trim()})` : '')
+        );
+      }
+      return summaries.join('\n');
     } catch {
       return null;
     }
