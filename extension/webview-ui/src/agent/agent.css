@@ -109,7 +109,7 @@
 .message-user {
   align-self: flex-end;
   background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border, transparent);
+  border: 1px solid #8568ab;
   border-radius: var(--agent-radius);
   padding: 6px 10px;
   max-width: 85%;
@@ -150,8 +150,10 @@
 
 .message-assistant,
 .message-command {
-  align-self: flex-start;
-  padding: 4px 0;
+  align-self: stretch;
+  padding: 10px 14px;
+  background: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.08));
+  border-radius: var(--agent-radius);
 }
 
 .message-system {
@@ -568,13 +570,13 @@
 .input-textarea-wrapper {
   position: relative;
   background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border, rgba(127, 127, 127, 0.3)));
+  border: 1px solid rgba(127, 127, 127, 0.5);
   border-radius: var(--agent-input-radius);
   overflow: hidden;
 }
 
 .input-textarea-wrapper:focus-within {
-  border-color: var(--vscode-focusBorder);
+  border-color: rgba(127, 127, 127, 0.7);
 }
 
 .input-textarea {
@@ -582,7 +584,7 @@
   width: 100%;
   min-height: 36px;
   max-height: 150px;
-  padding: 8px 10px;
+  padding: 12px;
   border: none;
   outline: none;
   resize: none;
@@ -604,6 +606,17 @@
   position: relative;
 }
 
+.input-newline-hint {
+  position: absolute;
+  right: 8px;
+  bottom: 3px;
+  font-size: 0.75em;
+  color: var(--vscode-foreground);
+  opacity: 0.35;
+  pointer-events: none;
+  user-select: none;
+}
+
 .input-send-btn {
   all: unset;
   width: 22px;
@@ -612,7 +625,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  background: var(--vscode-button-background);
+  background: rgba(127, 127, 127, 0.4);
   color: var(--vscode-button-foreground);
   cursor: pointer;
   opacity: 0.85;
@@ -630,19 +643,20 @@
 }
 
 .input-send-btn.stop {
-  background: var(--vscode-errorForeground, #f44747);
+  background: rgba(127, 127, 127, 0.5);
   color: #fff;
   opacity: 1;
 }
 
-/* ── Image preview strip (below textarea) ── */
+/* ── Attachments bar (top row of input box) ── */
 
-.image-previews {
+.input-attachments-bar {
   display: flex;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 6px 10px;
   flex-wrap: wrap;
-  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
+  align-items: center;
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
 }
 
 .image-preview-item {
@@ -687,6 +701,7 @@
   padding: 4px 10px 6px;
   gap: 6px;
   background: var(--vscode-input-background);
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
 }
 
 .input-bottom-spacer {
@@ -737,6 +752,7 @@
   opacity: 1;
   background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.15));
 }
+
 
 .input-icon-btn.disabled {
   opacity: 0.2;
@@ -1167,9 +1183,7 @@
 .attached-files {
   display: flex;
   gap: 4px;
-  padding: 4px 10px;
   flex-wrap: wrap;
-  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
 }
 
 .attached-file-tag {

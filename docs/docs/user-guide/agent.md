@@ -70,6 +70,65 @@ When the agent suggests changes to your RQML spec, it uses a change proposal for
 
 The agent can render architecture diagrams, flowcharts, and sequence diagrams using Mermaid.js. These appear as interactive SVG diagrams directly in the conversation.
 
+## Skills
+
+The RQML agent supports the open [Agent Skills](https://agentskills.io/) standard for extending its capabilities with specialized knowledge and workflows. Skills let you package domain expertise — company coding standards, documentation formats, review checklists, deployment procedures — and have the agent apply them automatically.
+
+### What is a skill?
+
+A skill is a directory containing a `SKILL.md` file with YAML frontmatter and markdown instructions:
+
+```
+coding-standards/
+└── SKILL.md
+```
+
+```yaml
+---
+name: coding-standards
+description: Apply company coding standards. Use when reviewing or generating code.
+---
+
+## Code style rules
+- Use 2-space indentation
+- Prefer named exports over default exports
+- All public functions must have JSDoc comments
+...
+```
+
+The `name` and `description` fields are loaded into the agent's context at startup. When the agent determines a skill is relevant to the current task, it reads the full instructions and follows them.
+
+### Where to put skills
+
+Skills are discovered from three locations (later overrides earlier by name):
+
+| Location | Scope | Purpose |
+|---|---|---|
+| `~/.agents/skills/` | User | Personal skills shared across all projects and agents |
+| `<workspace>/.agents/skills/` | Project | Project skills compatible with any agent that supports the standard |
+| `<workspace>/.rqml/skills/` | Project | RQML-specific project skills |
+
+### Managing skills
+
+Use the `/skills` command to manage discovered skills:
+
+```
+/skills              # List all discovered skills
+/skills list         # Same as above
+/skills show <name>  # Display full content of a skill
+/skills refresh      # Re-scan skill directories
+```
+
+Skills are also automatically re-scanned when files change.
+
+### How activation works
+
+The agent uses **model-driven activation**: it sees the skill catalog (names and descriptions) in its system prompt and decides when a skill is relevant. When it activates a skill, it reads the full `SKILL.md` to get detailed instructions. You don't need to explicitly invoke skills — the agent picks them up based on context.
+
+### Cross-agent compatibility
+
+Because skills follow the open [Agent Skills standard](https://agentskills.io/), skills you create for the RQML agent also work in other compatible tools (Claude Code, GitHub Copilot, and [40+ others](https://agentskills.io/)). Skills placed in `~/.agents/skills/` or `.agents/skills/` are discoverable by any conforming agent.
+
 ## Model selection
 
 The input bar includes a model selector dropdown. You can switch between configured LLM models without leaving the agent panel. Use `/models` to see all available models, or `/model use <id>` to switch from the command line.

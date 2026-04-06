@@ -13,6 +13,7 @@ import { createCmdCommands } from './handlers/cmd';
 import { createImplementCommands } from './handlers/implement';
 import { createDiagnosticsCommands } from './handlers/diagnostics';
 import { createModelCommands } from './handlers/model';
+import { createSkillsCommands } from './handlers/skills';
 
 /**
  * Create and populate the command registry with all slash commands.
@@ -77,6 +78,11 @@ export function createCommandRegistry(): CommandRegistry {
 
   // REQ-MDL-008, REQ-MDL-009, REQ-MDL-010: Model catalog commands
   for (const cmd of createModelCommands()) {
+    registry.register(cmd);
+  }
+
+  // Agent Skills management
+  for (const cmd of createSkillsCommands()) {
     registry.register(cmd);
   }
 

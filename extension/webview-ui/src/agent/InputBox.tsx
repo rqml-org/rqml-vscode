@@ -242,13 +242,25 @@ export const InputBox: React.FC<InputBoxProps> = ({
     onSubmit('/help');
   }, [onSubmit]);
 
+  const handleDesignOverviewClick = useCallback(() => {
+    onSubmit('/design overview');
+  }, [onSubmit]);
+
   const handleAttachClick = useCallback(() => {
     setFileBrowserOpen(prev => !prev);
   }, []);
 
+  const SPEC_HEALTH_PLACEHOLDERS: Record<SpecHealthColor, string> = {
+    gray: 'Click "Create RQML Spec" to initialize a spec file',
+    yellow: 'Tell me your requirements and I will help you build a spec, or run /elicit',
+    green: 'Describe what to build next',
+    red: 'Run /sync to check spec-code consistency',
+    blue: 'Describe what to build next',
+  };
+
   const placeholder = !endpointStatus.configured
     ? 'No LLM endpoint configured...'
-    : 'Describe what to build next';
+    : SPEC_HEALTH_PLACEHOLDERS[specHealth];
 
   /** Display name for an attachment tag */
   const tagName = (f: FileAttachment) => {
@@ -283,20 +295,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
             ))}
           </div>
         )}
-        <div className="input-textarea-row">
-          <textarea
-            ref={textareaRef}
-            className="input-textarea"
-            value={value}
-            onChange={e => setValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={isLoading}
-            rows={1}
-          />
-        </div>
-        {images.length > 0 && (
-          <div className="image-previews">
+        {(images.length > 0 || attachedFiles.length > 0) && (
+          <div className="input-attachments-bar">
             {images.map(img => (
               <div key={img.id} className="image-preview-item">
                 <img src={img.dataUrl} alt="Attached" className="image-preview-thumb" />
@@ -309,10 +309,6 @@ export const InputBox: React.FC<InputBoxProps> = ({
                 </button>
               </div>
             ))}
-          </div>
-        )}
-        {attachedFiles.length > 0 && (
-          <div className="attached-files">
             {attachedFiles.map(f => (
               <span key={f.path} className="attached-file-tag" title={f.path}>
                 <span className="attached-file-icon">{f.isDirectory ? '📁' : '📄'}</span>
@@ -328,6 +324,21 @@ export const InputBox: React.FC<InputBoxProps> = ({
             ))}
           </div>
         )}
+        <div className="input-textarea-row">
+          <textarea
+            ref={textareaRef}
+            className="input-textarea"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={isLoading}
+            rows={1}
+          />
+          {value.trim() && (
+            <span className="input-newline-hint">Shift-Enter for newline</span>
+          )}
+        </div>
         <div className="input-bottom-bar">
           {(() => {
             const iconsRaw = (window as any).__WEBVIEW_DATA__?.rqmlIcons;
@@ -342,6 +353,37 @@ export const InputBox: React.FC<InputBoxProps> = ({
               />
             ) : null;
           })()}
+          <button
+            className="input-icon-btn"
+            onClick={onOpenPlan}
+            title="Open implementation plan"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 3.5L3.5 5 6 2.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 3.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              <path d="M2 8L3.5 9.5 6 7" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 8h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              <path d="M2 12.5L3.5 14 6 11.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M8 12.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </button>
+          <button
+            className="input-icon-btn"
+            onClick={handleDesignOverviewClick}
+            title="Summarize architectural decisions"
+            style={{marginLeft: '-3px'}}
+          >
+            <svg width="16" height="16" viewBox="-1 -1 16 16" fill="none" style={{pointerEvents: 'none'}}>
+              <circle cx="3.5" cy="3" r="1.8" fill="currentColor" />
+              <path d="M6 3h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <polygon points="10.5,1.2 12.3,3 10.5,4.8 8.7,3" fill="currentColor" />
+              <path d="M10.5 5.5v2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <rect x="9" y="9" width="3" height="3" rx="0.4" fill="currentColor" />
+              <path d="M8.5 10.5H6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <circle cx="3.5" cy="10.5" r="1.8" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M3.5 8.2V5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          </button>
           <div className="input-bottom-spacer" />
           <select
             className="model-selector"
@@ -364,28 +406,17 @@ export const InputBox: React.FC<InputBoxProps> = ({
             onClick={handleAttachClick}
             title="Attach file or folder"
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M10.97 1.47a3.75 3.75 0 0 0-5.3 0L2.22 4.92a5.25 5.25 0 0 0 7.42 7.42l4.72-4.72a.75.75 0 1 0-1.06-1.06l-4.72 4.72a3.75 3.75 0 0 1-5.3-5.3l3.45-3.45a2.25 2.25 0 0 1 3.18 3.18L6.46 9.16a.75.75 0 0 1-1.06-1.06l2.83-2.83a.75.75 0 0 0-1.06-1.06L4.34 7.04a2.25 2.25 0 0 0 3.18 3.18l3.45-3.45a3.75 3.75 0 0 0 0-5.3Z" />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 2.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 8 2.5Z" />
             </svg>
           </button>
           <button
             className="input-icon-btn"
             onClick={handleHelpClick}
-            title="Help (/help)"
+            title="Slash commands (/help)"
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-              <path fillRule="evenodd" clipRule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm0-1.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11Z" />
-              <path d="M7.25 10.5a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM8 4.5A2.25 2.25 0 0 0 5.75 6.75h1.5a.75.75 0 0 1 1.5 0c0 .414-.336.75-.75.75a.75.75 0 0 0-.75.75V9h1.5v-.34A2.25 2.25 0 0 0 8 4.5Z" />
-            </svg>
-          </button>
-          <button
-            className={`input-icon-btn${planExists ? '' : ' disabled'}`}
-            onClick={planExists ? onOpenPlan : undefined}
-            title="Open implementation plan"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M2 2h8l4 4v8H2V2Zm1 1v10h10V6.5H9.5V3H3Zm7 .7V6h2.3L10 3.7Z" />
-              <path d="M4.5 8h5v1h-5V8Zm0 2h7v1h-7v-1Zm0 2h4v1h-4v-1Z" />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M10.7 2.4a.85.85 0 0 1 .2 1.2l-5 7.5a.85.85 0 0 1-1.4-1l5-7.5a.85.85 0 0 1 1.2-.2Z" />
             </svg>
           </button>
           {isLoading ? (
@@ -394,7 +425,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
               onClick={onStop}
               title="Stop generation"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                 <rect x="3" y="3" width="10" height="10" rx="1" />
               </svg>
             </button>
@@ -405,7 +436,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
               disabled={!value.trim()}
               title="Send message"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M1.724 1.053a.5.5 0 0 1 .541-.054l12 6a.5.5 0 0 1 0 .894l-12 6A.5.5 0 0 1 1.5 13.5v-4.379l6.776-1.121L1.5 6.879V2.5a.5.5 0 0 1 .224-.447Z" />
               </svg>
             </button>

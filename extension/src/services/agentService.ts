@@ -12,6 +12,7 @@ import { getDiagnosticsService } from './diagnosticsService';
 import type { StrictnessLevel } from '../types/configuration';
 import { createCommandRegistry, type CommandRegistry, type CommandContext } from '../commands/slashCommands';
 import { getXsdPath, isXsdAvailable } from './xsdVersions';
+import { getSkillService } from './skillService';
 
 /** Message sent to the webview */
 export interface AgentWebviewMessage {
@@ -506,6 +507,18 @@ export class AgentService {
       parts.push('```xml');
       parts.push(specContent);
       parts.push('```');
+      parts.push('');
+    }
+
+    // Agent Skills catalog
+    const skills = getSkillService().getCatalog();
+    if (skills.length > 0) {
+      parts.push('## Available Skills');
+      parts.push('The following skills are available. When a skill is relevant to the current task, read its SKILL.md file to get detailed instructions.');
+      parts.push('');
+      for (const s of skills) {
+        parts.push(`- **${s.name}** — ${s.description} (\`${s.skillMdPath}\`)`);
+      }
       parts.push('');
     }
 
@@ -1291,6 +1304,18 @@ export class AgentService {
       parts.push('## Project Guidelines (AGENTS.md)');
       parts.push('The following are project-specific guidelines. They supplement but do not override the core RQML development process.');
       parts.push(agentsMd);
+      parts.push('');
+    }
+
+    // Agent Skills catalog
+    const implSkills = getSkillService().getCatalog();
+    if (implSkills.length > 0) {
+      parts.push('## Available Skills');
+      parts.push('The following skills are available. When a skill is relevant, use readFile to load its SKILL.md for detailed instructions.');
+      parts.push('');
+      for (const s of implSkills) {
+        parts.push(`- **${s.name}** — ${s.description} (\`${s.skillMdPath}\`)`);
+      }
       parts.push('');
     }
 

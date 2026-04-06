@@ -15,6 +15,7 @@ import { getSpecService, type SpecState } from './services/specService';
 import { getDiagnosticsService } from './services/diagnosticsService';
 import { getConfigurationService } from './services/configurationService';
 import { getAgentService } from './services/agentService';
+import { getSkillService } from './services/skillService';
 import { registerCommands } from './commands';
 import { registerSettingsCommands } from './commands/settingsCommands';
 import { registerAgentCommands } from './commands/agentCommands';
@@ -40,6 +41,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await diagnosticsService.loadSchema(context.extensionPath);
   diagnosticsService.startWatching();
   context.subscriptions.push(diagnosticsService);
+
+  // Agent Skills: discover skills from standard locations
+  const skillService = getSkillService();
+  await skillService.refresh();
+  context.subscriptions.push(skillService);
 
   // REQ-UI-005: Create tree view provider
   const treeProvider = new RqmlTreeDataProvider();
