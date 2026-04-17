@@ -6,7 +6,7 @@ sidebar_position: 2
 
 The RQML Browser is the sidebar that appears when you click the RQML icon in the Activity Bar. It provides a structured view of your specification split into three resizable regions.
 
-![RQML Browser](/img/screenshots/RQML-overview-and-language-mode.png)
+![RQML Browser](/img/screenshots/RQML-UI-overview.png)
 
 ## Overview (top)
 

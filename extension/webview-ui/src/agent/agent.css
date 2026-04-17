@@ -108,7 +108,7 @@
 
 .message-user {
   align-self: flex-end;
-  background: var(--vscode-input-background);
+  background: linear-gradient(135deg, rgba(133, 104, 171, 0.15), rgba(133, 104, 171, 0.05));
   border: 1px solid #8568ab;
   border-radius: var(--agent-radius);
   padding: 6px 10px;
@@ -576,7 +576,12 @@
 }
 
 .input-textarea-wrapper:focus-within {
-  border-color: rgba(127, 127, 127, 0.7);
+  border-color: #8568ab;
+  background: linear-gradient(to bottom left, rgba(133, 104, 171, 0.15), rgba(133, 104, 171, 0.03));
+}
+
+.input-textarea-wrapper:focus-within .input-bottom-bar {
+  background: transparent;
 }
 
 .input-textarea {

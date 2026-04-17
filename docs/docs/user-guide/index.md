@@ -11,4 +11,4 @@ This guide covers the four main areas of the RQML VS Code extension:
 - **[RQML Agent](./agent.md)** — The LLM-powered assistant
 - **[Exports](./exports.md)** — Generating reports and documents from your spec
 
-![RQML Extension UI](/img/screenshots/RQML-extension-UI-annotated.png)
+![RQML Extension UI](/img/screenshots/RQML-UI-overview.png)

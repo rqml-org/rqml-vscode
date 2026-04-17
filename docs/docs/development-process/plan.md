@@ -6,6 +6,8 @@ sidebar_position: 4
 
 The third stage is to break the work into **actionable steps**. The output is a staged implementation plan stored at `.rqml/plan.md` — a markdown document structured for AI coding agents, with each stage framed as a self-contained task.
 
+![Plan overview](/img/screenshots/RQML-plan-overview.png)
+
 ## The `/plan` command
 
 ```
@@ -37,6 +39,8 @@ The agent analyses your spec (and existing ADRs) to produce a staged implementat
 
 - Without `--full`, the agent **reviews** the existing plan: it summarizes progress (which stages are done), identifies the next stage, and proposes what it will involve. The plan file is not overwritten.
 - With `--full`, the agent **regenerates** the plan. If a plan already exists, completed stages (marked `[x]`) are preserved.
+
+![Agent presenting plan choices](/img/screenshots/RQML-agent-plan-choice.png)
 
 ### Readiness verdict
 

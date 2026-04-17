@@ -162,6 +162,14 @@ export const DEFAULT_CATALOG: readonly ModelCatalogEntry[] = [
 
   // --- Anthropic ---
   {
+    modelId: 'claude-sonnet-4-6',
+    displayName: 'Claude Sonnet 4.6',
+    provider: 'anthropic',
+    capabilities: ['chat', 'code', 'vision', 'function-calling'],
+    contextWindow: 200_000,
+    recommended: false,
+  },
+  {
     modelId: 'claude-sonnet-4-5-20250929',
     displayName: 'Claude Sonnet 4.5',
     provider: 'anthropic',
@@ -170,12 +178,20 @@ export const DEFAULT_CATALOG: readonly ModelCatalogEntry[] = [
     recommended: false,
   },
   {
+    modelId: 'claude-opus-4-7',
+    displayName: 'Claude Opus 4.7',
+    provider: 'anthropic',
+    capabilities: ['chat', 'code', 'vision', 'function-calling', 'reasoning'],
+    contextWindow: 200_000,
+    recommended: true,
+  },
+  {
     modelId: 'claude-opus-4-6',
     displayName: 'Claude Opus 4.6',
     provider: 'anthropic',
     capabilities: ['chat', 'code', 'vision', 'function-calling', 'reasoning'],
     contextWindow: 200_000,
-    recommended: true,
+    recommended: false,
   },
   {
     modelId: 'claude-haiku-4-5-20251001',

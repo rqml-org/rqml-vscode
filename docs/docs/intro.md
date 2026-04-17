@@ -17,7 +17,7 @@ The RQML VS Code extension provides:
 - **RQML Browser** — A sidebar with tree view, details panel, and traces panel for navigating your spec
 - **Language support** — Syntax highlighting, validation, and diagnostics for `.rqml` files
 - **Document views** — Readable document view, requirements matrix, and trace graph visualizations
-- **RQML Agent** — An LLM-powered assistant that guides you through the [Spec → Design → Plan → Code](./development-process/index.md) workflow
+- **RQML Agent** — An LLM-powered assistant that guides you through the [Spec → Design → Plan → Code → Verify](./development-process/index.md) workflow
 - **Exports** — Generate reports in PDF, Word, PowerPoint, Excel, and Markdown using LLM-driven content generation
 
 ## Who is it for?
@@ -35,5 +35,6 @@ The RQML VS Code extension provides:
 4. **Design** — Use `/design new <topic>` to make and record architectural decisions
 5. **Plan** — Run `/plan --full` to generate a staged implementation plan
 6. **Implement** — Use `/implement` to execute the plan with the agent, or `/cmd` to generate prompts for your preferred coding agent
+7. **Verify** — Run `/sync` to check spec-code synchronisation and `/lint` to flag spec quality issues
 
 See the [Development Process](./development-process/index.md) section for a detailed walkthrough of each stage, or the [User Guide](./user-guide/index.md) for a tour of the extension's features.

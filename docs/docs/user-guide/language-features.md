@@ -14,15 +14,13 @@ RQML files are XML documents. The extension registers `.rqml` as a language mode
 - **Real-time validation** — XML well-formedness, XSD schema conformance, and semantic rules are checked as you type, with diagnostics appearing in the Problems panel
 - **Go to Definition** — Navigate from the tree view to the exact line in the source file
 
-![RQML editing and overview](/img/screenshots/RQML-overview-and-language-mode.png)
+![RQML editing and overview](/img/screenshots/RQML-UI-overview.png)
 
 The status bar shows the current spec status: whether the spec is loaded, valid, and whether XSD validation is active.
 
 ## Spec Document view
 
 The Document view renders your RQML spec as a readable, navigable HTML document — similar to a traditional requirements specification document. Open it from the document icon in the Overview toolbar.
-
-![Document and matrix views](/img/screenshots/RQML-doc-and-matrix-views.png)
 
 The document view:
 
@@ -37,6 +35,8 @@ This view is useful for reviewing the spec in a human-friendly format without re
 
 The Matrix view (also called Grid view) shows a cross-reference matrix of requirements against test cases and verification items. Open it from the grid icon in the Overview toolbar.
 
+![Requirements matrix](/img/screenshots/RQML-matrix.png)
+
 The matrix view:
 
 - Displays requirements along one axis and verification items along the other
@@ -50,7 +50,7 @@ This view is designed for coverage discussions — quickly identifying which req
 
 The Trace Graph view visualizes the traceability relationships in your spec as an interactive node-and-edge graph. Open it from the graph icon in the Overview toolbar.
 
-![Trace graph](/img/screenshots/RQML-traceview-screenshot.png)
+![Trace graph](/img/screenshots/RQML-trace-map.png)
 
 The graph shows:
 

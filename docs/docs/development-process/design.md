@@ -6,6 +6,8 @@ sidebar_position: 3
 
 The second stage is to decide **how** you will build it. The output is a set of Architecture Decision Records (ADRs) stored in `.rqml/adr/` — structured documents that capture significant design decisions, the options considered, and the rationale for the chosen approach.
 
+![Agent working on architecture](/img/screenshots/RQML-agent-architecture.png)
+
 ## The `/design` command
 
 ```
@@ -43,6 +45,8 @@ The `review` and `decide` subcommands accept an ADR reference by:
 - **Keyword:** any word from the filename slug (e.g., `auth`, `monorepo`)
 
 ## ADR files
+
+![Agent presenting ADRs](/img/screenshots/RQML-agent-ADRs.png)
 
 ADRs are stored in `.rqml/adr/` alongside the spec file:
 

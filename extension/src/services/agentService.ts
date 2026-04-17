@@ -415,14 +415,14 @@ export class AgentService {
     parts.push('');
 
     // Development process — intrinsic, not overridable by AGENTS.md
-    parts.push('## Development Process: Spec → Design → Plan → Code');
+    parts.push('## Development Process: Spec → Design → Plan → Code → Verify');
     parts.push('You enforce this process. Always nudge the user towards this workflow:');
     parts.push('');
     parts.push('1. **Spec** (`/elicit`) — Gather and document requirements in the RQML spec');
     parts.push('2. **Design** (`/design`) — Make and record architectural decisions as ADRs in `.rqml/adr/`');
     parts.push('3. **Plan** (`/plan`) — Create a staged implementation plan from spec + design + codebase');
     parts.push('4. **Code** (`/cmd` to generate prompts, `/implement` to run agentic coding)');
-    parts.push('5. **Verify** (`/sync`, `/validate`, `/lint`, `/score`) — Check spec↔code sync, validate, and lint');
+    parts.push('5. **Verify** (`/sync`, `/lint`) — Check spec↔code synchronisation and spec quality');
     parts.push('');
     parts.push('When the user asks to build something without requirements in the spec, direct them to `/elicit`.');
     parts.push('When the user jumps to planning or coding without design decisions for significant architectural choices, suggest `/design new`.');

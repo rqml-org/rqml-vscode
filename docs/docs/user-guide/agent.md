@@ -4,9 +4,9 @@ sidebar_position: 4
 
 # RQML Agent
 
-The RQML Agent is an LLM-powered assistant that lives in the bottom panel of VS Code (alongside Terminal and Problems). It guides you through the [Spec → Design → Plan → Code](../development-process/index.md) development workflow and provides interactive access to all RQML operations through slash commands.
+The RQML Agent is an LLM-powered assistant that lives in the bottom panel of VS Code (alongside Terminal and Problems). It guides you through the [Spec → Design → Plan → Code → Verify](../development-process/index.md) development workflow and provides interactive access to all RQML operations through slash commands.
 
-![RQML Agent](/img/screenshots/RQML-agent-screenshot.png)
+![RQML Agent](/img/screenshots/RQML-agent-plan.png)
 
 ## Getting started
 
@@ -33,7 +33,7 @@ Commands follow terminal-style syntax:
 | **Plan** | `/plan [--full]` | Review or generate the implementation plan |
 | **Code** | `/cmd [next\|all]` | Generate coding-agent prompts |
 | **Code** | `/implement [target]` | Run the agentic implementation loop |
-| **Verify** | `/sync`, `/validate`, `/lint`, `/score` | Check spec-code sync and quality |
+| **Verify** | `/sync`, `/lint` | Check spec-code synchronisation and spec quality |
 
 ### Other useful commands
 

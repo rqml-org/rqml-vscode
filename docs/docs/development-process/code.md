@@ -54,6 +54,8 @@ The agent enters an agentic tool loop where it:
 5. **Updates the spec** — adds trace edges linking requirements to source files
 6. **Updates the plan** — marks the completed stage with `[x]`
 
+![Agent requesting implementation confirmation](/img/screenshots/RQML-agent-implement-confirm.png)
+
 ### Available tools
 
 During `/implement`, the agent has access to:
@@ -71,30 +73,8 @@ During `/implement`, the agent has access to:
 
 The agent implements **one plan stage per invocation**. After completing a stage, it updates the plan and stops. Run `/implement` again to proceed to the next stage, or specify a target to jump to a specific requirement.
 
-## Verification after implementation
+![Agent executing a plan stage](/img/screenshots/RQML-agent-plan-implementation.png)
 
-After implementing code, verify that everything is in sync:
+## Next: verify
 
-```
-/sync status     # Quick trace summary
-/sync scan       # Deep LLM-based sync analysis
-/validate        # XSD schema validation
-/lint            # Semantic quality checks
-```
-
-The `/sync` command identifies:
-
-- Requirements with no code references
-- Code paths with no corresponding requirement
-- Stale tests versus acceptance criteria
-- Changed code hotspots since the last spec update
-
-## The full cycle
-
-After verification, you may find gaps that require returning to an earlier stage:
-
-- Missing requirements? Go back to `/elicit`
-- Design decisions needed? Use `/design new`
-- Plan needs updating? Run `/plan --full`
-
-The process is iterative — the four stages form a cycle, not a one-way pipeline.
+Once implementation is complete, move on to the [Verify stage](./verify.md) to confirm coverage, traceability, and spec-code consistency.

@@ -43,7 +43,7 @@ export function registerAgentCommands(context: vscode.ExtensionContext): void {
       // Step 3: Enter model (optional)
       const defaultModels: Record<LlmEndpoint['provider'], string> = {
         'openai': 'gpt-4o',
-        'anthropic': 'claude-sonnet-4-5-20250929',
+        'anthropic': 'claude-sonnet-4-6',
         'azure-openai': 'gpt-4o',
         'google': 'gemini-2.0-flash',
       };

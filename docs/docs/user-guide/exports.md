@@ -6,6 +6,8 @@ sidebar_position: 5
 
 The RQML extension can generate professional reports and documents from your specification using LLM-driven content generation. Access the export wizard from the export icon in the Overview toolbar, or right-click the "RQML Spec" root node and select "Export Spec...".
 
+![Export menu](/img/screenshots/RQML-export-menu.png)
+
 ## Available reports
 
 ### Document reports
@@ -59,3 +61,5 @@ The agent uses the LLM to transform your structured RQML data into human-readabl
 The export system reads your RQML spec, selects the relevant sections, and sends them to the configured LLM with a report-type-specific prompt. The LLM generates the content, which is then formatted into the selected output format and saved to your chosen location.
 
 After export, you're offered the option to open the generated file directly.
+
+![Export successful](/img/screenshots/RQML-export-successful.png)

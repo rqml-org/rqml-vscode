@@ -50,32 +50,20 @@ const showcaseItems: ShowcaseItem[] = [
         single VS Code window.
       </>
     ),
-    image: 'img/screenshots/RQML-extension-UI-annotated.png',
-    alt: 'Annotated overview of the RQML extension UI showing sidebar, document view, source editor, and agent panel',
+    image: 'img/screenshots/RQML-UI-overview.png',
+    alt: 'Overview of the RQML extension UI showing sidebar, document view, source editor, and agent panel',
   },
   {
-    title: 'Structured Spec Browsing',
+    title: 'Requirements Matrix',
     description: (
       <>
-        The sidebar tree view organizes your specification into sections —
-        requirements, goals, scenarios, catalogs, and more. Select any item to
-        see its details and navigate directly to the source definition.
+        The requirements matrix gives you a birds-eye view of status, priority,
+        and coverage across your entire specification — quickly spot gaps,
+        untested requirements, and areas that need attention.
       </>
     ),
-    image: 'img/screenshots/RQML-overview-and-language-mode.png',
-    alt: 'Sidebar tree view with RQML source code and syntax highlighting',
-  },
-  {
-    title: 'Document and Matrix Views',
-    description: (
-      <>
-        Render your spec as a browsable document with metadata, catalogs, and
-        requirement statements. The requirements matrix gives you a birds-eye
-        view of status, priority, and coverage across your entire specification.
-      </>
-    ),
-    image: 'img/screenshots/RQML-doc-and-matrix-views.png',
-    alt: 'Side-by-side document view and requirements matrix',
+    image: 'img/screenshots/RQML-matrix.png',
+    alt: 'Requirements matrix view',
   },
   {
     title: 'Visual Trace Graph',
@@ -86,21 +74,32 @@ const showcaseItems: ShowcaseItem[] = [
         coverage at a glance.
       </>
     ),
-    image: 'img/screenshots/RQML-traceview-screenshot.png',
+    image: 'img/screenshots/RQML-trace-map.png',
     alt: 'Trace graph visualization showing requirement dependencies and relationships',
   },
   {
-    title: 'AI-Powered Agent',
+    title: 'Architectural Decisions',
     description: (
       <>
-        The built-in RQML agent helps you author, analyze, and refine your
-        requirements. Ask questions about your spec, request quality assessments,
-        or let the agent plan implementation steps — with support for multiple
-        LLM providers.
+        The agent guides you through recording architectural decisions as ADRs,
+        classifying each choice and tracing it back to requirements. Your design
+        rationale lives alongside the spec, not in scattered documents.
       </>
     ),
-    image: 'img/screenshots/RQML-agent-screenshot.png',
-    alt: 'RQML Agent panel showing spec status and slash commands',
+    image: 'img/screenshots/RQML-agent-ADRs.png',
+    alt: 'RQML Agent creating an architecture decision record',
+  },
+  {
+    title: 'AI-Powered Implementation',
+    description: (
+      <>
+        The built-in agent plans, proposes, and implements code from your spec —
+        with approval gates for every file change. Support for multiple LLM
+        providers including Anthropic, OpenAI, Azure, and Google.
+      </>
+    ),
+    image: 'img/screenshots/RQML-agent-plan-implementation.png',
+    alt: 'RQML Agent panel showing plan execution and implementation',
   },
 ];
 
