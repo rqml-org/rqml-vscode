@@ -1,19 +1,48 @@
 {
   "name": "rqml-vscode",
-  "displayName": "rqml-vscode",
-  "description": "RQML for VSCode",
-  "version": "0.0.1",
-  "publisher": "Stakkar",
+  "displayName": "RQML for VS Code",
+  "description": "Spec-first development for the LLM era. Write, browse, trace, and implement requirements alongside your code with an integrated AI agent.",
+  "version": "0.1.0",
+  "publisher": "rqml-dev",
+  "license": "MIT",
+  "icon": "resources/RQML_logo_transparent.png",
+  "homepage": "https://rqml.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/stakkar/rqml-vscode"
+    "url": "https://github.com/rqml-org/rqml-vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/rqml-org/rqml-vscode/issues"
   },
   "engines": {
     "vscode": "^1.108.1"
   },
   "categories": [
+    "AI",
+    "Programming Languages",
+    "Linters",
+    "Visualization",
     "Other"
   ],
+  "keywords": [
+    "rqml",
+    "requirements",
+    "specification",
+    "spec-first",
+    "llm",
+    "ai agent",
+    "coding agent",
+    "claude",
+    "openai",
+    "traceability",
+    "adr",
+    "architecture decision record",
+    "requirements engineering"
+  ],
+  "galleryBanner": {
+    "color": "#8568ab",
+    "theme": "dark"
+  },
   "activationEvents": [
     "onView:rqmlTree",
     "onView:rqmlDetails",
