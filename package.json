@@ -9,5 +9,12 @@
     "build:docs": "cd docs && npm run build",
     "start:docs": "cd docs && npm start",
     "package": "cd extension && npx @vscode/vsce package"
+  },
+  "dependencies": {
+    "@ai-sdk/deepseek": "^2.0.29",
+    "@ai-sdk/groq": "^3.0.35",
+    "@ai-sdk/mistral": "^3.0.30",
+    "@ai-sdk/perplexity": "^3.0.29",
+    "@ai-sdk/xai": "^3.0.83"
   }
 }

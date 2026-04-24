@@ -2,6 +2,7 @@
 // Features: keyboard navigation (Tab cycles, Enter selects, arrow keys)
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ToolApprovalInfo } from './useAgentMessages';
+import { DiffView } from './DiffView';
 
 interface ToolApprovalCardProps {
   approval: ToolApprovalInfo;
@@ -84,7 +85,20 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
         )}
       </div>
 
-      {approval.preview && (
+      {(approval.diffRows && approval.diffRows.length > 0) ? (
+        <div className="tool-approval-preview-section">
+          <button
+            className="tool-approval-toggle"
+            onClick={() => setExpanded(!expanded)}
+            tabIndex={-1}
+          >
+            {expanded ? 'Hide diff' : `Show diff${approval.isNewFile ? ' (new file)' : ''}`}
+          </button>
+          {expanded && (
+            <DiffView rows={approval.diffRows} allInsert={approval.isNewFile} />
+          )}
+        </div>
+      ) : approval.preview ? (
         <div className="tool-approval-preview-section">
           <button
             className="tool-approval-toggle"
@@ -97,7 +111,7 @@ export const ToolApprovalCard: React.FC<ToolApprovalCardProps> = ({
             <pre className="tool-approval-preview">{approval.preview}</pre>
           )}
         </div>
-      )}
+      ) : null}
 
       {approval.status === 'pending' && (
         <div className="tool-approval-actions">

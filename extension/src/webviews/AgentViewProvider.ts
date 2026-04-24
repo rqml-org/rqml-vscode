@@ -290,22 +290,21 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
 
   /**
    * Send available models and current selection to the webview.
+   * "Available" = models from providers that have an API key (stored or env).
    */
   private async sendModelList(): Promise<void> {
     const catalogService = getModelCatalogService();
     const configService = getConfigurationService();
-    const endpoint = configService.getActiveEndpoint();
 
-    const catalog = await catalogService.getAvailableCatalog();
+    const catalog = await catalogService.getAvailableModels();
     const models = catalog.map(e => ({
       modelId: e.modelId,
       displayName: e.displayName,
       provider: e.provider,
     }));
 
-    const selectedModel = endpoint
-      ? catalogService.getSelectedModelId(endpoint)
-      : undefined;
+    const active = configService.getActiveModel();
+    const selectedModel = active?.modelId;
 
     this.postToWebview({
       type: 'modelList',
@@ -315,20 +314,20 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
 
   /**
    * Handle model selection from the webview dropdown.
+   * Sets the globally active model; implicitly switches provider.
    */
   private async handleSelectModel(modelId: string): Promise<void> {
     const catalogService = getModelCatalogService();
     const configService = getConfigurationService();
-    const endpoint = configService.getActiveEndpoint();
-    if (!endpoint) return;
 
     const entry = catalogService.findModel(modelId);
     if (!entry) return;
 
-    await catalogService.selectModelEntry(entry, endpoint);
-    // Refresh endpoint status so the UI updates
+    await configService.setActiveModel({
+      providerId: entry.provider,
+      modelId: entry.modelId,
+    });
     await getAgentService().sendEndpointStatus();
-    // Refresh model list (endpoint may have changed)
     await this.sendModelList();
   }
 

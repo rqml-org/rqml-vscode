@@ -4,6 +4,50 @@ All notable changes to the RQML for VS Code extension are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Per VS Code marketplace convention, odd MINOR versions (`0.1.x`) are pre-release and even MINOR versions (`0.2.x`, `0.4.x`, ...) are stable.
 
+## [0.1.4] — 2026-04-24
+
+### Added
+- **Expanded provider catalog** — adds **xAI (Grok)**, **Mistral**, **Groq**, **DeepSeek**, and **Perplexity**, bringing the total to 9 built-in LLM providers with 40+ models.
+- **Automatic environment-variable detection** — keys in `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`/`GOOGLE_GENERATIVE_AI_API_KEY`/`GEMINI_API_KEY`, `AZURE_API_KEY` + `AZURE_RESOURCE_NAME`, `XAI_API_KEY`, `MISTRAL_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, and `PERPLEXITY_API_KEY` are picked up automatically at startup. No configuration step required.
+- `/provider new` and `/provider remove [<id>]` slash commands (add/remove providers directly from the agent prompt).
+
+### Changed
+- **Singleton-per-provider architecture.** Providers are now singletons — one key per provider. The old "multi-endpoint" concept (named endpoints, multiple keys per provider) is gone.
+- `RQML: Add LLM Endpoint` is now `RQML: Add LLM Provider`. Setup is a two-step flow: pick a provider → provide an API key (or accept the env var if one is present).
+- `RQML: Remove LLM Endpoint` is now `RQML: Remove LLM Provider`.
+- `RQML: Select Active LLM Endpoint` is removed — the active model (a single `{provider, modelId}` pair) replaces the concept of "active endpoint". Switching models across providers automatically switches the active provider.
+- Model dropdown in the agent input box now shows every model from every configured provider, grouped by provider.
+- User-level customisation of the catalog (custom models, overrides, hidden entries) is no longer supported. The curated catalog is the single source of truth.
+- `/providers` output now reports each provider's key source (stored / env var / not configured).
+- `/keys` output distinguishes stored keys (masked) from env-var-sourced keys (named).
+
+### Migration
+- On first activation, any stored endpoint keys from the pre-0.2 scheme are **copied** to the new per-provider slot. If an active endpoint had a model selected, that model becomes the active model. A one-time notification reports how many keys were migrated. Old settings and endpoint-scoped secrets are then cleaned up.
+
+### Spec changes
+- Added REQ-CFG-013 (singleton-per-provider architecture) and REQ-CFG-014 (environment variable auto-detection) to PKG-CONFIG.
+- Deprecated REQ-CFG-008, REQ-CFG-010, REQ-CFG-011, REQ-CFG-012, and REQ-MDL-002 (superseded by REQ-CFG-013).
+- Added trace edges TR-134 through TR-140.
+
+## [0.1.3] — 2026-04-20
+
+### Added
+- **Side-by-side diff view for proposed changes.** When the agent proposes a spec change or a file write, the approval UI now renders a structured diff with old content on the left (deletions highlighted red) and new content on the right (additions highlighted green). Changed lines are aligned row-by-row for easier scanning.
+- New files in `writeFile` tool approvals render as a single green column (clearly indicating all lines are new).
+
+### Changed
+- `ToolApprovalCard` now shows a "Show diff" toggle (replacing "Show preview") when a structured diff is available. The plain-text preview is still used as a fallback.
+- Spec change proposals are computed against the current spec content at extraction time, so the visual diff reflects ground truth rather than the LLM's descriptive `DIFF:` line.
+
+## [0.1.1] — 2026-04-20
+
+### Fixed
+- Marketplace listing image URLs are now resolved correctly. The extension is published from the `extension/` subdirectory of the repository, so relative image paths needed an explicit base URL.
+
+### Changed
+- Added `repository.directory` field to `package.json` so tooling correctly identifies the package as a subdirectory of the repository.
+- Added npm scripts (`package`, `package:pre`, `publish`, `publish:pre`) that pass `--baseImagesUrl` and `--baseContentUrl` to `vsce` so published listings resolve relative paths against the correct subdirectory.
+
 ## [0.1.0] — 2026-04-19
 
 **Initial pre-release.** RQML for VS Code brings spec-first development into your editor — a durable requirements specification alongside your code, with an integrated AI agent that guides you through the Spec → Design → Plan → Code → Verify workflow.
@@ -106,4 +150,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+[0.1.4]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.4
+[0.1.3]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.3
+[0.1.1]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.1
 [0.1.0]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.0

@@ -582,8 +582,9 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-008" type="FR" title="LLM endpoint list view" status="approved" priority="must">
+      <req id="REQ-CFG-008" type="FR" title="LLM endpoint list view" status="deprecated" priority="must">
         <statement>The settings screen SHALL display a list of all configured LLM endpoints, showing the provider name and a masked representation of the API key for each entry.</statement>
+        <notes>Deprecated in 0.1.x by REQ-CFG-013. Providers are now singletons (one per provider), so there is no endpoint list to display.</notes>
         <acceptance>
           <criterion id="AC-CFG-008-01">
             <then>The settings screen shows a list of configured LLM endpoints with provider names and masked API keys.</then>
@@ -591,16 +592,16 @@
         </acceptance>
       </req>
       <req id="REQ-CFG-009" type="SR" title="Hidden API keys in list" status="approved" priority="must">
-        <statement>API keys displayed in the LLM endpoint list SHALL be masked (e.g., showing only the last four characters) and SHALL NOT be fully visible to the user.</statement>
+        <statement>API keys displayed in any list or status output SHALL be masked (e.g., showing only the last four characters) and SHALL NOT be fully visible to the user.</statement>
         <acceptance>
           <criterion id="AC-CFG-009-01">
-            <then>Each API key in the endpoint list is displayed in a masked format such as "••••••••abcd".</then>
+            <then>Each stored API key is displayed in a masked format such as "••••••••abcd" wherever it appears.</then>
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-010" type="FR" title="Active endpoint selection" status="approved" priority="must">
+      <req id="REQ-CFG-010" type="FR" title="Active endpoint selection" status="deprecated" priority="must">
         <statement>Each configured LLM endpoint in the list SHALL have a checkbox that allows the user to designate it as the active endpoint used by the agent.</statement>
-        <notes>Only one endpoint may be active at a time. Selecting one deselects any previously active endpoint.</notes>
+        <notes>Deprecated in 0.1.x by REQ-CFG-013. The concept of "active endpoint" has been replaced by a single globally active model (provider + model ID).</notes>
         <acceptance>
           <criterion id="AC-CFG-010-01">
             <when>The user checks the checkbox next to an endpoint.</when>
@@ -608,8 +609,9 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-011" type="FR" title="Remove endpoint" status="approved" priority="must">
+      <req id="REQ-CFG-011" type="FR" title="Remove endpoint" status="deprecated" priority="must">
         <statement>The user SHALL be able to remove a configured LLM endpoint from the list, which also deletes the associated API key from secure storage.</statement>
+        <notes>Deprecated in 0.1.x by REQ-CFG-013 (see "RQML: Remove LLM Provider"). Kept for traceability.</notes>
         <acceptance>
           <criterion id="AC-CFG-011-01">
             <when>The user removes an endpoint from the list.</when>
@@ -617,8 +619,9 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-CFG-012" type="FR" title="Add LLM endpoint dialog" status="approved" priority="must">
+      <req id="REQ-CFG-012" type="FR" title="Add LLM endpoint dialog" status="deprecated" priority="must">
         <statement>The settings screen SHALL include an "Add LLM endpoint" button that opens a dialog for configuring a new LLM endpoint, including provider selection and API key entry.</statement>
+        <notes>Deprecated in 0.1.x by REQ-CFG-013 (see "RQML: Add LLM Provider"). Kept for traceability.</notes>
         <acceptance>
           <criterion id="AC-CFG-012-01">
             <when>The user clicks the "Add LLM endpoint" button.</when>
@@ -627,6 +630,47 @@
           <criterion id="AC-CFG-012-02">
             <when>The user completes the dialog and confirms.</when>
             <then>The new endpoint appears in the endpoint list and the API key is stored securely.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-013" type="FR" title="Singleton-per-provider architecture" status="draft" priority="must">
+        <statement>LLM providers SHALL be singletons. At most one API key and one configuration SHALL be stored per provider. All providers and models SHALL come from a curated catalog defined in the extension source; the user SHALL NOT be able to register custom providers, custom endpoints, or custom models.</statement>
+        <notes>Supersedes REQ-CFG-008, REQ-CFG-010, REQ-CFG-011, and REQ-CFG-012. The catalog lives in `extension/src/models/catalog.ts` as the arrays `PROVIDERS` and `DEFAULT_CATALOG`. The extension ships with 9 providers at minimum (Anthropic, OpenAI, Google, Azure OpenAI, xAI, Mistral, Groq, DeepSeek, Perplexity).</notes>
+        <acceptance>
+          <criterion id="AC-CFG-013-01">
+            <then>The provider and model catalogs are read-only from the user's perspective — no UI or setting allows adding, removing, or overriding entries.</then>
+          </criterion>
+          <criterion id="AC-CFG-013-02">
+            <when>The user runs "RQML: Add LLM Provider".</when>
+            <then>A QuickPick lists all catalog providers annotated with their current key status; the user picks one and, if no env var is available, supplies an API key.</then>
+          </criterion>
+          <criterion id="AC-CFG-013-03">
+            <when>A provider has an available key (stored or env var).</when>
+            <then>All models in the catalog belonging to that provider are offered in the model dropdown and in /models output.</then>
+          </criterion>
+          <criterion id="AC-CFG-013-04">
+            <then>At most one model is active at a time, expressed as a single (providerId, modelId) pair. Switching models may implicitly switch providers.</then>
+          </criterion>
+          <criterion id="AC-CFG-013-05">
+            <when>The user runs "RQML: Remove LLM Provider" for a provider whose key is stored in SecretStorage.</when>
+            <then>The stored key is deleted; if the active model belonged to this provider, the active model is cleared.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-CFG-014" type="FR" title="Environment variable auto-detection" status="draft" priority="must">
+        <statement>For each provider in the catalog, the extension SHALL publish one or more well-known environment variables (e.g. OPENAI_API_KEY, ANTHROPIC_API_KEY) and SHALL automatically pick up a key from the first matching env var when no stored key exists. Providers whose env var is set SHALL appear as configured without requiring the user to run "Add LLM Provider".</statement>
+        <notes>Key resolution order is: stored SecretStorage key first, then env vars in catalog order. The stored key always takes precedence; removing a stored key can reveal the env-var-sourced key underneath.</notes>
+        <acceptance>
+          <criterion id="AC-CFG-014-01">
+            <when>A provider's env var (e.g. OPENAI_API_KEY) is set in the environment and no stored key exists.</when>
+            <then>The provider appears as configured and its models are available without any further user action.</then>
+          </criterion>
+          <criterion id="AC-CFG-014-02">
+            <when>A stored key exists and an env var is also set.</when>
+            <then>The stored key is used for provider calls and the env var is ignored until the stored key is removed.</then>
+          </criterion>
+          <criterion id="AC-CFG-014-03">
+            <then>The /providers and /keys commands distinguish key sources (stored vs env var) in their output.</then>
           </criterion>
         </acceptance>
       </req>
@@ -1550,9 +1594,9 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-MDL-002" type="FR" title="User model customisations" status="approved" priority="must">
+      <req id="REQ-MDL-002" type="FR" title="User model customisations" status="deprecated" priority="must">
         <statement>Users SHALL be able to customise the model catalog by: (a) adding custom model entries not present in the default catalog, (b) hiding or removing default catalog entries so they do not appear in the model picker, and (c) overriding metadata fields (display name, capabilities, context window) of default entries. User customisations SHALL be persisted in VS Code settings and merged with the default catalog at runtime.</statement>
-        <notes>Custom models require at minimum a modelId and provider. The merge strategy is: user additions are appended, user hides remove entries from the effective catalog, and user overrides replace individual fields on default entries.</notes>
+        <notes>Deprecated in 0.1.x by REQ-CFG-013. The curated catalog is now the single source of truth for models; user customisation of the catalog is not supported. May be reconsidered in a future release as an opt-in advanced feature.</notes>
         <acceptance>
           <criterion id="AC-MDL-002-01">
             <when>The user adds a custom model entry via settings.</when>
@@ -2160,6 +2204,28 @@
     </traceEdge>
     <traceEdge id="TR-133" from="REQ-CMD-018" to="REQ-CMD-016" type="refines">
       <notes>ADR lifecycle management (REQ-CMD-018) refines the design command (REQ-CMD-016) with status transitions and history preservation rules.</notes>
+    </traceEdge>
+    <!-- Provider singleton architecture (0.1.x redesign) -->
+    <traceEdge id="TR-134" from="REQ-CFG-013" to="REQ-CFG-008" type="supersedes">
+      <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes the endpoint list view (REQ-CFG-008) — with one singleton per provider there is no multi-instance list to display.</notes>
+    </traceEdge>
+    <traceEdge id="TR-135" from="REQ-CFG-013" to="REQ-CFG-010" type="supersedes">
+      <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes active endpoint selection (REQ-CFG-010) by replacing "active endpoint" with a single globally active model.</notes>
+    </traceEdge>
+    <traceEdge id="TR-136" from="REQ-CFG-013" to="REQ-CFG-011" type="supersedes">
+      <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes the remove-endpoint requirement (REQ-CFG-011) with "Remove LLM Provider" semantics.</notes>
+    </traceEdge>
+    <traceEdge id="TR-137" from="REQ-CFG-013" to="REQ-CFG-012" type="supersedes">
+      <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes the add-endpoint requirement (REQ-CFG-012) with "Add LLM Provider" semantics.</notes>
+    </traceEdge>
+    <traceEdge id="TR-138" from="REQ-CFG-013" to="REQ-MDL-002" type="supersedes">
+      <notes>Singleton-per-provider architecture (REQ-CFG-013) removes user customisation of the model catalog — the curated catalog is authoritative.</notes>
+    </traceEdge>
+    <traceEdge id="TR-139" from="REQ-CFG-014" to="REQ-CFG-013" type="refines">
+      <notes>Environment variable auto-detection (REQ-CFG-014) refines the singleton-per-provider architecture (REQ-CFG-013) with a key-resolution order (stored → env var).</notes>
+    </traceEdge>
+    <traceEdge id="TR-140" from="REQ-CFG-013" to="REQ-AGT-003" type="dependsOn">
+      <notes>The provider singleton architecture (REQ-CFG-013) depends on Vercel AI SDK integration (REQ-AGT-003) for model instantiation via the provider-specific SDK packages.</notes>
     </traceEdge>
   </trace>
 </rqml>

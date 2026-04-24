@@ -30,9 +30,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initialize services
   const specService = getSpecService();
 
-  // REQ-CFG-001 through REQ-CFG-007: Initialize configuration service
+  // REQ-CFG-001 through REQ-CFG-007: Initialize configuration service.
+  // `initialize` is async because it may run a one-time migration from the
+  // pre-0.2 multi-endpoint scheme to the singleton-per-provider scheme.
   const configService = getConfigurationService();
-  configService.initialize(context);
+  await configService.initialize(context);
   context.subscriptions.push(configService);
 
   // REQ-UI-013A, REQ-UI-013B: Initialize diagnostics service for real-time validation

@@ -1,41 +1,60 @@
 // REQ-CFG-001: Settings UI
 // REQ-CFG-002: API key storage
 // REQ-CFG-003: Secure API key storage via SecretStorage
-// REQ-CFG-004: LLM provider selection
-// REQ-CFG-005: VS Code theme integration (no custom palettes)
-// REQ-CFG-007: Settings persistence
-// REQ-CFG-008 through REQ-CFG-012: LLM endpoint management
+// REQ-CFG-013: Provider singleton architecture (one key per provider)
+// REQ-CFG-014: Environment variable auto-detection
 // REQ-AGT-013, REQ-AGT-014: Strictness levels
 
 import * as vscode from 'vscode';
 import {
-  LlmProvider,
-  SecretKey,
-  LlmEndpoint,
+  ProviderId,
+  ActiveModel,
   StrictnessLevel,
-  CONFIGURATION_SECTION
+  CONFIGURATION_SECTION,
+  type LlmEndpoint,
 } from '../types/configuration';
+import { getProvider, PROVIDERS } from '../models/catalog';
+
+/** SecretStorage key prefix for the primary API key of a provider. */
+const PROVIDER_KEY_PREFIX = 'provider-key-';
+/** SecretStorage key prefix for the endpoint URL (used by Azure OpenAI). */
+const PROVIDER_ENDPOINT_PREFIX = 'provider-endpoint-';
+
+/** Source of a resolved API key. */
+export type KeySource = 'env' | 'stored' | 'none';
 
 /**
- * ConfigurationService - Manages extension settings and secrets.
- * Follows the singleton pattern established in specService.ts and diagnosticsService.ts.
+ * ConfigurationService — Manages extension settings and secrets.
+ *
+ * Design (from REQ-CFG-013):
+ * - Providers are singletons — at most one API key per provider.
+ * - Keys are resolved from SecretStorage first, falling back to env vars.
+ * - There is one globally active model (a `{providerId, modelId}` pair).
  */
 export class ConfigurationService {
   private _onDidChangeConfiguration = new vscode.EventEmitter<vscode.ConfigurationChangeEvent>();
   readonly onDidChangeConfiguration = this._onDidChangeConfiguration.event;
 
-  private _onDidChangeSecrets = new vscode.EventEmitter<SecretKey>();
-  readonly onDidChangeSecrets = this._onDidChangeSecrets.event;
+  /**
+   * REQ-CFG-013: Fired whenever provider configuration changes — a key is
+   * added/removed or the active model changes.
+   */
+  private _onDidChangeProviders = new vscode.EventEmitter<void>();
+  readonly onDidChangeProviders = this._onDidChangeProviders.event;
 
   private secretStorage: vscode.SecretStorage | undefined;
   private disposables: vscode.Disposable[] = [];
 
   constructor() {
-    // Listen for workspace configuration changes
     this.disposables.push(
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (event.affectsConfiguration(CONFIGURATION_SECTION)) {
           this._onDidChangeConfiguration.fire(event);
+          if (
+            event.affectsConfiguration(`${CONFIGURATION_SECTION}.activeModel`)
+          ) {
+            this._onDidChangeProviders.fire();
+          }
         }
       })
     );
@@ -43,211 +62,163 @@ export class ConfigurationService {
 
   /**
    * Initialize with extension context (required for SecretStorage).
-   * Must be called during extension activation.
+   * Also runs a one-time migration from the legacy multi-endpoint scheme.
    */
-  initialize(context: vscode.ExtensionContext): void {
+  async initialize(context: vscode.ExtensionContext): Promise<void> {
     this.secretStorage = context.secrets;
+    await this.migrateFromLegacyEndpoints();
   }
 
-  // ========== Regular Configuration (workspace.getConfiguration) ==========
+  // ── Per-provider API keys (REQ-CFG-013) ──────────────────────────────
 
   /**
-   * REQ-CFG-004: Get currently selected LLM provider
+   * Get the resolved API key for a provider. Checks SecretStorage first, then
+   * falls back to the provider's environment variables (in catalog order).
+   * Returns undefined if no key is available anywhere.
    */
-  getLlmProvider(): LlmProvider {
-    return this.getConfig<LlmProvider>('llmProvider', 'none');
-  }
-
-  /**
-   * REQ-CFG-004: Set LLM provider
-   */
-  async setLlmProvider(provider: LlmProvider): Promise<void> {
-    await this.setConfig('llmProvider', provider);
-  }
-
-  // ========== Secrets (SecretStorage API) ==========
-
-  /**
-   * REQ-CFG-002, REQ-CFG-003: Get API key from secure storage
-   */
-  async getApiKey(key: SecretKey): Promise<string | undefined> {
-    if (!this.secretStorage) {
-      throw new Error('ConfigurationService not initialized. Call initialize() first.');
-    }
-    return this.secretStorage.get(key);
-  }
-
-  /**
-   * REQ-CFG-002, REQ-CFG-003: Store API key in secure storage
-   */
-  async setApiKey(key: SecretKey, value: string): Promise<void> {
-    if (!this.secretStorage) {
-      throw new Error('ConfigurationService not initialized. Call initialize() first.');
-    }
-    await this.secretStorage.store(key, value);
-    this._onDidChangeSecrets.fire(key);
-  }
-
-  /**
-   * REQ-CFG-003: Delete API key from secure storage
-   */
-  async deleteApiKey(key: SecretKey): Promise<void> {
-    if (!this.secretStorage) {
-      throw new Error('ConfigurationService not initialized. Call initialize() first.');
-    }
-    await this.secretStorage.delete(key);
-    this._onDidChangeSecrets.fire(key);
-  }
-
-  /**
-   * Check if an API key exists (without exposing the value)
-   */
-  async hasApiKey(key: SecretKey): Promise<boolean> {
-    const value = await this.getApiKey(key);
-    return value !== undefined && value.length > 0;
-  }
-
-  /**
-   * Get the appropriate API key for the currently selected provider
-   */
-  async getActiveProviderApiKey(): Promise<string | undefined> {
-    const provider = this.getLlmProvider();
-    switch (provider) {
-      case 'openai':
-        return this.getApiKey('openai-api-key');
-      case 'anthropic':
-        return this.getApiKey('anthropic-api-key');
-      case 'azure-openai':
-        return this.getApiKey('azure-openai-api-key');
-      case 'ollama':
-        return undefined; // Ollama typically doesn't need API key
-      default:
-        return undefined;
-    }
-  }
-
-  /**
-   * Get the secret key name for a given provider
-   */
-  getSecretKeyForProvider(provider: LlmProvider): SecretKey | undefined {
-    switch (provider) {
-      case 'openai':
-        return 'openai-api-key';
-      case 'anthropic':
-        return 'anthropic-api-key';
-      case 'azure-openai':
-        return 'azure-openai-api-key';
-      default:
-        return undefined;
-    }
-  }
-
-  // ========== LLM Endpoints (REQ-CFG-008 through REQ-CFG-012) ==========
-
-  private _onDidChangeEndpoints = new vscode.EventEmitter<void>();
-  readonly onDidChangeEndpoints = this._onDidChangeEndpoints.event;
-
-  /**
-   * REQ-CFG-008: Get all configured LLM endpoints
-   */
-  getEndpoints(): LlmEndpoint[] {
-    return this.getConfig<LlmEndpoint[]>('llmEndpoints', []);
-  }
-
-  /**
-   * REQ-CFG-010: Get the active endpoint ID
-   */
-  getActiveEndpointId(): string {
-    return this.getConfig<string>('activeEndpointId', '');
-  }
-
-  /**
-   * REQ-CFG-010: Get the active endpoint configuration
-   */
-  getActiveEndpoint(): LlmEndpoint | undefined {
-    const id = this.getActiveEndpointId();
-    if (!id) return undefined;
-    return this.getEndpoints().find(e => e.id === id);
-  }
-
-  /**
-   * REQ-CFG-010: Set the active endpoint
-   */
-  async setActiveEndpointId(id: string): Promise<void> {
-    await this.setConfig('activeEndpointId', id);
-    this._onDidChangeEndpoints.fire();
-  }
-
-  /**
-   * REQ-CFG-012: Add a new LLM endpoint
-   */
-  async addEndpoint(endpoint: LlmEndpoint, apiKey: string): Promise<void> {
+  async getProviderApiKey(providerId: ProviderId): Promise<string | undefined> {
     if (!this.secretStorage) {
       throw new Error('ConfigurationService not initialized.');
     }
-    const endpoints = this.getEndpoints();
-    endpoints.push(endpoint);
-    await this.setConfig('llmEndpoints', endpoints);
-    // Store API key securely, keyed by endpoint ID
-    await this.secretStorage.store(`endpoint-key-${endpoint.id}`, apiKey);
-    this._onDidChangeEndpoints.fire();
+    const stored = await this.secretStorage.get(PROVIDER_KEY_PREFIX + providerId);
+    if (stored) return stored;
+
+    const provider = getProvider(providerId);
+    if (!provider) return undefined;
+    for (const envVar of provider.envVars) {
+      const v = process.env[envVar];
+      if (v && v.length > 0) return v;
+    }
+    return undefined;
   }
 
   /**
-   * REQ-CFG-011: Remove an LLM endpoint
+   * Where is this provider's key coming from? `stored` > `env` > `none`.
    */
-  async removeEndpoint(endpointId: string): Promise<void> {
+  async getProviderKeySource(providerId: ProviderId): Promise<KeySource> {
+    if (!this.secretStorage) return 'none';
+    const stored = await this.secretStorage.get(PROVIDER_KEY_PREFIX + providerId);
+    if (stored) return 'stored';
+    const provider = getProvider(providerId);
+    if (!provider) return 'none';
+    for (const envVar of provider.envVars) {
+      if (process.env[envVar]) return 'env';
+    }
+    return 'none';
+  }
+
+  /**
+   * Which env var is currently supplying the key (if any)?
+   */
+  getProviderEnvVarInUse(providerId: ProviderId): string | undefined {
+    const provider = getProvider(providerId);
+    if (!provider) return undefined;
+    for (const envVar of provider.envVars) {
+      if (process.env[envVar]) return envVar;
+    }
+    return undefined;
+  }
+
+  /**
+   * Store an API key for a provider. Takes precedence over any env var.
+   */
+  async setProviderApiKey(providerId: ProviderId, apiKey: string): Promise<void> {
     if (!this.secretStorage) {
       throw new Error('ConfigurationService not initialized.');
     }
-    const endpoints = this.getEndpoints().filter(e => e.id !== endpointId);
-    await this.setConfig('llmEndpoints', endpoints);
-    // Delete associated API key
-    await this.secretStorage.delete(`endpoint-key-${endpointId}`);
-    // If the removed endpoint was active, clear the active selection
-    if (this.getActiveEndpointId() === endpointId) {
-      await this.setConfig('activeEndpointId', '');
-    }
-    this._onDidChangeEndpoints.fire();
+    await this.secretStorage.store(PROVIDER_KEY_PREFIX + providerId, apiKey);
+    this._onDidChangeProviders.fire();
   }
 
   /**
-   * REQ-CFG-009: Get API key for a specific endpoint (full value, for LLM calls)
+   * Remove a provider's stored API key. After removal the provider may still
+   * be available via an env var.
    */
-  async getEndpointApiKey(endpointId: string): Promise<string | undefined> {
-    if (!this.secretStorage) {
-      throw new Error('ConfigurationService not initialized.');
+  async removeProviderApiKey(providerId: ProviderId): Promise<void> {
+    if (!this.secretStorage) return;
+    await this.secretStorage.delete(PROVIDER_KEY_PREFIX + providerId);
+    await this.secretStorage.delete(PROVIDER_ENDPOINT_PREFIX + providerId);
+    this._onDidChangeProviders.fire();
+  }
+
+  /** Get the endpoint URL for providers that require one (e.g. Azure). */
+  async getProviderEndpointUrl(providerId: ProviderId): Promise<string | undefined> {
+    if (!this.secretStorage) return undefined;
+    const stored = await this.secretStorage.get(PROVIDER_ENDPOINT_PREFIX + providerId);
+    if (stored) return stored;
+    const provider = getProvider(providerId);
+    if (provider?.endpointUrlEnvVar) {
+      return process.env[provider.endpointUrlEnvVar];
     }
-    return this.secretStorage.get(`endpoint-key-${endpointId}`);
+    return undefined;
+  }
+
+  async setProviderEndpointUrl(providerId: ProviderId, url: string): Promise<void> {
+    if (!this.secretStorage) throw new Error('ConfigurationService not initialized.');
+    await this.secretStorage.store(PROVIDER_ENDPOINT_PREFIX + providerId, url);
+    this._onDidChangeProviders.fire();
   }
 
   /**
-   * REQ-CFG-009: Get masked API key for display
+   * Return a masked API key suitable for display, or `(no key)` if none.
    */
-  async getEndpointApiKeyMasked(endpointId: string): Promise<string> {
-    const key = await this.getEndpointApiKey(endpointId);
+  async getProviderApiKeyMasked(providerId: ProviderId): Promise<string> {
+    const key = await this.getProviderApiKey(providerId);
     if (!key) return '(no key)';
     if (key.length <= 4) return '••••';
     return '••••••••' + key.slice(-4);
   }
 
-  // ========== Strictness (REQ-AGT-013, REQ-AGT-014) ==========
-
   /**
-   * REQ-AGT-013: Get configured strictness from settings
+   * REQ-CFG-013: List providers that have a usable key (stored or env var).
    */
+  async getConfiguredProviders(): Promise<ProviderId[]> {
+    const out: ProviderId[] = [];
+    for (const provider of PROVIDERS) {
+      const key = await this.getProviderApiKey(provider.id);
+      if (key) out.push(provider.id);
+    }
+    return out;
+  }
+
+  /** Check whether a specific provider has any key available. */
+  async isProviderConfigured(providerId: ProviderId): Promise<boolean> {
+    const key = await this.getProviderApiKey(providerId);
+    return !!key;
+  }
+
+  // ── Active model (REQ-CFG-013 AC-CFG-013-04) ────────────────────────
+
+  /** Get the active `{providerId, modelId}` pair, if any. */
+  getActiveModel(): ActiveModel | undefined {
+    const stored = this.getConfig<ActiveModel | null>('activeModel', null);
+    if (!stored || !stored.providerId || !stored.modelId) return undefined;
+    return stored;
+  }
+
+  /** Set the active model. */
+  async setActiveModel(model: ActiveModel): Promise<void> {
+    await this.setConfig('activeModel', model);
+    this._onDidChangeProviders.fire();
+  }
+
+  /** Clear the active model (no active selection). */
+  async clearActiveModel(): Promise<void> {
+    await this.setConfig('activeModel', null);
+    this._onDidChangeProviders.fire();
+  }
+
+  // ── Strictness (REQ-AGT-013, REQ-AGT-014) ────────────────────────────
+
   getStrictnessSetting(): StrictnessLevel | '' {
     return this.getConfig<StrictnessLevel | ''>('agentStrictness', '');
   }
 
-  /**
-   * REQ-AGT-013: Set strictness level
-   */
   async setStrictnessSetting(level: StrictnessLevel | ''): Promise<void> {
     await this.setConfig('agentStrictness', level);
   }
 
-  // ========== Helper Methods ==========
+  // ── Helpers ─────────────────────────────────────────────────────────
 
   private getConfig<T>(key: string, defaultValue: T): T {
     const config = vscode.workspace.getConfiguration(CONFIGURATION_SECTION);
@@ -259,10 +230,62 @@ export class ConfigurationService {
     await config.update(key, value, vscode.ConfigurationTarget.Global);
   }
 
+  // ── One-time migration from legacy multi-endpoint model (pre-0.2) ───
+
+  /**
+   * Migrate from the old `rqml.llmEndpoints[]` + `endpoint-key-{id}` scheme
+   * to the new singleton-per-provider model. Runs once; idempotent.
+   */
+  private async migrateFromLegacyEndpoints(): Promise<void> {
+    if (!this.secretStorage) return;
+    const legacy = this.getConfig<LlmEndpoint[]>('llmEndpoints', []);
+    if (!legacy || legacy.length === 0) return;
+
+    const legacyActiveId = this.getConfig<string>('activeEndpointId', '');
+    const legacyActive = legacy.find(e => e.id === legacyActiveId) || legacy[0];
+
+    // For each unique provider in the legacy list, copy its key (first match)
+    // to the new per-provider secret slot if not already set.
+    const seen = new Set<ProviderId>();
+    for (const ep of legacy) {
+      const providerId = ep.provider as ProviderId;
+      if (seen.has(providerId)) continue;
+      seen.add(providerId);
+      const existing = await this.secretStorage.get(PROVIDER_KEY_PREFIX + providerId);
+      if (existing) continue;
+      const oldKey = await this.secretStorage.get(`endpoint-key-${ep.id}`);
+      if (oldKey) {
+        await this.secretStorage.store(PROVIDER_KEY_PREFIX + providerId, oldKey);
+      }
+    }
+
+    // Promote the active endpoint's model to the new activeModel setting
+    if (legacyActive && legacyActive.model) {
+      const current = this.getActiveModel();
+      if (!current) {
+        await this.setActiveModel({
+          providerId: legacyActive.provider as ProviderId,
+          modelId: legacyActive.model,
+        });
+      }
+    }
+
+    // Clean up legacy configs and their secret keys
+    for (const ep of legacy) {
+      await this.secretStorage.delete(`endpoint-key-${ep.id}`);
+    }
+    await this.setConfig('llmEndpoints', []);
+    await this.setConfig('activeEndpointId', '');
+
+    vscode.window.showInformationMessage(
+      `RQML: Migrated ${seen.size} LLM provider key(s) to the new singleton-per-provider configuration.`
+    );
+    this._onDidChangeProviders.fire();
+  }
+
   dispose(): void {
     this._onDidChangeConfiguration.dispose();
-    this._onDidChangeSecrets.dispose();
-    this._onDidChangeEndpoints.dispose();
+    this._onDidChangeProviders.dispose();
     this.disposables.forEach(d => d.dispose());
   }
 }

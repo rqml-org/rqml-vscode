@@ -94,13 +94,12 @@ export function createHelpCommands(registry: CommandRegistry): SlashCommand[] {
 
     async execute(_parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
       const configService = ctx.services.config;
-      const endpoint = configService.getActiveEndpoint();
+      const active = configService.getActiveModel();
       const specState = ctx.services.spec.state;
 
       const lines: string[] = ['**RQML Agent**', ''];
       lines.push(`Spec: ${specState.document ? 'loaded' : 'none'}`);
-      lines.push(`Endpoint: ${endpoint ? `${endpoint.name} (${endpoint.provider})` : 'not configured'}`);
-      lines.push(`Model: ${endpoint?.model || 'default'}`);
+      lines.push(`Active model: ${active ? `\`${active.modelId}\` (${active.providerId})` : 'not selected'}`);
       lines.push(`Strictness: ${configService.getStrictnessSetting() || 'standard'}`);
       ctx.reply(lines.join('\n'));
     },

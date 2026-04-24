@@ -11,8 +11,9 @@ The RQML Agent is an LLM-powered assistant that lives in the bottom panel of VS 
 ## Getting started
 
 1. **Open the agent panel** — Click the RQML icon in the panel area, or use the Activity Bar
-2. **Configure an LLM endpoint** — The agent needs an LLM provider to function. Use `/providers` to check status, or configure one in VS Code settings
-3. **Start working** — Type a message or use a slash command
+2. **Add an LLM provider** — Run `RQML: Add LLM Provider` from the Command Palette, or `/provider new` from the agent prompt. Pick a provider and supply an API key (or use one from the environment — see [Providers and keys](#providers-and-keys) below)
+3. **Pick a model** — Once a provider is configured, its models become available in the model dropdown above the input box. Select one.
+4. **Start working** — Type a message or use a slash command
 
 ## Slash commands
 
@@ -41,10 +42,10 @@ Commands follow terminal-style syntax:
 |---|---|
 | `/help [command]` | List all commands or get help for a specific one |
 | `/status [--full]` | Spec quality summary (or detailed LLM assessment) |
-| `/doctor` | Health check — spec, endpoint, model, strictness |
+| `/doctor` | Health check — spec, active provider, model, strictness |
 | `/design list` | List existing architecture decision records |
 | `/design overview` | Summarize architecture from ADRs |
-| `/providers` | List configured LLM endpoints |
+| `/providers` | List LLM providers and their key status |
 | `/models` | List available models |
 
 For the full command reference, see [Slash Commands](../reference/slash-commands.md).
@@ -129,9 +130,59 @@ The agent uses **model-driven activation**: it sees the skill catalog (names and
 
 Because skills follow the open [Agent Skills standard](https://agentskills.io/), skills you create for the RQML agent also work in other compatible tools (Claude Code, GitHub Copilot, and [40+ others](https://agentskills.io/)). Skills placed in `~/.agents/skills/` or `.agents/skills/` are discoverable by any conforming agent.
 
+## Providers and keys
+
+The agent ships with a curated catalog of LLM providers and their models. You cannot add custom providers or custom model IDs — everything is predefined. To use the agent, add an API key for at least one provider.
+
+### Supported providers
+
+The extension includes models from:
+
+| Provider | Typical env var |
+|---|---|
+| **Anthropic** (Claude) | `ANTHROPIC_API_KEY` |
+| **OpenAI** (GPT) | `OPENAI_API_KEY` |
+| **Google** (Gemini) | `GOOGLE_GENERATIVE_AI_API_KEY` / `GOOGLE_API_KEY` / `GEMINI_API_KEY` |
+| **Azure OpenAI** | `AZURE_API_KEY` + `AZURE_RESOURCE_NAME` |
+| **xAI** (Grok) | `XAI_API_KEY` |
+| **Mistral** | `MISTRAL_API_KEY` |
+| **Groq** | `GROQ_API_KEY` |
+| **DeepSeek** | `DEEPSEEK_API_KEY` |
+| **Perplexity** | `PERPLEXITY_API_KEY` |
+
+### How keys are resolved
+
+For each provider, the agent looks up the API key in this order:
+
+1. **Stored key** — a key you saved via `RQML: Add LLM Provider`, kept in VS Code's Secret Storage
+2. **Environment variable** — if any of the provider's well-known env vars is set when VS Code starts
+
+The stored key always takes precedence. If you want to switch back to an env var, remove the stored key with `RQML: Remove LLM Provider`.
+
+### Singleton providers
+
+Each provider is a singleton — there is one key per provider. You cannot configure multiple OpenAI endpoints or name them. This simplifies setup: pick a provider, give it a key, and all its models immediately become selectable.
+
+### Key commands
+
+| Command | What it does |
+|---|---|
+| `RQML: Add LLM Provider` | Pick a provider, enter an API key |
+| `RQML: Remove LLM Provider` | Delete a stored key |
+| `/provider new` | Same as `RQML: Add LLM Provider` |
+| `/providers` | List every provider with its key source (stored / env / none) |
+| `/keys` | Show per-provider key status (stored / env var / not configured) |
+| `/llm` | Quick status of the active provider and model |
+
 ## Model selection
 
-The input bar includes a model selector dropdown. You can switch between configured LLM models without leaving the agent panel. Use `/models` to see all available models, or `/model use <id>` to switch from the command line.
+Once at least one provider is configured, its models appear in the model dropdown at the top of the agent input box. You can also:
+
+- Run `/model use` to open a searchable picker
+- Run `/model use <id>` (or a partial name) to switch directly
+- Run `/models` to list all available models grouped by provider
+
+The active model is a single globally selected `(provider, model)` pair. Switching models across providers happens automatically when you select a model from a different provider.
 
 ## Strictness levels
 

@@ -1,140 +1,138 @@
 // REQ-CMD-006: Provider and model management commands
+// REQ-CFG-013: Singleton-per-provider architecture
 
 import * as vscode from 'vscode';
 import type { SlashCommand, ParsedCommand, CommandContext } from '../types';
 import { getModelCatalogService } from '../../../services/modelCatalogService';
+import { PROVIDERS, getProvider } from '../../../models/catalog';
+import type { ProviderId } from '../../../types/configuration';
 
 export function createProviderCommands(): SlashCommand[] {
   const providersCommand: SlashCommand = {
     name: 'providers',
     aliases: ['endpoints'],
-    description: 'List configured LLM endpoints',
+    description: 'List LLM providers and their configuration status',
     category: 'provider',
 
     async execute(_parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
       const config = ctx.services.config;
-      const endpoints = config.getEndpoints();
-      const activeId = config.getActiveEndpointId();
-
-      if (endpoints.length === 0) {
-        ctx.reply('No endpoints configured. Use "RQML: Add LLM Endpoint" from the command palette.');
-        return;
+      const lines: string[] = ['**LLM Providers**', ''];
+      for (const p of PROVIDERS) {
+        const source = await config.getProviderKeySource(p.id);
+        const envVar = config.getProviderEnvVarInUse(p.id);
+        let status: string;
+        if (source === 'stored') status = '$(check) stored key';
+        else if (source === 'env' && envVar) status = `$(check) env var \`$${envVar}\``;
+        else status = `not configured · env: ${p.envVars.map(e => `\`$${e}\``).join(', ')}`;
+        lines.push(`- **${p.displayName}** — ${status}`);
       }
-
-      const lines: string[] = ['**Configured Endpoints**', ''];
-      for (const ep of endpoints) {
-        const active = ep.id === activeId ? ' **(active)**' : '';
-        const model = ep.model ? ` — model: ${ep.model}` : '';
-        lines.push(`- \`${ep.name}\` (${ep.provider})${model}${active}`);
-      }
+      lines.push('');
+      lines.push('Use `/provider new` to add a provider, or `/provider remove <id>` to remove one.');
       ctx.reply(lines.join('\n'));
     },
   };
 
   const providerCommand: SlashCommand = {
     name: 'provider',
-    description: 'Switch the active LLM endpoint',
-    usage: '/provider use <endpoint-name>',
+    description: 'Add, remove, or inspect LLM providers',
+    usage: '/provider [new|remove <id>]',
     category: 'provider',
     subcommands: [
-      { name: 'use', description: 'Set the active endpoint by name' },
+      { name: 'new', description: 'Add a new provider (opens the setup flow)' },
+      { name: 'remove', description: 'Remove a stored provider key' },
     ],
 
     async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      if (parsed.subcommand === 'use') {
-        const name = parsed.args.join(' ');
-        if (!name) {
-          ctx.reply('Usage: `/provider use <endpoint-name>`');
+      if (parsed.subcommand === 'new') {
+        await vscode.commands.executeCommand('rqml-vscode.addLlmProvider');
+        return;
+      }
+      if (parsed.subcommand === 'remove') {
+        const id = parsed.args[0];
+        if (id && isValidProviderId(id)) {
+          const source = await ctx.services.config.getProviderKeySource(id);
+          if (source !== 'stored') {
+            ctx.reply(`Provider \`${id}\` has no stored key to remove.`);
+            return;
+          }
+          await ctx.services.config.removeProviderApiKey(id);
+          const active = ctx.services.config.getActiveModel();
+          if (active && active.providerId === id) {
+            await ctx.services.config.clearActiveModel();
+          }
+          ctx.reply(`Removed stored key for **${getProvider(id)?.displayName || id}**.`);
           return;
         }
-
-        const config = ctx.services.config;
-        const endpoints = config.getEndpoints();
-        const match = endpoints.find(e => e.name.toLowerCase() === name.toLowerCase());
-
-        if (!match) {
-          const available = endpoints.map(e => `\`${e.name}\``).join(', ');
-          ctx.reply(`Endpoint "${name}" not found. Available: ${available || 'none'}`);
-          return;
-        }
-
-        await config.setActiveEndpointId(match.id);
-        ctx.reply(`Switched to endpoint **${match.name}** (${match.provider}).`);
+        await vscode.commands.executeCommand('rqml-vscode.removeLlmProvider');
         return;
       }
 
-      // No subcommand — show current
-      const config = ctx.services.config;
-      const active = config.getActiveEndpoint();
-      if (active) {
-        ctx.reply(`Active endpoint: **${active.name}** (${active.provider}${active.model ? `, model: ${active.model}` : ''})`);
-      } else {
-        ctx.reply('No active endpoint. Use `/providers` to list or `/provider use <name>` to select.');
+      // No subcommand — show current active provider/model
+      const active = ctx.services.config.getActiveModel();
+      if (!active) {
+        ctx.reply('No active model selected. Use `/provider new` to configure one, then `/model use` to pick a model.');
+        return;
       }
+      const provider = getProvider(active.providerId);
+      ctx.reply(`Active: **${provider?.displayName || active.providerId}** — model \`${active.modelId}\``);
     },
   };
 
   const keysCommand: SlashCommand = {
     name: 'keys',
     aliases: ['key'],
-    description: 'Manage API keys for endpoints',
+    description: 'Show API key status for all providers',
     usage: '/keys [set|test]',
     category: 'provider',
     subcommands: [
-      { name: 'set', description: 'Set API key for the active endpoint (opens input)' },
-      { name: 'test', description: 'Test connectivity for the active endpoint' },
+      { name: 'set', description: 'Add/replace a provider\'s stored key' },
+      { name: 'test', description: 'Test the active provider\'s key' },
     ],
 
     async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
       if (parsed.subcommand === 'set') {
-        // Delegate to the VS Code command (opens secure input box)
-        await vscode.commands.executeCommand('rqml-vscode.configureApiKey');
-        ctx.system('API key configuration dialog opened.');
+        await vscode.commands.executeCommand('rqml-vscode.addLlmProvider');
         return;
       }
 
       if (parsed.subcommand === 'test') {
-        const config = ctx.services.config;
-        const active = config.getActiveEndpoint();
+        const active = ctx.services.config.getActiveModel();
         if (!active) {
-          ctx.reply('No active endpoint configured.');
+          ctx.reply('No active model. Use `/model use` to select one.');
           return;
         }
-
-        const hasKey = await config.getEndpointApiKey(active.id);
-        if (!hasKey) {
-          ctx.reply(`No API key stored for **${active.name}**. Use \`/keys set\` to configure.`);
+        const key = await ctx.services.config.getProviderApiKey(active.providerId);
+        if (!key) {
+          ctx.reply(`No key available for \`${active.providerId}\`. Use \`/provider new\` to add one.`);
           return;
         }
-
-        ctx.system('Testing endpoint connectivity...');
+        ctx.system('Testing provider connectivity…');
         try {
-          const llm = ctx.services.llm;
-          const ready = await llm.isReady();
-          if (ready) {
-            ctx.reply(`Endpoint **${active.name}** is reachable.`);
-          } else {
-            ctx.reply(`Endpoint **${active.name}** is not ready. Check your configuration.`);
-          }
+          const ready = await ctx.services.llm.isReady();
+          ctx.reply(ready
+            ? `Provider **${getProvider(active.providerId)?.displayName}** is ready.`
+            : `Provider is not ready. Check your configuration.`);
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Unknown error';
-          ctx.reply(`Endpoint test failed: ${msg}`);
+          ctx.reply(`Provider test failed: ${msg}`);
         }
         return;
       }
 
-      // No subcommand — show key status for all endpoints
+      // Default — show key status per provider
       const config = ctx.services.config;
-      const endpoints = config.getEndpoints();
-      if (endpoints.length === 0) {
-        ctx.reply('No endpoints configured.');
-        return;
-      }
-
       const lines: string[] = ['**API Key Status**', ''];
-      for (const ep of endpoints) {
-        const masked = await config.getEndpointApiKeyMasked(ep.id);
-        lines.push(`- \`${ep.name}\`: ${masked}`);
+      for (const p of PROVIDERS) {
+        const source = await config.getProviderKeySource(p.id);
+        if (source === 'stored') {
+          const masked = await config.getProviderApiKeyMasked(p.id);
+          lines.push(`- **${p.displayName}**: ${masked}  \`(stored)\``);
+        } else if (source === 'env') {
+          const envVar = config.getProviderEnvVarInUse(p.id);
+          lines.push(`- **${p.displayName}**: $${envVar}  \`(env)\``);
+        } else {
+          lines.push(`- **${p.displayName}**: —`);
+        }
       }
       ctx.reply(lines.join('\n'));
     },
@@ -142,27 +140,30 @@ export function createProviderCommands(): SlashCommand[] {
 
   const llmCommand: SlashCommand = {
     name: 'llm',
-    description: 'Quick LLM status — shows active endpoint and readiness',
+    description: 'Quick LLM status — shows active provider, model, and readiness',
     category: 'provider',
 
     async execute(_parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      const config = ctx.services.config;
-      const active = config.getActiveEndpoint();
+      const active = ctx.services.config.getActiveModel();
       const ready = await ctx.services.llm.isReady();
 
       const lines: string[] = [];
       if (active) {
-        const catalogService = getModelCatalogService();
-        const modelId = catalogService.getSelectedModelId(active);
-        lines.push(`**${active.name}** (${active.provider} / ${modelId})`);
+        const catalog = getModelCatalogService();
+        const provider = catalog.getProviderEntry(active.providerId);
+        lines.push(`**${provider?.displayName || active.providerId}** — model \`${active.modelId}\``);
         lines.push(`Status: ${ready ? 'ready' : 'not ready'}`);
       } else {
-        lines.push('No LLM endpoint configured.');
-        lines.push('Use "RQML: Add LLM Endpoint" from the command palette.');
+        lines.push('No active model.');
+        lines.push('Use `/provider new` to add a provider, then `/model use` to pick a model.');
       }
       ctx.reply(lines.join('\n'));
     },
   };
 
   return [providersCommand, providerCommand, keysCommand, llmCommand];
+}
+
+function isValidProviderId(id: string): id is ProviderId {
+  return PROVIDERS.some(p => p.id === id);
 }

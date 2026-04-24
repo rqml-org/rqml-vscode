@@ -2,10 +2,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getVsCodeApi } from '../shared/vscodeApi';
 
+export type DiffRowType = 'equal' | 'delete' | 'insert' | 'replace';
+
+export interface DiffRow {
+  type: DiffRowType;
+  left?: string;
+  right?: string;
+  leftNum?: number;
+  rightNum?: number;
+}
+
 export interface ChangeInfo {
   changeId: string;
   description: string;
   diff?: string;
+  diffRows?: DiffRow[];
   status: 'pending' | 'applied' | 'rejected';
 }
 
@@ -14,6 +25,9 @@ export interface ToolApprovalInfo {
   toolName: string;
   filePath?: string;
   preview?: string;
+  diffRows?: DiffRow[];
+  /** True when the target file does not yet exist (all lines are insertions) */
+  isNewFile?: boolean;
   status: 'pending' | 'approved' | 'rejected';
 }
 
@@ -113,6 +127,8 @@ export function useAgentMessages() {
         case 'agentStreaming': {
           const { id, content } = msg.payload as { id: string; content: string };
           const streamId = `stream-${id}`;
+          // Intentionally do NOT clear isLoading here: text chunks arriving means
+          // the agent is still working. Only end-of-turn should clear the indicator.
           setMessages(prev => {
             // Find the streaming message anywhere in the list (tool call system messages
             // may have been inserted after it, so it may not be the last message)
@@ -123,25 +139,36 @@ export function useAgentMessages() {
               return updated;
             }
             // New stream — create message
-            setIsLoading(false);
             return [...prev, { id: streamId, role: 'assistant', content, streaming: true }];
           });
           break;
         }
 
         case 'agentStreamEnd': {
-          const { id, content, change } = msg.payload as {
+          const { id, content, change, final } = msg.payload as {
             id: string;
             content: string;
-            change?: { changeId: string; description: string; diff?: string; status: string };
+            change?: { changeId: string; description: string; diff?: string; diffRows?: DiffRow[]; status: string };
+            final?: boolean;
           };
-          setIsLoading(false);
+          // Only clear the working indicator on the final agentStreamEnd of the turn.
+          // Intermediate agentStreamEnd messages fire at tool-call boundaries to
+          // rotate message IDs; the agent is still working through those.
+          if (final) {
+            setIsLoading(false);
+          }
           // Refresh plan status (e.g. after /plan creates a plan file)
           vscode.postMessage({ type: 'requestPlanStatus' });
           const endStreamId = `stream-${id}`;
           setMessages(prev => {
             const changeInfo: ChangeInfo | undefined = change
-              ? { changeId: change.changeId, description: change.description, diff: change.diff, status: 'pending' }
+              ? {
+                  changeId: change.changeId,
+                  description: change.description,
+                  diff: change.diff,
+                  diffRows: change.diffRows,
+                  status: 'pending',
+                }
               : undefined;
 
             // Auto-approve if enabled
@@ -283,8 +310,13 @@ export function useAgentMessages() {
         }
 
         case 'toolApprovalRequest': {
-          const { approvalId, toolName, filePath, preview } = msg.payload as {
-            approvalId: string; toolName: string; filePath?: string; preview?: string;
+          const { approvalId, toolName, filePath, preview, diffRows, isNewFile } = msg.payload as {
+            approvalId: string;
+            toolName: string;
+            filePath?: string;
+            preview?: string;
+            diffRows?: DiffRow[];
+            isNewFile?: boolean;
           };
           // Auto-approve if enabled
           if (autoApproveToolsRef.current) {
@@ -293,14 +325,14 @@ export function useAgentMessages() {
               id: `tool-${approvalId}`,
               role: 'system',
               content: `Auto-approved: ${toolName}${filePath ? ` (${filePath})` : ''}`,
-              toolApproval: { approvalId, toolName, filePath, preview, status: 'approved' },
+              toolApproval: { approvalId, toolName, filePath, preview, diffRows, isNewFile, status: 'approved' },
             }]);
           } else {
             setMessages(prev => [...prev, {
               id: `tool-${approvalId}`,
               role: 'system',
               content: `${toolName}${filePath ? `: ${filePath}` : ''}`,
-              toolApproval: { approvalId, toolName, filePath, preview, status: 'pending' },
+              toolApproval: { approvalId, toolName, filePath, preview, diffRows, isNewFile, status: 'pending' },
             }]);
           }
           break;

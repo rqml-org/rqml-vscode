@@ -48,20 +48,5 @@ export function registerSlashPaletteCommands(context: vscode.ExtensionContext): 
     );
   }
 
-  // REQ-MDL-011 AC-MDL-011-01: "RQML: Select Model" — opens QuickPick directly
-  context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.selectModel', async () => {
-      const configService = getConfigurationService();
-      const catalogService = getModelCatalogService();
-      const endpoint = configService.getActiveEndpoint();
-      if (!endpoint) {
-        vscode.window.showWarningMessage('No active LLM endpoint configured.');
-        return;
-      }
-      const picked = await catalogService.showModelPicker(endpoint);
-      if (picked) {
-        vscode.window.showInformationMessage(`Switched to model: ${picked.displayName} (${picked.provider})`);
-      }
-    })
-  );
+  // Note: "RQML: Select Model" is registered in agentCommands.ts (singleton-per-provider architecture).
 }

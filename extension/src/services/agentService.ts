@@ -13,6 +13,7 @@ import type { StrictnessLevel } from '../types/configuration';
 import { createCommandRegistry, type CommandRegistry, type CommandContext } from '../commands/slashCommands';
 import { getXsdPath, isXsdAvailable } from './xsdVersions';
 import { getSkillService } from './skillService';
+import { computeLineDiff, type DiffRow } from './diffUtil';
 
 /** Message sent to the webview */
 export interface AgentWebviewMessage {
@@ -25,6 +26,8 @@ interface ProposedChange {
   changeId: string;
   description: string;
   diff: string;
+  /** Structured side-by-side diff rows for UI rendering */
+  diffRows?: DiffRow[];
   /** The new full content to write to the RQML file */
   newContent: string;
 }
@@ -329,7 +332,7 @@ export class AgentService {
       }
 
       // The final step's text is in stepContent — extract change proposals from it
-      const change = this.extractChangeProposal(stepContent);
+      const change = await this.extractChangeProposal(stepContent);
       let displayContent = this.stripProposalForDisplay(stepContent);
 
       // Detect raw askUser JSON that models sometimes output as plain text
@@ -342,11 +345,12 @@ export class AgentService {
       const response = await result.response;
       this.conversationHistory.push(...response.messages);
 
-      // Finalize the streaming message with the final step's content
+      // Finalize the streaming message with the final step's content.
+      // `final: true` signals end-of-turn to the webview (clears the Working indicator).
       if (change && this.autoApprove) {
         this._onDidReceiveMessage.fire({
           type: 'agentStreamEnd',
-          payload: { id: currentMsgId, content: displayContent, change: { ...change, status: 'accepted' } }
+          payload: { id: currentMsgId, content: displayContent, change: { ...change, status: 'accepted' }, final: true }
         });
         await this.applyChangeInternal(change);
       } else {
@@ -355,7 +359,8 @@ export class AgentService {
           payload: {
             id: currentMsgId,
             content: displayContent,
-            change: change ? { ...change, status: 'pending' } : undefined
+            change: change ? { ...change, status: 'pending' } : undefined,
+            final: true,
           }
         });
 
@@ -368,6 +373,12 @@ export class AgentService {
       this._onDidReceiveMessage.fire({
         type: 'agentResponse',
         payload: { id: currentMsgId, content: `Error communicating with LLM: ${message}` }
+      });
+      // Belt-and-braces: ensure the working indicator clears even if the stream
+      // failed before emitting a final agentStreamEnd.
+      this._onDidReceiveMessage.fire({
+        type: 'agentStreamEnd',
+        payload: { id: currentMsgId, content: '', final: true }
       });
     }
   }
@@ -705,7 +716,7 @@ export class AgentService {
   /**
    * REQ-AGT-007: Extract a change proposal from the LLM response
    */
-  private extractChangeProposal(content: string): ProposedChange | undefined {
+  private async extractChangeProposal(content: string): Promise<ProposedChange | undefined> {
     const startMarker = ':::CHANGE_PROPOSAL:::';
     const endMarker = ':::END_PROPOSAL:::';
 
@@ -722,11 +733,16 @@ export class AgentService {
 
     if (!contentMatch) return undefined;
 
+    const newContent = contentMatch[1].trim();
+    const oldContent = (await this.getSpecContent()) || '';
+    const diffRows = computeLineDiff(oldContent, newContent);
+
     return {
       changeId: crypto.randomUUID(),
       description: descMatch?.[1]?.trim() || 'Proposed change to RQML spec',
       diff: diffMatch?.[1]?.trim() || '',
-      newContent: contentMatch[1].trim(),
+      diffRows,
+      newContent,
     };
   }
 
@@ -846,27 +862,27 @@ export class AgentService {
   }
 
   /**
-   * Send current endpoint status to the webview
+   * Send current provider/model status to the webview
    */
   async sendEndpointStatus(): Promise<void> {
     const configService = getConfigurationService();
-    const endpoint = configService.getActiveEndpoint();
+    const active = configService.getActiveModel();
     const isReady = await getLlmService().isReady();
 
-    let modelId: string | undefined;
-    if (endpoint) {
+    let providerName: string | undefined;
+    if (active) {
       const { getModelCatalogService } = await import('./modelCatalogService.js');
-      const catalogService = getModelCatalogService();
-      modelId = catalogService.getSelectedModelId(endpoint);
+      const provider = getModelCatalogService().getProviderEntry(active.providerId);
+      providerName = provider?.displayName;
     }
 
     this._onDidReceiveMessage.fire({
       type: 'endpointStatus',
       payload: {
         configured: isReady,
-        name: endpoint?.name,
-        provider: endpoint?.provider,
-        model: modelId,
+        name: providerName,
+        provider: active?.providerId,
+        model: active?.modelId,
       }
     });
   }
@@ -968,7 +984,7 @@ export class AgentService {
   async waitForToolApproval(
     approvalId: string,
     toolName: string,
-    args: Record<string, string>
+    args: Record<string, unknown>
   ): Promise<boolean> {
     // If an askUser choice is pending, wait for the user to respond first.
     // The LLM may call askUser + writeFile in the same step; we must not
@@ -1003,8 +1019,10 @@ export class AgentService {
       payload: {
         approvalId,
         toolName,
-        filePath: args.path ?? args.description ?? undefined,
-        preview: args.preview ?? undefined,
+        filePath: (args.path as string | undefined) ?? (args.description as string | undefined),
+        preview: args.preview as string | undefined,
+        diffRows: args.diffRows as DiffRow[] | undefined,
+        isNewFile: args.isNewFile as boolean | undefined,
       },
     });
 
@@ -1187,18 +1205,25 @@ export class AgentService {
       const response = await result.response;
       this.conversationHistory.push(...response.messages);
 
-      // Finalize the last text segment (or send empty to signal completion)
+      // Finalize the last text segment (or send empty to signal completion).
+      // `final: true` signals end-of-turn to the webview (clears the Working indicator).
       let finalContent = this.stripProposalForDisplay(stepContent);
       finalContent = this.interceptRawAskUser(finalContent);
       this._onDidReceiveMessage.fire({
         type: 'agentStreamEnd',
-        payload: { id: currentMsgId, content: finalContent },
+        payload: { id: currentMsgId, content: finalContent, final: true },
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this._onDidReceiveMessage.fire({
         type: 'agentResponse',
         payload: { id: msgId, content: `Error during /implement: ${message}` },
+      });
+      // Belt-and-braces: ensure the working indicator clears even if the stream
+      // failed before emitting a final agentStreamEnd.
+      this._onDidReceiveMessage.fire({
+        type: 'agentStreamEnd',
+        payload: { id: msgId, content: '', final: true },
       });
     } finally {
       this.toolStreamActive = false;

@@ -1,15 +1,16 @@
 {
   "name": "rqml-vscode",
   "displayName": "RQML for VS Code",
-  "description": "Spec-first development for the LLM era. Write, browse, trace, and implement requirements alongside your code with an integrated AI agent.",
-  "version": "0.1.0",
-  "publisher": "rqml-dev",
+  "description": "Spec-first development for the LLM era, built on the Requirements Markup Language (RQML). Write, browse, trace, and implement requirements alongside your code with an integrated AI agent.",
+  "version": "0.1.4",
+  "publisher": "rqml",
   "license": "MIT",
-  "icon": "resources/RQML_logo_transparent.png",
+  "icon": "resources/RQML_logo_purple_128x128.png",
   "homepage": "https://rqml.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rqml-org/rqml-vscode"
+    "url": "https://github.com/rqml-org/rqml-vscode",
+    "directory": "extension"
   },
   "bugs": {
     "url": "https://github.com/rqml-org/rqml-vscode/issues"
@@ -163,18 +164,14 @@
         "title": "RQML: Select LLM Provider"
       },
       {
-        "command": "rqml-vscode.addLlmEndpoint",
-        "title": "RQML: Add LLM Endpoint",
+        "command": "rqml-vscode.addLlmProvider",
+        "title": "RQML: Add LLM Provider",
         "icon": "$(add)"
       },
       {
-        "command": "rqml-vscode.removeLlmEndpoint",
-        "title": "RQML: Remove LLM Endpoint",
+        "command": "rqml-vscode.removeLlmProvider",
+        "title": "RQML: Remove LLM Provider",
         "icon": "$(trash)"
-      },
-      {
-        "command": "rqml-vscode.selectActiveEndpoint",
-        "title": "RQML: Select Active LLM Endpoint"
       },
       {
         "command": "rqml-vscode.slashHelp",
@@ -556,6 +553,7 @@
     "@ai-sdk/openai": "^3.0.26",
     "@xmldom/xmldom": "^0.8.11",
     "ai": "^6.0.77",
+    "diff": "^7.0.0",
     "docx": "^9.6.1",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^4.5.1",
@@ -572,9 +570,14 @@
     "watch:webview": "node esbuild.js --watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "package": "vsce package --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/",
+    "package:pre": "vsce package --pre-release --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/",
+    "publish": "vsce publish --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/",
+    "publish:pre": "vsce publish --pre-release --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/"
   },
   "devDependencies": {
+    "@types/diff": "^7.0.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/pdfkit": "^0.17.5",

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import * as vscode from 'vscode';
 import type { AgentService } from './agentService';
 import { getSpecService } from './specService';
+import { computeLineDiff } from './diffUtil';
 
 /**
  * Create the tool set for the /implement agentic loop.
@@ -42,9 +43,25 @@ export function createImplementTools(
       }),
       execute: async ({ path, content }) => {
         const approvalId = crypto.randomUUID();
+
+        // Read existing file content so we can show a side-by-side diff
+        const uri = vscode.Uri.joinPath(vscode.Uri.file(workspaceRoot), path);
+        let existingContent = '';
+        let isNewFile = false;
+        try {
+          const bytes = await vscode.workspace.fs.readFile(uri);
+          existingContent = Buffer.from(bytes).toString('utf-8');
+        } catch {
+          isNewFile = true;
+        }
+
+        const diffRows = computeLineDiff(existingContent, content);
+
         const approved = await agentService.waitForToolApproval(approvalId, 'writeFile', {
           path,
           preview: content.length > 2000 ? content.slice(0, 2000) + '\n...(truncated)' : content,
+          diffRows,
+          isNewFile,
         });
 
         if (!approved) {
@@ -52,7 +69,6 @@ export function createImplementTools(
         }
 
         try {
-          const uri = vscode.Uri.joinPath(vscode.Uri.file(workspaceRoot), path);
           // Ensure parent directory exists
           const parentUri = vscode.Uri.joinPath(uri, '..');
           try {

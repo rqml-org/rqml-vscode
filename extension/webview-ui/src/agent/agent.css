@@ -504,6 +504,109 @@
   overflow-y: auto;
 }
 
+.change-proposal-description {
+  padding: 6px 10px;
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground, var(--vscode-foreground));
+  border-bottom: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
+}
+
+/* ── Side-by-side diff view ── */
+
+.diff-view {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  font-family: var(--vscode-editor-font-family, 'Cascadia Code', Menlo, Monaco, monospace);
+  font-size: 0.82em;
+  line-height: 1.45;
+  max-height: 400px;
+  overflow: auto;
+  background: var(--vscode-editor-background, var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.04)));
+  border-top: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.2));
+}
+
+.diff-view.diff-view-new-file {
+  grid-template-columns: auto 1fr;
+}
+
+.diff-view-empty {
+  padding: 10px;
+  font-style: italic;
+  opacity: 0.6;
+  text-align: center;
+  font-size: 0.85em;
+}
+
+.diff-row {
+  display: contents;
+}
+
+.diff-gutter {
+  padding: 0 6px;
+  text-align: right;
+  opacity: 0.5;
+  user-select: none;
+  min-width: 28px;
+  background: rgba(127, 127, 127, 0.06);
+  border-right: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.15));
+}
+
+.diff-cell {
+  padding: 0 4px 0 6px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.diff-cell-left {
+  border-right: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.25));
+}
+
+.diff-marker {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  opacity: 0.7;
+  user-select: none;
+}
+
+.diff-text {
+  white-space: pre;
+}
+
+/* Row type colors — use subtle background tints that work in both themes */
+.diff-row-delete .diff-cell-left,
+.diff-row-delete .diff-gutter-left,
+.diff-row-replace .diff-cell-left,
+.diff-row-replace .diff-gutter-left {
+  background: rgba(229, 83, 75, 0.18);
+}
+
+.diff-row-delete .diff-marker,
+.diff-row-replace .diff-cell-left .diff-marker {
+  color: var(--vscode-gitDecoration-deletedResourceForeground, #e5534b);
+  opacity: 1;
+}
+
+.diff-row-insert .diff-cell-right,
+.diff-row-insert .diff-gutter-right,
+.diff-row-replace .diff-cell-right,
+.diff-row-replace .diff-gutter-right {
+  background: rgba(46, 160, 67, 0.18);
+}
+
+.diff-row-insert .diff-cell-right .diff-marker,
+.diff-row-replace .diff-cell-right .diff-marker {
+  color: var(--vscode-gitDecoration-addedResourceForeground, #3fb950);
+  opacity: 1;
+}
+
+.diff-row-delete .diff-cell-right,
+.diff-row-delete .diff-gutter-right,
+.diff-row-insert .diff-cell-left,
+.diff-row-insert .diff-gutter-left {
+  background: rgba(127, 127, 127, 0.04);
+}
+
 .change-proposal-actions {
   display: flex;
   gap: 6px;

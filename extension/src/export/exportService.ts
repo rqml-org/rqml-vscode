@@ -52,22 +52,20 @@ export class ExportService {
   }
 
   private async resolveModel(config: ExportConfig): Promise<LanguageModel> {
-    // If a specific endpoint/model was selected in the wizard, use that
+    // If a specific provider/model was selected in the wizard, use that.
+    // The legacy field `modelEndpointId` now carries the provider id.
     if (config.modelEndpointId && config.modelId) {
       const configService = getConfigurationService();
       const catalogService = getModelCatalogService();
-      const endpoints = configService.getEndpoints();
-      const endpoint = endpoints.find(e => e.id === config.modelEndpointId);
+      const providerId = config.modelEndpointId as import('../types/configuration').ProviderId;
 
-      if (endpoint) {
-        const apiKey = await configService.getEndpointApiKey(endpoint.id);
-        if (apiKey) {
-          return await catalogService.createModelFromCatalog(endpoint.provider, config.modelId, apiKey);
-        }
+      const apiKey = await configService.getProviderApiKey(providerId);
+      if (apiKey) {
+        return await catalogService.createModel(providerId, config.modelId, apiKey);
       }
     }
 
-    // Fall back to the active endpoint
+    // Fall back to the active model
     return await getLlmService().getModel();
   }
 

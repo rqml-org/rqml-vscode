@@ -52,7 +52,7 @@ The export follows a guided wizard flow:
 2. **Choose report type** — Pick from the report types listed above
 3. **Choose format** — Select the output format (available formats depend on the report type)
 4. **LLM guidance** (optional) — Enter free-text guidance to steer the tone, focus, or audience of the generated content
-5. **Select model** — Choose which configured LLM endpoint and model to use for content generation
+5. **Select model** — Choose which provider and model to use for content generation
 
 The agent uses the LLM to transform your structured RQML data into human-readable prose, tables, and presentation content appropriate for the selected report type and audience.
 

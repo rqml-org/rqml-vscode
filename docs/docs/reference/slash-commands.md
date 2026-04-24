@@ -27,7 +27,7 @@ Show available commands or detailed help for a specific command.
 
 ### `/about`
 
-Show agent version and environment info including the loaded spec status, active endpoint, model, and strictness setting.
+Show agent version and environment info including the loaded spec status, active provider, model, and strictness setting.
 
 ```
 /about
@@ -61,7 +61,7 @@ Summarise the current conversation into compact working memory to reduce token u
 /compact
 ```
 
-**Requires:** LLM endpoint configured
+**Requires:** LLM provider configured
 
 ### `/export`
 
@@ -77,9 +77,11 @@ Export the current conversation as markdown.
 
 ## Provider & Model Management
 
+The RQML agent uses a curated catalog of providers and models. Each provider is a singleton — at most one API key per provider. Keys are resolved from VS Code Secret Storage first, falling back to well-known environment variables (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`). See the [RQML Agent user guide](../user-guide/agent.md#providers-and-keys) for the full list.
+
 ### `/providers`
 
-List all configured LLM endpoints with their connection status and active indicator.
+List all providers in the catalog and their current configuration status (stored key / env var / none).
 
 ```
 /providers
@@ -89,19 +91,23 @@ List all configured LLM endpoints with their connection status and active indica
 
 ### `/provider`
 
-View or switch the active LLM endpoint.
+Add, remove, or inspect LLM providers.
 
 ```
 /provider
-/provider use <endpoint-name>
+/provider new
+/provider remove [<id>]
 ```
 
-- Without arguments: shows the current active endpoint.
-- `use <name>`: switches the active endpoint to the named one.
+| Subcommand | Description |
+|---|---|
+| *(none)* | Show the active provider and model |
+| `new` | Add a new provider (runs `RQML: Add LLM Provider`) |
+| `remove [<id>]` | Remove a stored provider key |
 
 ### `/keys`
 
-Manage API keys for LLM endpoints.
+Inspect or update provider API keys.
 
 ```
 /keys
@@ -113,13 +119,13 @@ Manage API keys for LLM endpoints.
 
 | Subcommand | Description |
 |---|---|
-| *(none)* | Show API key status for all endpoints (keys are never revealed) |
-| `set` | Set the API key for the active endpoint (opens a secure input) |
-| `test` | Test connectivity for the active endpoint |
+| *(none)* | Show key status for every provider (stored / env / none, masked) |
+| `set` | Open `RQML: Add LLM Provider` to add or replace a key |
+| `test` | Make a lightweight call to verify the active provider's key works |
 
 ### `/llm`
 
-Show a quick one-line LLM status — the active endpoint name and whether it's ready.
+Show a quick one-line LLM status — the active provider, active model, and readiness.
 
 ```
 /llm
@@ -127,7 +133,7 @@ Show a quick one-line LLM status — the active endpoint name and whether it's r
 
 ### `/models`
 
-List models in the catalog for the active provider.
+List available models — those from providers with a configured key. Grouped by provider.
 
 ```
 /models
@@ -136,13 +142,13 @@ List models in the catalog for the active provider.
 
 | Flag | Description |
 |---|---|
-| `--all` | Show models from all providers, grouped by provider |
+| `--all` | Show the full catalog, including models from providers without a key |
 
-The currently active model is marked in the output.
+The currently active model is marked with `*` in the output.
 
 ### `/model`
 
-View or switch the active model for the current endpoint.
+View or switch the active model.
 
 ```
 /model
@@ -155,9 +161,9 @@ View or switch the active model for the current endpoint.
 | *(none)* | Show the current active model and its details |
 | `use <id>` | Set the active model by ID or partial name |
 | `use` | Open the model picker for interactive selection |
-| `test` | Test connectivity for the active (or specified) model |
+| `test [<id>]` | Test connectivity for the active (or specified) model |
 
-Model matching is case-insensitive and supports partial matches. If multiple models match, a disambiguation prompt is shown.
+Model matching is case-insensitive and supports partial matches. Switching to a model from a different provider automatically switches the active provider.
 
 ---
 
@@ -196,7 +202,7 @@ Run semantic checks and report quality issues: vague language, non-atomic requir
 /lint
 ```
 
-**Requires:** Spec loaded, LLM endpoint configured
+**Requires:** Spec loaded, LLM provider configured
 
 ### `/score`
 
@@ -213,7 +219,7 @@ Rate the spec quality across multiple dimensions, each scored 1–10.
 |---|---|
 | `--full` | Include a detailed breakdown with per-dimension justifications |
 
-**Requires:** Spec loaded, LLM endpoint configured
+**Requires:** Spec loaded, LLM provider configured
 
 ---
 
@@ -234,7 +240,7 @@ Check synchronisation status between the spec and codebase.
 | `status` | Quick sync summary — trace edge counts, untraced requirements (default) |
 | `scan` | Deep LLM-based sync scan identifying drift between spec and code |
 
-**Requires:** Spec loaded. `scan` also requires LLM endpoint.
+**Requires:** Spec loaded. `scan` also requires an LLM provider.
 
 ### `/trace`
 
@@ -264,7 +270,7 @@ Compare the spec against the implementation and report coverage.
 | *(none)* | Brief one-line-per-area coverage summary |
 | `--full` | Detailed structured diff report |
 
-**Requires:** Spec loaded, LLM endpoint configured
+**Requires:** Spec loaded, LLM provider configured
 
 ---
 
@@ -282,7 +288,7 @@ Elicit and draft new requirements through guided LLM questioning.
 - Without arguments: starts a general elicitation session based on the current spec (or from scratch if no spec exists).
 - With a topic: focuses the elicitation on a specific area.
 
-**Requires:** LLM endpoint configured
+**Requires:** LLM provider configured
 
 ### `/design`
 
@@ -310,7 +316,7 @@ ADR lookup accepts a number (`1`, `0001`, `ADR-0001`) or a keyword from the file
 
 ADRs are stored in `.rqml/adr/` with filenames like `0001-auth-strategy.md`. See the [Design stage documentation](../development-process/design.md) for details on the ADR template, classification model, and lifecycle.
 
-**Requires:** LLM endpoint configured
+**Requires:** LLM provider configured
 
 ### `/plan`
 
@@ -330,7 +336,7 @@ Review the current implementation plan and propose next steps, or regenerate the
 
 The plan is persisted to `.rqml/plan.md`.
 
-**Requires:** Spec loaded, LLM endpoint configured
+**Requires:** Spec loaded, LLM provider configured
 
 ### `/cmd`
 
@@ -350,7 +356,7 @@ Generate a concise, copy-pasteable coding-agent prompt for the next implementati
 
 The output is a high-level reference prompt (no code snippets) suitable for pasting into Claude Code, Copilot Chat, Cursor, or any other coding agent.
 
-**Requires:** Spec loaded, LLM endpoint configured, a `/plan` must have been generated first
+**Requires:** Spec loaded, LLM provider configured, a `/plan` must have been generated first
 
 ### `/implement`
 
@@ -363,7 +369,7 @@ Implement the next stage of the plan (or a specific requirement) using the agent
 
 The agent will read files, propose changes, and request approval before modifying code.
 
-**Requires:** Spec loaded, LLM endpoint configured
+**Requires:** Spec loaded, LLM provider configured
 
 ---
 
@@ -371,7 +377,7 @@ The agent will read files, propose changes, and request approval before modifyin
 
 ### `/doctor`
 
-Run a health check on the extension environment: spec status, endpoint configuration, LLM readiness, strictness level, and registered command count.
+Run a health check on the extension environment: spec status, provider configuration, LLM readiness, strictness level, and registered command count.
 
 ```
 /doctor

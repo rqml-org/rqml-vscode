@@ -1,163 +1,188 @@
-// REQ-CFG-008 through REQ-CFG-012: LLM endpoint management commands
+// REQ-CFG-013: Provider singleton management commands
+// REQ-CFG-014: Environment variable auto-detection
 
 import * as vscode from 'vscode';
 import { getConfigurationService } from '../services/configurationService';
-import type { LlmEndpoint } from '../types/configuration';
-
-const PROVIDER_LABELS: Record<LlmEndpoint['provider'], string> = {
-  'openai': 'OpenAI',
-  'anthropic': 'Anthropic',
-  'azure-openai': 'Azure OpenAI',
-  'google': 'Google AI',
-};
+import { getModelCatalogService } from '../services/modelCatalogService';
+import { PROVIDERS, getProvider } from '../models/catalog';
+import type { ProviderId } from '../types/configuration';
 
 /**
- * Register agent-related commands (endpoint management)
+ * Register provider/model management commands.
+ *
+ * REQ-CFG-013: Providers are singletons (one per provider type).
+ * REQ-CFG-014: API keys may come from env vars or VS Code SecretStorage.
  */
 export function registerAgentCommands(context: vscode.ExtensionContext): void {
   const configService = getConfigurationService();
+  const catalogService = getModelCatalogService();
 
-  // REQ-CFG-012: Add LLM endpoint
+  // ── RQML: Add LLM Provider ────────────────────────────────────────────
   context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.addLlmEndpoint', async () => {
-      // Step 1: Select provider
-      const providerItems = Object.entries(PROVIDER_LABELS).map(([id, label]) => ({
-        id: id as LlmEndpoint['provider'],
-        label,
+    vscode.commands.registerCommand('rqml-vscode.addLlmProvider', async () => {
+      // Step 1: Pick a provider from the curated catalog, annotated with
+      // current key source (env/stored) to make the choice informed.
+      const items = await Promise.all(PROVIDERS.map(async (p) => {
+        const source = await configService.getProviderKeySource(p.id);
+        const envVar = configService.getProviderEnvVarInUse(p.id);
+        const description =
+          source === 'stored'
+            ? '$(check) Key stored'
+            : source === 'env'
+              ? `$(check) Using $${envVar}`
+              : `Not configured · env: ${p.envVars.join(', ')}`;
+        return {
+          id: p.id,
+          label: p.displayName,
+          description,
+          source,
+          envVar,
+        };
       }));
 
-      const selectedProvider = await vscode.window.showQuickPick(providerItems, {
-        placeHolder: 'Select LLM provider',
-        title: 'Add LLM Endpoint'
+      const selected = await vscode.window.showQuickPick(items, {
+        title: 'Add LLM Provider',
+        placeHolder: 'Choose a provider',
       });
-      if (!selectedProvider) return;
+      if (!selected) return;
 
-      // Step 2: Enter display name
-      const name = await vscode.window.showInputBox({
-        prompt: 'Enter a display name for this endpoint',
-        value: selectedProvider.label,
-        validateInput: v => v.trim() ? null : 'Name is required',
-      });
-      if (!name) return;
+      const provider = getProvider(selected.id);
+      if (!provider) return;
 
-      // Step 3: Enter model (optional)
-      const defaultModels: Record<LlmEndpoint['provider'], string> = {
-        'openai': 'gpt-4o',
-        'anthropic': 'claude-sonnet-4-6',
-        'azure-openai': 'gpt-4o',
-        'google': 'gemini-2.0-flash',
-      };
+      // Step 2a: If env var is already supplying a key, offer to use it
+      // as-is (no stored secret required) or override.
+      let apiKey: string | undefined;
+      if (selected.source === 'env' && selected.envVar) {
+        const action = await vscode.window.showInformationMessage(
+          `${provider.displayName}: key found in $${selected.envVar}. Use it?`,
+          'Use environment variable',
+          'Enter a different key',
+        );
+        if (action === 'Use environment variable') {
+          // Nothing to store — the env var is read on each use.
+          // Only job left: set the active model default if none set.
+          await ensureActiveModelForProvider(provider.id);
+          vscode.window.showInformationMessage(
+            `${provider.displayName} is ready. Using $${selected.envVar}.`
+          );
+          return;
+        }
+        if (action !== 'Enter a different key') return;
+      }
 
-      const model = await vscode.window.showInputBox({
-        prompt: 'Enter model identifier (leave blank for default)',
-        value: defaultModels[selectedProvider.id],
-      });
-      if (model === undefined) return; // cancelled
-
-      // Step 4: Enter API key
-      const apiKey = await vscode.window.showInputBox({
-        prompt: `Enter your ${selectedProvider.label} API key`,
+      // Step 2b: Prompt for API key.
+      apiKey = await vscode.window.showInputBox({
+        title: `${provider.displayName} — API key`,
+        prompt: provider.docsUrl
+          ? `Enter your API key (get one at ${provider.docsUrl})`
+          : 'Enter your API key',
         password: true,
-        placeHolder: 'sk-...',
+        placeHolder: provider.keyPlaceholder,
         ignoreFocusOut: true,
         validateInput: v => v.trim() ? null : 'API key is required',
       });
       if (!apiKey) return;
 
-      // Create the endpoint
-      const endpoint: LlmEndpoint = {
-        id: `${selectedProvider.id}-${Date.now()}`,
-        provider: selectedProvider.id,
-        name: name.trim(),
-        model: model.trim() || undefined,
-      };
-
-      await configService.addEndpoint(endpoint, apiKey.trim());
-
-      // If no active endpoint, set this one
-      if (!configService.getActiveEndpointId()) {
-        await configService.setActiveEndpointId(endpoint.id);
+      // Step 3: Azure needs an endpoint URL or resource name.
+      if (provider.requiresEndpointUrl) {
+        const envHint = provider.endpointUrlEnvVar ? ` (or set $${provider.endpointUrlEnvVar})` : '';
+        const existing = await configService.getProviderEndpointUrl(provider.id);
+        const endpointUrl = await vscode.window.showInputBox({
+          title: `${provider.displayName} — Resource name or base URL`,
+          prompt: `Enter the Azure resource name or full base URL${envHint}`,
+          value: existing,
+          ignoreFocusOut: true,
+          validateInput: v => v.trim() ? null : 'Endpoint is required for this provider',
+        });
+        if (!endpointUrl) return;
+        await configService.setProviderEndpointUrl(provider.id, endpointUrl.trim());
       }
 
+      await configService.setProviderApiKey(provider.id, apiKey.trim());
+      await ensureActiveModelForProvider(provider.id);
+
       vscode.window.showInformationMessage(
-        `LLM endpoint "${endpoint.name}" added. API key stored securely.`
+        `${provider.displayName} configured. API key stored securely.`
       );
     })
   );
 
-  // REQ-CFG-011: Remove LLM endpoint
+  // ── RQML: Remove LLM Provider ─────────────────────────────────────────
   context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.removeLlmEndpoint', async () => {
-      const endpoints = configService.getEndpoints();
-
-      if (endpoints.length === 0) {
-        vscode.window.showInformationMessage('No LLM endpoints configured.');
+    vscode.commands.registerCommand('rqml-vscode.removeLlmProvider', async () => {
+      const configured = await configService.getConfiguredProviders();
+      if (configured.length === 0) {
+        vscode.window.showInformationMessage('No LLM providers are configured.');
         return;
       }
 
-      const activeId = configService.getActiveEndpointId();
-
-      const items = await Promise.all(endpoints.map(async (ep) => {
-        const masked = await configService.getEndpointApiKeyMasked(ep.id);
+      const items = await Promise.all(configured.map(async (id) => {
+        const p = getProvider(id)!;
+        const source = await configService.getProviderKeySource(id);
+        const masked = await configService.getProviderApiKeyMasked(id);
         return {
-          id: ep.id,
-          label: ep.name,
-          description: `${PROVIDER_LABELS[ep.provider]}${ep.id === activeId ? ' (active)' : ''}`,
-          detail: `Key: ${masked}${ep.model ? ` | Model: ${ep.model}` : ''}`,
+          id,
+          label: p.displayName,
+          description: source === 'env' ? `$(info) Using env var (cannot remove)` : `Key: ${masked}`,
+          source,
         };
       }));
 
       const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select endpoint to remove',
-        title: 'Remove LLM Endpoint'
+        title: 'Remove LLM Provider',
+        placeHolder: 'Choose a provider to remove',
       });
       if (!selected) return;
 
-      const confirm = await vscode.window.showWarningMessage(
-        `Remove endpoint "${selected.label}"? The associated API key will be deleted.`,
-        { modal: true },
-        'Remove'
-      );
-      if (confirm !== 'Remove') return;
-
-      await configService.removeEndpoint(selected.id);
-      vscode.window.showInformationMessage(`Endpoint "${selected.label}" removed.`);
-    })
-  );
-
-  // REQ-CFG-010: Select active endpoint (list with radio-style selection)
-  context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.selectActiveEndpoint', async () => {
-      const endpoints = configService.getEndpoints();
-
-      if (endpoints.length === 0) {
-        const action = await vscode.window.showInformationMessage(
-          'No LLM endpoints configured. Would you like to add one?',
-          'Add Endpoint',
-          'Cancel'
+      if (selected.source === 'env') {
+        vscode.window.showInformationMessage(
+          `${selected.label} is configured via an environment variable. Unset the env var to remove it.`
         );
-        if (action === 'Add Endpoint') {
-          await vscode.commands.executeCommand('rqml-vscode.addLlmEndpoint');
-        }
         return;
       }
 
-      const activeId = configService.getActiveEndpointId();
+      const confirm = await vscode.window.showWarningMessage(
+        `Remove stored key for "${selected.label}"?`,
+        { modal: true },
+        'Remove',
+      );
+      if (confirm !== 'Remove') return;
 
-      const items = endpoints.map(ep => ({
-        id: ep.id,
-        label: `${ep.id === activeId ? '$(check) ' : '     '}${ep.name}`,
-        description: `${PROVIDER_LABELS[ep.provider]}${ep.model ? ` (${ep.model})` : ''}`,
-      }));
+      await configService.removeProviderApiKey(selected.id);
 
-      const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select the active LLM endpoint for the RQML Agent',
-        title: 'Select Active Endpoint'
-      });
-      if (!selected) return;
+      // If the active model belonged to this provider, clear it.
+      const active = configService.getActiveModel();
+      if (active && active.providerId === selected.id) {
+        await configService.clearActiveModel();
+      }
 
-      await configService.setActiveEndpointId(selected.id);
-      vscode.window.showInformationMessage(`Active endpoint set to "${selected.label.trim()}".`);
+      vscode.window.showInformationMessage(`${selected.label} removed.`);
     })
   );
+
+  // ── RQML: Select Model ────────────────────────────────────────────────
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rqml-vscode.selectModel', async () => {
+      await catalogService.showModelPicker();
+    })
+  );
+}
+
+/**
+ * If no active model is set, pick the recommended model for this provider
+ * and make it active. Otherwise leave the current selection alone.
+ */
+async function ensureActiveModelForProvider(providerId: ProviderId): Promise<void> {
+  const config = getConfigurationService();
+  const current = config.getActiveModel();
+  if (current) return;
+
+  const catalog = getModelCatalogService();
+  const recommended = catalog.getRecommendedModel(providerId);
+  if (recommended) {
+    await config.setActiveModel({
+      providerId,
+      modelId: recommended.modelId,
+    });
+  }
 }

@@ -29,15 +29,18 @@ export function createDiagnosticsCommands(): SlashCommand[] {
         lines.push(`Spec: invalid — ${specState.error || 'parse error'}`);
       }
 
-      // Endpoint status
-      const endpoint = config.getActiveEndpoint();
-      if (endpoint) {
-        lines.push(`Endpoint: ${endpoint.name} (${endpoint.provider})`);
+      // Active model / provider status
+      const active = config.getActiveModel();
+      if (active) {
+        lines.push(`Active model: \`${active.modelId}\` (${active.providerId})`);
         const ready = await llm.isReady();
         lines.push(`LLM ready: ${ready ? 'yes' : 'no'}`);
       } else {
-        lines.push('Endpoint: not configured');
+        lines.push('Active model: not selected');
       }
+
+      const configured = await config.getConfiguredProviders();
+      lines.push(`Configured providers: ${configured.length ? configured.join(', ') : 'none'}`);
 
       // Strictness
       lines.push(`Strictness: ${config.getStrictnessSetting() || 'standard (default)'}`);

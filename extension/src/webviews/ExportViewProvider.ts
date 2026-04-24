@@ -110,20 +110,24 @@ export class ExportViewProvider {
     });
   }
 
-  private sendModelList(): void {
+  private async sendModelList(): Promise<void> {
     if (!this.panel) return;
     const configService = getConfigurationService();
     const catalogService = getModelCatalogService();
-    const endpoints = configService.getEndpoints();
 
+    const configured = await configService.getConfiguredProviders();
     const models: { endpointId: string; endpointName: string; modelId: string; displayName: string }[] = [];
 
-    for (const endpoint of endpoints) {
-      const catalogModels = catalogService.getModelsForProvider(endpoint.provider);
+    for (const providerId of configured) {
+      const providerEntry = catalogService.getProviderEntry(providerId);
+      const providerName = providerEntry?.displayName || providerId;
+      const catalogModels = catalogService.getModelsForProvider(providerId);
       for (const m of catalogModels) {
         models.push({
-          endpointId: endpoint.id,
-          endpointName: endpoint.name,
+          // Keep the `endpointId` name for wire compatibility with the export
+          // webview — it now carries the provider id directly.
+          endpointId: providerId,
+          endpointName: providerName,
           modelId: m.modelId,
           displayName: m.displayName,
         });

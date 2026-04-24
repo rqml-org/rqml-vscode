@@ -20,63 +20,43 @@ Create a new `requirements.rqml` file in the current project root using the late
 
 `rqml-vscode.openSettings`
 
-Open the RQML extension settings view for configuring endpoints, API keys, and preferences.
-
-### RQML: Configure API Key
-
-`rqml-vscode.configureApiKey`
-
-Open the API key configuration dialog for the active LLM endpoint.
+Open the RQML extension settings view.
 
 ---
 
-## LLM Endpoint Management
+## Provider & Model Management
 
-### RQML: Select LLM Provider
+The extension uses a curated catalog of providers and models. Providers are singletons — one API key per provider. Keys are resolved from VS Code Secret Storage first, then from environment variables (e.g. `OPENAI_API_KEY`). See the [RQML Agent user guide](../user-guide/agent.md#providers-and-keys) for the full list of supported providers and their env vars.
 
-`rqml-vscode.selectLlmProvider`
+### RQML: Add LLM Provider
 
-Switch the active LLM provider from a list of configured endpoints.
+`rqml-vscode.addLlmProvider`
 
-### RQML: Add LLM Endpoint
+Pick a provider from the catalog and supply an API key. If a matching environment variable is already set, you can accept it without entering the key manually.
 
-`rqml-vscode.addLlmEndpoint`
+### RQML: Remove LLM Provider
 
-Add a new LLM endpoint configuration (provider selection and API key entry).
+`rqml-vscode.removeLlmProvider`
 
-### RQML: Remove LLM Endpoint
-
-`rqml-vscode.removeLlmEndpoint`
-
-Remove a configured LLM endpoint and delete its API key from secure storage.
-
-### RQML: Select Active LLM Endpoint
-
-`rqml-vscode.selectActiveEndpoint`
-
-Choose which configured endpoint the agent uses for LLM requests.
-
----
-
-## Model Management
+Delete a provider's stored API key. If the removed provider owned the active model, the active model is cleared. Keys sourced from environment variables cannot be removed this way — unset the env var instead.
 
 ### RQML: Select Model
 
 `rqml-vscode.selectModel`
 
-Open the model picker to choose the active model for the current endpoint.
+Open the model picker to choose the active model. All models from providers with an available key (stored or env var) are shown, grouped by provider. Selecting a model from a different provider automatically switches the active provider.
 
 ### RQML: List Models
 
 `rqml-vscode.slashModels`
 
-List all models in the catalog for the active provider. Output appears in the agent panel.
+Dispatches `/models` to the agent panel — lists available models grouped by provider.
 
 ### RQML: Test Model
 
 `rqml-vscode.slashModelTest`
 
-Run a connectivity test against the active model and report the result in the agent panel.
+Dispatches `/model test` to the agent panel — runs a lightweight connectivity check against the active model.
 
 ---
 
