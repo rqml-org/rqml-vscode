@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import { getConfigurationService } from './configurationService';
 import { getModelCatalogService } from './modelCatalogService';
+import { log } from './logger';
 
 type LanguageModel = import('ai').LanguageModel;
 
@@ -68,9 +69,14 @@ export class LlmService {
   async isReady(): Promise<boolean> {
     const config = getConfigurationService();
     const active = config.getActiveModel();
-    if (!active) return false;
+    if (!active) {
+      log.info('llm', 'isReady → false (no active model)');
+      return false;
+    }
     const apiKey = await config.getProviderApiKey(active.providerId);
-    return !!apiKey;
+    const ready = !!apiKey;
+    log.info('llm', `isReady → ${ready}`, { providerId: active.providerId, modelId: active.modelId, hasKey: ready });
+    return ready;
   }
 
   dispose(): void {

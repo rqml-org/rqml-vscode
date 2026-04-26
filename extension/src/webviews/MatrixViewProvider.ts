@@ -1,7 +1,8 @@
-// Requirements Matrix Webview Provider
-// Visualize requirements vs test cases in a matrix
+// REQ-MAT-001: Traceability Matrix Webview Provider — opens as a tab in the
+// main editor area with a title that includes the active RQML file name.
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { getSpecService } from '../services/specService';
 import { transformToMatrix } from '../transformers/rqmlToMatrix';
 import { getWebviewContent } from './shared/getWebviewContent';
@@ -16,7 +17,7 @@ export class MatrixViewProvider {
   }
 
   /**
-   * Show the Matrix View panel
+   * Show the Traceability Matrix panel.
    */
   async show(): Promise<void> {
     const specService = getSpecService();
@@ -27,13 +28,17 @@ export class MatrixViewProvider {
       return;
     }
 
+    const fileName = path.basename(state.document.uri.fsPath);
+    const title = `Traceability Matrix — ${fileName}`;
+
     // Create or reveal panel
     if (this.panel) {
+      this.panel.title = title;
       this.panel.reveal(vscode.ViewColumn.One);
     } else {
       this.panel = vscode.window.createWebviewPanel(
         'rqmlMatrix',
-        'Requirements Matrix',
+        title,
         vscode.ViewColumn.One,
         {
           enableScripts: true,
@@ -46,7 +51,7 @@ export class MatrixViewProvider {
         this.panel.webview,
         this.extensionUri,
         'matrix',
-        'Requirements Matrix'
+        title,
       );
 
       // Handle messages from webview
@@ -67,9 +72,11 @@ export class MatrixViewProvider {
         this.disposables
       );
 
-      // Listen for document changes
+      // Listen for document changes — refresh data and update tab title.
       const subscription = specService.onDidChangeSpec((newState) => {
         if (newState.document && this.panel) {
+          const newName = path.basename(newState.document.uri.fsPath);
+          this.panel.title = `Traceability Matrix — ${newName}`;
           this.sendMatrixData();
         }
       });
@@ -97,8 +104,11 @@ export class MatrixViewProvider {
       return;
     }
 
+    const fileName = path.basename(state.document.uri.fsPath);
+    const parseError = state.status === 'invalid' ? state.error : undefined;
+
     try {
-      const data = transformToMatrix(state.document);
+      const data = transformToMatrix(state.document, fileName, parseError);
       this.panel.webview.postMessage({
         type: 'setMatrixData',
         payload: data

@@ -2,7 +2,7 @@
   "name": "rqml-vscode",
   "displayName": "RQML for VS Code",
   "description": "Spec-first development for the LLM era, built on the Requirements Markup Language (RQML). Write, browse, trace, and implement requirements alongside your code with an integrated AI agent.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "rqml",
   "license": "MIT",
   "icon": "resources/RQML_logo_purple_128x128.png",
@@ -154,6 +154,10 @@
       {
         "command": "rqml-vscode.openSettings",
         "title": "RQML: Open Settings"
+      },
+      {
+        "command": "rqml-vscode.showLogs",
+        "title": "RQML: Show Logs"
       },
       {
         "command": "rqml-vscode.configureApiKey",
@@ -452,7 +456,15 @@
         "rqml.activeEndpointId": {
           "type": "string",
           "default": "",
-          "description": "ID of the currently active LLM endpoint."
+          "description": "Legacy setting (pre-0.2). Cleared automatically on first activation under the singleton-per-provider architecture."
+        },
+        "rqml.activeModel": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "default": null,
+          "description": "The currently active model: { providerId, modelId }. Managed by the RQML Agent — do not edit by hand."
         },
         "rqml.modelSelections": {
           "type": "object",

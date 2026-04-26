@@ -4,6 +4,14 @@ All notable changes to the RQML for VS Code extension are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Per VS Code marketplace convention, odd MINOR versions (`0.1.x`) are pre-release and even MINOR versions (`0.2.x`, `0.4.x`, ...) are stable.
 
+## [0.1.5] — 2026-04-26
+
+### Fixed
+- **Activation failure on upgrade.** Extension activation failed with *"Unable to write to User Settings because rqml.activeModel is not a registered configuration"* when the singleton-per-provider configuration tried to migrate or persist the active model. The new `rqml.activeModel` setting is now properly declared in `package.json`, so VS Code accepts writes to it. (Affected the 0.1.4 release.)
+
+### Added
+- New redesigned **Traceability Matrix** view (PKG-MATRIX). Opens as a tab in the editor area with a title that includes the active `.rqml` file name. Shows a requirements-centred table with columns for ID, Title, Type, Status, Priority, Owner, Goals, Rationale, Design Artifact, Implementation, Test Cases, Verification, Sync, Impact, Relationships, and Warnings. Includes a click-to-filter summary strip, a search field with multi-field matching, sortable sticky-header columns, sticky-left ID/Title/Status/Verification, a collapsible detail panel for the selected row, source navigation from any chip, and theme-compatible status pills.
+
 ## [0.1.4] — 2026-04-24
 
 ### Added
@@ -150,6 +158,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+[0.1.5]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.5
 [0.1.4]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.4
 [0.1.3]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.3
 [0.1.1]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.1

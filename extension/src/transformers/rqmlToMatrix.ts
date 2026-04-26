@@ -1,154 +1,197 @@
-// Transform RQML document to Requirements Matrix data
-import { RqmlDocument, RqmlItem } from '../services/rqmlParser';
-import { MatrixData, RequirementRow, TestCaseColumn, TestCoverageStatus, validateMatrixData } from '../schemas/matrixSchema';
+// REQ-MAT-002, REQ-MAT-003: Transform parsed RQML into Traceability Matrix data.
+
+import type { RqmlDocument, RqmlItem } from '../services/rqmlParser';
+import {
+  validateMatrixData,
+  type MatrixData,
+  type MatrixRow,
+  type MatrixSummary,
+} from '../schemas/matrixSchema';
+import {
+  buildCatalogsIndex,
+  buildItemIndex,
+  buildRelationships,
+  deriveImpact,
+  deriveSyncStatus,
+  deriveVerificationStatus,
+  detectWarnings,
+  findDesignArtifactsForReq,
+  findGoalsForReq,
+  findImplementationsForReq,
+  findTestCasesForReq,
+  readAttribute,
+  readChildText,
+  resolveOwner,
+  walkItems,
+} from './matrixDerive';
+
+const REQ_ITEM_TYPES = new Set([
+  'req',
+  'FR',
+  'NFR',
+  'IR',
+  'DR',
+  'SR',
+  'CR',
+  'PR',
+  'UXR',
+  'OR',
+]);
 
 /**
- * Transform an RQML document into Matrix view data
- * Includes validation via Zod
+ * Transform a parsed RQML document into MatrixData.
+ *
+ * `fileName` is the bare file name (e.g. `requirements.rqml`) used in the tab
+ * title and header. `parseError` is forwarded so the webview can render an
+ * error state without losing whatever rows could still be extracted.
  */
-export function transformToMatrix(doc: RqmlDocument): MatrixData {
-  const requirements: RequirementRow[] = [];
-  const testCases: TestCaseColumn[] = [];
-  const groups: string[] = [];
-  const groupSet = new Set<string>();
+export function transformToMatrix(
+  doc: RqmlDocument,
+  fileName = '',
+  parseError?: string,
+): MatrixData {
+  const itemIndex = buildItemIndex(doc);
+  const catalogsIndex = buildCatalogsIndex(doc);
 
-  // Build a map of trace edges for quick lookup
-  // Key: requirement ID, Value: map of test case ID to status
-  const traceMap = new Map<string, Map<string, TestCoverageStatus>>();
-
-  // Process trace edges
-  for (const edge of doc.traceEdges) {
-    // Check if this is a requirement-to-testcase trace
-    // or testcase-to-requirement trace
-    const fromId = edge.from;
-    const toId = edge.to;
-
-    // Determine status from edge type or default to pending
-    const status = edgeTypeToStatus(edge.type);
-
-    // Add to trace map (both directions)
-    addToTraceMap(traceMap, fromId, toId, status);
-    addToTraceMap(traceMap, toId, fromId, status);
+  // Build per-section indexes used to classify trace targets
+  const goalsIndex = new Map<string, RqmlItem>();
+  const goalsSection = doc.sections.get('goals');
+  if (goalsSection?.present) {
+    walkItems(goalsSection.items, item => {
+      if (item.id) goalsIndex.set(item.id, item);
+    });
   }
 
-  // Extract requirements (from requirements section and goals)
-  const requirementsSection = doc.sections.get('requirements');
-  if (requirementsSection && requirementsSection.present) {
-    for (const item of requirementsSection.items) {
-      if (item.type === 'reqPackage') {
-        // Add package as a group
-        const groupName = item.title || item.id;
-        if (!groupSet.has(groupName)) {
-          groupSet.add(groupName);
-          groups.push(groupName);
-        }
+  const verificationIndex = new Map<string, RqmlItem>();
+  const verificationSection = doc.sections.get('verification');
+  if (verificationSection?.present) {
+    walkItems(verificationSection.items, item => {
+      if (item.id) verificationIndex.set(item.id, item);
+    });
+  }
 
-        // Add requirements within the package
-        if (item.children) {
-          for (const child of item.children) {
-            requirements.push(createRequirementRow(child, traceMap, groupName));
+  const rows: MatrixRow[] = [];
+  const reqsSection = doc.sections.get('requirements');
+  if (reqsSection?.present) {
+    for (const top of reqsSection.items) {
+      if (top.type === 'reqPackage') {
+        const groupName = top.title || top.id;
+        if (top.children) {
+          for (const child of top.children) {
+            if (isRequirementItem(child)) {
+              rows.push(buildRow(child, doc, itemIndex, catalogsIndex, goalsIndex, verificationIndex, groupName));
+            }
           }
         }
-      } else if (item.type.includes('req') || item.type === 'FR' || item.type === 'NFR') {
-        requirements.push(createRequirementRow(item, traceMap));
+      } else if (isRequirementItem(top)) {
+        rows.push(buildRow(top, doc, itemIndex, catalogsIndex, goalsIndex, verificationIndex));
       }
     }
   }
 
-  // Also include goals as requirements
-  const goalsSection = doc.sections.get('goals');
-  if (goalsSection && goalsSection.present) {
-    const goalGroupName = 'Goals';
-    if (goalsSection.items.length > 0) {
-      if (!groupSet.has(goalGroupName)) {
-        groupSet.add(goalGroupName);
-        groups.push(goalGroupName);
-      }
+  const summary = computeSummary(rows, doc);
 
-      for (const item of goalsSection.items) {
-        if (item.type === 'goal' || item.type === 'qgoal') {
-          requirements.push(createRequirementRow(item, traceMap, goalGroupName));
-        }
-      }
-    }
-  }
-
-  // Extract test cases from verification section
-  const verificationSection = doc.sections.get('verification');
-  if (verificationSection && verificationSection.present) {
-    for (const item of verificationSection.items) {
-      if (item.type === 'testCase' || item.type === 'testSuite') {
-        testCases.push({
-          id: item.id,
-          title: item.title || item.name || item.id
-        });
-      }
-    }
-  }
-
-  const data = { requirements, testCases, groups };
-
-  // Validate with Zod before returning
-  return validateMatrixData(data);
+  return validateMatrixData({
+    fileName,
+    rows,
+    summary,
+    parseError,
+  } satisfies MatrixData);
 }
 
-/**
- * Create a requirement row with test coverage mapping
- */
-function createRequirementRow(
-  item: RqmlItem,
-  traceMap: Map<string, Map<string, TestCoverageStatus>>,
-  group?: string
-): RequirementRow {
-  const coverage = traceMap.get(item.id) || new Map();
+function isRequirementItem(item: RqmlItem): boolean {
+  return REQ_ITEM_TYPES.has(item.type) || item.type.toLowerCase().includes('req');
+}
+
+function buildRow(
+  req: RqmlItem,
+  doc: RqmlDocument,
+  itemIndex: Map<string, RqmlItem>,
+  catalogsIndex: Map<string, RqmlItem>,
+  goalsIndex: Map<string, RqmlItem>,
+  verificationIndex: Map<string, RqmlItem>,
+  group?: string,
+): MatrixRow {
+  const goals = findGoalsForReq(req.id, doc.traceEdges, itemIndex, goalsIndex);
+  const designArtifacts = findDesignArtifactsForReq(
+    req.id,
+    doc.traceEdges,
+    itemIndex,
+    goalsIndex,
+    verificationIndex,
+  );
+  const implementations = findImplementationsForReq(req.id, doc.traceEdges, itemIndex);
+  const testCases = findTestCasesForReq(req.id, doc.traceEdges, itemIndex, verificationIndex);
+  const relationships = buildRelationships(req.id, doc.traceEdges, itemIndex);
+
+  const verificationStatus = deriveVerificationStatus(testCases, req.status);
+  const syncStatus = deriveSyncStatus(req.status, implementations, testCases);
+  const impact = deriveImpact(req.id, doc.traceEdges);
+  const warnings = detectWarnings(
+    req.id,
+    req.status,
+    goals,
+    testCases,
+    implementations,
+    relationships,
+  );
+
+  const ownerRef = readAttribute(req.raw, 'ownerRef');
+  const owner = resolveOwner(ownerRef, catalogsIndex);
 
   return {
-    id: item.id,
-    title: item.title || item.name || item.id,
+    id: req.id,
+    title: req.title || req.name || req.id,
+    type: req.type,
+    status: req.status || 'draft',
+    priority: req.priority,
+    owner,
+    rationale: readChildText(req.raw, 'rationale'),
+    statement: readChildText(req.raw, 'statement'),
+    goals,
+    designArtifacts,
+    implementations,
+    testCases,
+    relationships,
+    verificationStatus,
+    syncStatus,
+    impact,
+    warnings,
+    line: req.line,
     group,
-    testCoverage: Object.fromEntries(coverage)
   };
 }
 
-/**
- * Add a trace relationship to the map
- */
-function addToTraceMap(
-  traceMap: Map<string, Map<string, TestCoverageStatus>>,
-  fromId: string,
-  toId: string,
-  status: TestCoverageStatus
-): void {
-  if (!traceMap.has(fromId)) {
-    traceMap.set(fromId, new Map());
-  }
-  const existing = traceMap.get(fromId)!.get(toId);
+function computeSummary(rows: MatrixRow[], doc: RqmlDocument): MatrixSummary {
+  const total = rows.length;
+  let unverified = 0;
+  let withoutGoal = 0;
+  let withoutImplementation = 0;
+  let inSync = 0;
+  let brokenReferences = 0;
 
-  // Don't downgrade passed to pending
-  if (!existing || (existing === 'pending' && status !== 'pending')) {
-    traceMap.get(fromId)!.set(toId, status);
+  for (const row of rows) {
+    if (row.verificationStatus === 'Unverified') unverified++;
+    if (row.goals.length === 0) withoutGoal++;
+    if (row.implementations.length === 0) withoutImplementation++;
+    if (row.syncStatus === 'Implemented' && row.verificationStatus === 'Verified') inSync++;
+    for (const w of row.warnings) {
+      if (w.code === 'broken-reference') brokenReferences++;
+    }
   }
-}
 
-/**
- * Convert trace edge type to test coverage status
- */
-function edgeTypeToStatus(edgeType: string): TestCoverageStatus {
-  switch (edgeType.toLowerCase()) {
-    case 'verifies':
-    case 'validates':
-    case 'tests':
-    case 'passed':
-      return 'passed';
-    case 'failed':
-    case 'fails':
-      return 'failed';
-    case 'pending':
-    case 'implements':
-    case 'satisfies':
-    case 'derivedfrom':
-    case 'relatedto':
-    default:
-      return 'pending';
-  }
+  // Deprecated traces: count requirements that themselves are deprecated.
+  // (Trace-edge-level deprecation would require a schema change.)
+  const deprecatedTraces = rows.filter(r => r.status === 'deprecated').length;
+  void doc; // doc is kept on the signature for future use
+
+  return {
+    total,
+    unverified,
+    withoutGoal,
+    withoutImplementation,
+    deprecatedTraces,
+    brokenReferences,
+    inSync,
+  };
 }

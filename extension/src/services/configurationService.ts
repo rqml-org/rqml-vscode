@@ -14,6 +14,7 @@ import {
   type LlmEndpoint,
 } from '../types/configuration';
 import { getProvider, PROVIDERS } from '../models/catalog';
+import { log } from './logger';
 
 /** SecretStorage key prefix for the primary API key of a provider. */
 const PROVIDER_KEY_PREFIX = 'provider-key-';
@@ -81,13 +82,19 @@ export class ConfigurationService {
       throw new Error('ConfigurationService not initialized.');
     }
     const stored = await this.secretStorage.get(PROVIDER_KEY_PREFIX + providerId);
-    if (stored) return stored;
+    if (stored) {
+      log.info('config', `getProviderApiKey(${providerId}) → stored (length ${stored.length})`);
+      return stored;
+    }
 
     const provider = getProvider(providerId);
     if (!provider) return undefined;
     for (const envVar of provider.envVars) {
       const v = process.env[envVar];
-      if (v && v.length > 0) return v;
+      if (v && v.length > 0) {
+        log.info('config', `getProviderApiKey(${providerId}) → env var $${envVar} (length ${v.length})`);
+        return v;
+      }
     }
     return undefined;
   }
@@ -198,7 +205,15 @@ export class ConfigurationService {
 
   /** Set the active model. */
   async setActiveModel(model: ActiveModel): Promise<void> {
-    await this.setConfig('activeModel', model);
+    log.info('config', 'setActiveModel', model);
+    try {
+      await this.setConfig('activeModel', model);
+    } catch (err) {
+      log.error('config', 'setActiveModel failed', err);
+      throw err;
+    }
+    const after = this.getActiveModel();
+    log.info('config', 'setActiveModel done; readback', after ?? null);
     this._onDidChangeProviders.fire();
   }
 
@@ -206,6 +221,61 @@ export class ConfigurationService {
   async clearActiveModel(): Promise<void> {
     await this.setConfig('activeModel', null);
     this._onDidChangeProviders.fire();
+  }
+
+  /**
+   * If no active model is currently selected but at least one provider has a
+   * usable key, auto-select that provider's first model (preferring one
+   * flagged as `recommended`). This keeps the UI's visible model selection
+   * consistent with what the agent treats as active — particularly for keys
+   * picked up from environment variables, where the user never explicitly
+   * runs Add LLM Provider.
+   *
+   * Caller supplies a list of (providerId, modelId, recommended) candidates
+   * derived from the catalog.
+   */
+  async ensureActiveModel(
+    candidatesByProvider: Map<ProviderId, { modelId: string; recommended: boolean }[]>,
+  ): Promise<ActiveModel | undefined> {
+    const configured = await this.getConfiguredProviders();
+    log.info('config', `ensureActiveModel: configured providers = [${configured.join(', ') || '(none)'}]`);
+
+    // If the current active model still points at a provider that has a
+    // usable key, keep it. Otherwise it's effectively orphaned and we should
+    // re-pick — common after key removal, env-var changes, or when migration
+    // restored an `activeModel` whose provider was never re-configured.
+    const existing = this.getActiveModel();
+    if (existing) {
+      if (configured.includes(existing.providerId)) {
+        log.info('config', 'ensureActiveModel: existing model is valid', existing);
+        return existing;
+      }
+      log.info(
+        'config',
+        `ensureActiveModel: existing model points to provider "${existing.providerId}" which has no key; re-picking`,
+        existing,
+      );
+    }
+
+    for (const providerId of configured) {
+      const list = candidatesByProvider.get(providerId);
+      if (!list || list.length === 0) continue;
+      const recommended = list.find(c => c.recommended) || list[0];
+      const next: ActiveModel = { providerId, modelId: recommended.modelId };
+      log.info('config', `ensureActiveModel: auto-picking`, next);
+      await this.setActiveModel(next);
+      return next;
+    }
+
+    // No usable provider — clear any orphaned active model so the UI shows
+    // the "Add LLM provider" button instead of a dropdown that doesn't work.
+    if (existing) {
+      log.info('config', 'ensureActiveModel: no usable provider, clearing orphaned active model');
+      await this.clearActiveModel();
+    } else {
+      log.info('config', 'ensureActiveModel: no provider has a usable key, leaving active model unset');
+    }
+    return undefined;
   }
 
   // ── Strictness (REQ-AGT-013, REQ-AGT-014) ────────────────────────────

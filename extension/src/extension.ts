@@ -16,6 +16,9 @@ import { getDiagnosticsService } from './services/diagnosticsService';
 import { getConfigurationService } from './services/configurationService';
 import { getAgentService } from './services/agentService';
 import { getSkillService } from './services/skillService';
+import { DEFAULT_CATALOG } from './models/catalog';
+import type { ProviderId } from './types/configuration';
+import { log } from './services/logger';
 import { registerCommands } from './commands';
 import { registerSettingsCommands } from './commands/settingsCommands';
 import { registerAgentCommands } from './commands/agentCommands';
@@ -36,6 +39,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const configService = getConfigurationService();
   await configService.initialize(context);
   context.subscriptions.push(configService);
+
+  // If a provider has an available key (env var or stored) but no active
+  // model has been selected yet, auto-pick the recommended one so the
+  // agent is ready immediately on activation.
+  log.info('startup', 'ensureActiveModelOnStartup: begin');
+  try {
+    await ensureActiveModelOnStartup();
+  } catch (err) {
+    log.error('startup', 'ensureActiveModelOnStartup threw', err);
+  }
+  log.info('startup', 'ensureActiveModelOnStartup: done', {
+    activeModel: configService.getActiveModel() ?? null,
+  });
 
   // REQ-UI-013A, REQ-UI-013B: Initialize diagnostics service for real-time validation
   const diagnosticsService = getDiagnosticsService();
@@ -113,6 +129,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // REQ-CMD-012: Register slash commands in Command Palette
   registerSlashPaletteCommands(context);
+
+  // Diagnostic log channel — exposed via Command Palette so users can copy
+  // its contents into bug reports.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rqml-vscode.showLogs', () => log.show())
+  );
 
   // REQ-UI-010: Create status bar indicator
   statusBarItem = vscode.window.createStatusBarItem(
@@ -224,4 +246,25 @@ function updateStatusBar(state: SpecState): void {
 
 export function deactivate(): void {
   // Clean up handled by disposables
+}
+
+/**
+ * If a provider has an available key (env var or stored) but no active model
+ * has been selected, pick the recommended one for the first configured
+ * provider. Keeps `rqml.activeModel` in sync with the providers actually
+ * usable, which the agent's "ready" check depends on.
+ */
+async function ensureActiveModelOnStartup(): Promise<void> {
+  // Always invoke: ensureActiveModel itself decides whether the existing
+  // active model is still valid and re-picks (or clears) when not.
+  const config = getConfigurationService();
+
+  type Candidate = { modelId: string; recommended: boolean };
+  const candidatesByProvider = new Map<ProviderId, Candidate[]>();
+  for (const m of DEFAULT_CATALOG) {
+    const list = candidatesByProvider.get(m.provider) || [];
+    list.push({ modelId: m.modelId, recommended: m.recommended });
+    candidatesByProvider.set(m.provider, list);
+  }
+  await config.ensureActiveModel(candidatesByProvider);
 }

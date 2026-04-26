@@ -10,6 +10,7 @@ import { getAgentService } from '../services/agentService';
 import { getSpecService } from '../services/specService';
 import { getModelCatalogService } from '../services/modelCatalogService';
 import { getConfigurationService } from '../services/configurationService';
+import type { ProviderId } from '../types/configuration';
 
 /**
  * WebviewViewProvider for the RQML Agent panel tab.
@@ -159,6 +160,10 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
         await vscode.commands.executeCommand('rqml-vscode.initSpec');
         break;
       }
+      case 'addLlmProvider': {
+        await vscode.commands.executeCommand('rqml-vscode.addLlmProvider');
+        break;
+      }
       case 'requestCommandList': {
         // REQ-CMD-002: Send command names to webview for autocomplete
         const names = agentService.commandRegistry.getAllNames();
@@ -291,6 +296,12 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
   /**
    * Send available models and current selection to the webview.
    * "Available" = models from providers that have an API key (stored or env).
+   *
+   * If at least one provider is configured but no active model is selected
+   * (e.g. key picked up from an env var, no explicit model choice yet),
+   * auto-pick the recommended model from the first available provider so
+   * the agent is ready immediately and the dropdown's visible selection
+   * matches the underlying state.
    */
   private async sendModelList(): Promise<void> {
     const catalogService = getModelCatalogService();
@@ -302,6 +313,28 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
       displayName: e.displayName,
       provider: e.provider,
     }));
+
+    // Reconcile active model: ensureActiveModel keeps the existing selection
+    // when its provider is still configured, re-picks when the provider has
+    // no key, or clears when nothing is configured. Always run so we recover
+    // from orphaned activeModel values left behind by removed keys.
+    {
+      const candidatesByProvider = new Map<ProviderId, { modelId: string; recommended: boolean }[]>();
+      for (const m of catalog) {
+        const list = candidatesByProvider.get(m.provider) || [];
+        list.push({ modelId: m.modelId, recommended: m.recommended });
+        candidatesByProvider.set(m.provider, list);
+      }
+      const before = configService.getActiveModel();
+      await configService.ensureActiveModel(candidatesByProvider);
+      const after = configService.getActiveModel();
+      const changed = JSON.stringify(before ?? null) !== JSON.stringify(after ?? null);
+      if (changed) {
+        // Refresh the agent's endpoint status so the placeholder text and
+        // welcome banner flip from "no LLM configured" to ready (or back).
+        await getAgentService().sendEndpointStatus();
+      }
+    }
 
     const active = configService.getActiveModel();
     const selectedModel = active?.modelId;

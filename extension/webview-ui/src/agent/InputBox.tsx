@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { FileBrowser } from './FileBrowser';
 import type { EndpointStatus, ImageAttachment, FileAttachment, AvailableModel, SpecHealthColor } from './useAgentMessages';
+import { getVsCodeApi } from '../shared/vscodeApi';
 
 const SPEC_HEALTH_TOOLTIPS: Record<string, string> = {
   gray: 'No RQML spec file found.',
@@ -385,22 +386,31 @@ export const InputBox: React.FC<InputBoxProps> = ({
             </svg>
           </button>
           <div className="input-bottom-spacer" />
-          <select
-            className="model-selector"
-            value={selectedModelId}
-            onChange={e => onSelectModel(e.target.value)}
-            title="Select LLM model"
-            disabled={availableModels.length === 0}
-          >
-            {availableModels.length === 0 && (
-              <option value="">No models available</option>
-            )}
-            {availableModels.map(m => (
-              <option key={`${m.provider}/${m.modelId}`} value={m.modelId}>
-                {m.displayName}
-              </option>
-            ))}
-          </select>
+          {availableModels.length === 0 ? (
+            <button
+              className="add-provider-btn"
+              onClick={() => getVsCodeApi().postMessage({ type: 'addLlmProvider' })}
+              title="Configure an LLM provider so the agent can run"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M8 2.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 8 2.5Z" />
+              </svg>
+              Add LLM provider
+            </button>
+          ) : (
+            <select
+              className="model-selector"
+              value={selectedModelId}
+              onChange={e => onSelectModel(e.target.value)}
+              title="Select LLM model"
+            >
+              {availableModels.map(m => (
+                <option key={`${m.provider}/${m.modelId}`} value={m.modelId}>
+                  {m.displayName}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             className={`input-icon-btn${fileBrowserOpen ? ' active' : ''}`}
             onClick={handleAttachClick}

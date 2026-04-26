@@ -1798,6 +1798,140 @@
         </acceptance>
       </req>
     </reqPackage>
+    <reqPackage id="PKG-MATRIX" title="Traceability Matrix View">
+      <description>A polished, VS Code-native Traceability Matrix that opens as a tab in the editor area and presents a requirements-centred view derived from the active RQML specification. The matrix shows why each requirement exists, what it traces to, how it is verified, whether it appears implemented, and what gaps remain. The view is read-oriented but supports navigation back to the source RQML elements. All columns are derivable from RQML 2.1.0 — columns that would require XSD changes (trace-edge confidence, trace-edge status, tags, last-changed timestamps) are deferred to a future schema revision.</description>
+      <req id="REQ-MAT-001" type="UXR" title="Matrix tab in main editor area" status="draft" priority="must">
+        <statement>The Traceability Matrix SHALL open as a tab in the main editor area, with a tab title that includes the active RQML file name (e.g. "Traceability Matrix — requirements.rqml"). The tab SHALL refresh automatically when the source RQML file changes and SHALL clearly indicate when the matrix is stale, the source file is invalid, or the schema version is unsupported.</statement>
+        <notes>Behaves like a custom-editor / webview-document view, not a side panel. Works correctly in split-editor layouts.</notes>
+        <acceptance>
+          <criterion id="AC-MAT-001-01">
+            <when>The user opens the matrix from the Overview toolbar or Command Palette.</when>
+            <then>A tab opens in the main editor area whose title contains the active RQML file's name.</then>
+          </criterion>
+          <criterion id="AC-MAT-001-02">
+            <when>The active RQML file is modified and saved.</when>
+            <then>The matrix refreshes to reflect the new content without requiring the tab to be reopened.</then>
+          </criterion>
+          <criterion id="AC-MAT-001-03">
+            <when>The active RQML file has parse or validation errors.</when>
+            <then>The matrix tab displays an explicit message indicating that the matrix may be incomplete or unavailable, with a description of the parse error.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-002" type="FR" title="Requirements-centred columns" status="draft" priority="must">
+        <statement>The matrix SHALL present one row per requirement with the following columns: Requirement ID, Title, Type, Status, Priority, Owner, Business Goal, Source/Rationale, Relationships, Design Artifact, Implementation, Test Cases, Verification, Sync Status, and Impact. Cells that may hold multiple linked items (Goals, Design Artifacts, Implementations, Test Cases, Relationships) SHALL render compact linked chips. The Owner column SHALL resolve `ownerRef` IDs to human-readable names from the spec's catalogs section where available.</statement>
+        <notes>Owner names come from `&lt;actor&gt;` or `&lt;stakeholder&gt;` entries in the catalogs section. Confidence, Trace Status, Tags, and Last Changed are intentionally omitted because they would require RQML 2.2+ schema extensions; they may be added in a later release.</notes>
+        <acceptance>
+          <criterion id="AC-MAT-002-01">
+            <then>Each requirement row shows all 15 listed columns; multi-valued cells render as linked chips that fit within the column.</then>
+          </criterion>
+          <criterion id="AC-MAT-002-02">
+            <when>An ownerRef on a requirement matches an actor or stakeholder in the catalogs section.</when>
+            <then>The Owner column shows the resolved name; otherwise it shows the raw ID.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-003" type="UXR" title="Summary strip with click-to-filter counters" status="draft" priority="must">
+        <statement>The matrix SHALL display a header strip with summary counters: Total requirements, Unverified, Without Goal, Without Implementation, Deprecated traces, Broken references, and In sync. Each counter SHALL act as a one-click filter that scopes the table to matching rows.</statement>
+        <acceptance>
+          <criterion id="AC-MAT-003-01">
+            <then>The summary strip is visible above the table and reflects the current spec contents.</then>
+          </criterion>
+          <criterion id="AC-MAT-003-02">
+            <when>The user clicks a summary counter (e.g. "Without Implementation").</when>
+            <then>The table filters to only rows matching that criterion; clicking again clears the filter.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-004" type="UXR" title="Search and filters" status="draft" priority="must">
+        <statement>The matrix SHALL provide a search field that matches against requirement IDs, titles, statement text, trace notes, external URIs, and owner IDs. It SHALL also provide filters covering: requirement type, requirement status, priority, owner, verification status, sync status, and a "warnings only" toggle. Filters SHALL combine additively with the search query.</statement>
+        <acceptance>
+          <criterion id="AC-MAT-004-01">
+            <when>The user types a query in the search field.</when>
+            <then>The table is filtered live to rows where the query matches any of the searchable fields.</then>
+          </criterion>
+          <criterion id="AC-MAT-004-02">
+            <when>The user enables the "warnings only" filter.</when>
+            <then>Only rows with at least one warning are displayed.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-005" type="UXR" title="Sortable, sticky-header table" status="draft" priority="must">
+        <statement>The matrix table SHALL support per-column sorting (toggleable ascending/descending), a sticky header row that remains visible while scrolling vertically, and pinned-left columns for ID, Title, Status, and Verification so the most important context stays visible during horizontal scrolling. Rows SHALL be selectable.</statement>
+        <acceptance>
+          <criterion id="AC-MAT-005-01">
+            <when>The user clicks a column header.</when>
+            <then>Rows are sorted by that column; clicking again toggles the direction.</then>
+          </criterion>
+          <criterion id="AC-MAT-005-02">
+            <when>The user scrolls the table vertically or horizontally.</when>
+            <then>The header row and the pinned-left columns remain visible.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-006" type="UXR" title="Detail panel for selected row" status="draft" priority="must">
+        <statement>Selecting a row SHALL open a detail panel showing: the requirement statement and rationale, all upstream goals and originating sources, all downstream artifacts (design, implementation, test cases), every trace relationship grouped by type, the derived verification and sync status, an impact summary, and any warnings. The panel SHALL collapse on narrow editor widths and remain usable in split-editor layouts.</statement>
+        <acceptance>
+          <criterion id="AC-MAT-006-01">
+            <when>The user selects a row in the table.</when>
+            <then>The detail panel populates with the full upstream and downstream context for that requirement.</then>
+          </criterion>
+          <criterion id="AC-MAT-006-02">
+            <when>The matrix is rendered in a narrow editor split.</when>
+            <then>The detail panel is collapsible or repositions below the table to remain usable.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-007" type="FR" title="Source navigation from matrix and detail panel" status="draft" priority="must">
+        <statement>Clicking any requirement ID, artifact chip, or trace relationship in the matrix or detail panel SHALL open the source RQML file in a side editor and reveal the corresponding line. External references SHALL use VS Code-compatible link behaviour.</statement>
+        <acceptance>
+          <criterion id="AC-MAT-007-01">
+            <when>The user clicks a requirement ID or artifact chip.</when>
+            <then>The RQML source file opens (or is brought to focus) in a side editor and the corresponding element is revealed at its source line.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-008" type="FR" title="Traceability warnings" status="draft" priority="must">
+        <statement>The matrix SHALL detect and surface traceability warnings inline (row-level icon) and in the detail panel. Detected conditions SHALL include at minimum: missing upstream goal, missing verification link, missing implementation link, deprecated trace edges, broken external references, conflicting (`conflictsWith`) relationships, breaking (`breaks`) relationships, and ambiguous deprecation (`deprecates` without a clear replacement). Warnings SHALL be filterable.</statement>
+        <notes>Warnings should be actionable. Surfacing in the VS Code Problems panel is a future enhancement.</notes>
+        <acceptance>
+          <criterion id="AC-MAT-008-01">
+            <when>A requirement has no `verifiedBy`/`covers` trace edge to any test case.</when>
+            <then>The row is marked with a warning icon and the detail panel includes a "missing verification" warning.</then>
+          </criterion>
+          <criterion id="AC-MAT-008-02">
+            <when>A trace edge references a target ID that does not resolve to any element in the document.</when>
+            <then>The relationship is rendered with a "broken reference" warning.</then>
+          </criterion>
+          <criterion id="AC-MAT-008-03">
+            <when>The user enables the "warnings only" filter.</when>
+            <then>Only rows that have at least one warning are displayed.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-009" type="UXR" title="VS Code theme compatibility" status="draft" priority="must">
+        <statement>The matrix SHALL use VS Code theme variables for all colours, borders, hover states, selection highlights, status pills, links, and inputs. The view SHALL be readable in light, dark, and high-contrast themes. The visual style SHALL match VS Code's compact density and subtle borders rather than browser-style dashboards.</statement>
+        <acceptance>
+          <criterion id="AC-MAT-009-01">
+            <when>The user switches between light, dark, and high-contrast themes.</when>
+            <then>All matrix UI elements remain readable and respect the active theme without hard-coded colours.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-MAT-010" type="UXR" title="Empty, loading, and error states" status="draft" priority="must">
+        <statement>The matrix SHALL display distinct, informative states for: no RQML file selected; the file has no traces; the file has requirements but no verification links; the file has parse or validation errors; an unsupported RQML schema version; and during loading or refresh.</statement>
+        <acceptance>
+          <criterion id="AC-MAT-010-01">
+            <when>No RQML file is selected.</when>
+            <then>The matrix shows an empty state explaining how to open or create one.</then>
+          </criterion>
+          <criterion id="AC-MAT-010-02">
+            <when>The RQML file has parse or validation errors.</when>
+            <then>The matrix shows an error state describing the problem and indicates the table may be incomplete.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
   </requirements>
   <trace>
     <traceEdge id="TR-001" from="REQ-UI-007" to="REQ-SUB-002" type="dependsOn">
@@ -2226,6 +2360,28 @@
     </traceEdge>
     <traceEdge id="TR-140" from="REQ-CFG-013" to="REQ-AGT-003" type="dependsOn">
       <notes>The provider singleton architecture (REQ-CFG-013) depends on Vercel AI SDK integration (REQ-AGT-003) for model instantiation via the provider-specific SDK packages.</notes>
+    </traceEdge>
+    <!-- Traceability matrix view (PKG-MATRIX) -->
+    <traceEdge id="TR-141" from="REQ-MAT-001" to="REQ-UI-006I" type="refines">
+      <notes>The matrix tab (REQ-MAT-001) refines the toolbar action that opens additional views (REQ-UI-006I) by specifying tab placement, title, and refresh behaviour.</notes>
+    </traceEdge>
+    <traceEdge id="TR-142" from="REQ-MAT-002" to="REQ-MAT-001" type="dependsOn">
+      <notes>The column layout (REQ-MAT-002) depends on the matrix tab existing (REQ-MAT-001) as its host.</notes>
+    </traceEdge>
+    <traceEdge id="TR-143" from="REQ-MAT-007" to="REQ-UI-006F" type="refines">
+      <notes>Source navigation from the matrix (REQ-MAT-007) refines the existing Go to Definition behaviour (REQ-UI-006F) by extending it from the tree view to the matrix and detail panel.</notes>
+    </traceEdge>
+    <traceEdge id="TR-144" from="REQ-MAT-008" to="REQ-CMD-008" type="dependsOn">
+      <notes>Matrix warnings (REQ-MAT-008) overlap conceptually with sync/traceability commands (REQ-CMD-008); the matrix surfaces a subset of the same checks at the row level, while the deeper code-vs-spec drift detection remains in /sync scan.</notes>
+    </traceEdge>
+    <traceEdge id="TR-145" from="REQ-MAT-009" to="REQ-CFG-005" type="dependsOn">
+      <notes>Theme compatibility (REQ-MAT-009) depends on the VS Code theme integration policy (REQ-CFG-005) — no custom palettes, only theme variables.</notes>
+    </traceEdge>
+    <traceEdge id="TR-146" from="REQ-MAT-002" to="GOAL-STAKEHOLDER-COMM" type="satisfies">
+      <notes>The richer requirements-centred matrix (REQ-MAT-002) satisfies the stakeholder communication goal (GOAL-STAKEHOLDER-COMM) by giving non-technical reviewers a single navigable view of intent, coverage, and gaps.</notes>
+    </traceEdge>
+    <traceEdge id="TR-147" from="REQ-MAT-008" to="GOAL-SE-PRINCIPLES" type="satisfies">
+      <notes>Visible traceability warnings (REQ-MAT-008) satisfy the software engineering rigor goal (GOAL-SE-PRINCIPLES) by making missing verification, missing implementation, and broken references discoverable.</notes>
     </traceEdge>
   </trace>
 </rqml>
