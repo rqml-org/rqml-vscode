@@ -4,6 +4,16 @@ All notable changes to the RQML for VS Code extension are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Per VS Code marketplace convention, odd MINOR versions (`0.1.x`) are pre-release and even MINOR versions (`0.2.x`, `0.4.x`, ...) are stable.
 
+## [0.1.6] — 2026-05-24
+
+### Added
+- **Streamed reasoning ("thinking") panel.** For reasoning-capable models (Claude Opus / Sonnet with extended thinking, DeepSeek Reasoner, OpenAI o-series, Gemini thinking modes, Grok 4, Groq DeepSeek R1 distill, Qwen QwQ), the agent now streams the model's reasoning trace to the conversation UI in real time, in a dim italic panel attached to the in-progress assistant message. The panel auto-collapses to *"Thought for 12s ▸"* once the final answer begins streaming, and can be expanded again at any time to inspect the full trace.
+- **Anthropic extended thinking** is enabled automatically for reasoning-capable Claude models via `providerOptions.anthropic.thinking`. The thinking budget is tunable via the new `rqml.reasoningBudgetTokens` setting (default 4000, range 1024–64000).
+- New provider catalog field `reasoning` (`'native' | 'anthropic-thinking' | 'none'`) lets the agent know how each provider exposes reasoning.
+
+### Spec changes
+- Added REQ-AGT-028 (reasoning stream capture) and REQ-AGT-029 (reasoning UI panel) to PKG-AGENT, plus trace edges TR-148 through TR-150.
+
 ## [0.1.5] — 2026-04-26
 
 ### Fixed
@@ -158,6 +168,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+[0.1.6]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.6
 [0.1.5]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.5
 [0.1.4]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.4
 [0.1.3]: https://github.com/rqml-org/rqml-vscode/releases/tag/v0.1.3

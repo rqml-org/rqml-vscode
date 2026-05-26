@@ -30,6 +30,8 @@ export const AgentApp: React.FC = () => {
     allowAllToolCalls,
     selectModel,
     respondToChoice,
+    agentMode,
+    setAgentMode,
   } = useAgentMessages();
 
   // Persistent file attachments — survive across prompt submissions
@@ -94,6 +96,8 @@ export const AgentApp: React.FC = () => {
         specHealth={specHealth}
         planExists={planExists}
         onOpenPlan={openPlan}
+        agentMode={agentMode}
+        onSetAgentMode={setAgentMode}
       />
     </div>
   );

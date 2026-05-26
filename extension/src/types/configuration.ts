@@ -24,6 +24,15 @@ export type ProviderId =
 export type StrictnessLevel = 'relaxed' | 'standard' | 'strict' | 'certified';
 
 /**
+ * REQ-AGT-030: Agent operating modes.
+ *
+ * - `build`: Full project-wide capability (current default behaviour).
+ * - `spec`: Spec, ADRs, planning, and /cmd-orchestration only — refuses direct
+ *   code implementation.
+ */
+export type AgentMode = 'spec' | 'build';
+
+/**
  * Configuration section name in VS Code settings
  */
 export const CONFIGURATION_SECTION = 'rqml';

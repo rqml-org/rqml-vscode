@@ -10,6 +10,7 @@ import {
   ProviderId,
   ActiveModel,
   StrictnessLevel,
+  AgentMode,
   CONFIGURATION_SECTION,
   type LlmEndpoint,
 } from '../types/configuration';
@@ -286,6 +287,28 @@ export class ConfigurationService {
 
   async setStrictnessSetting(level: StrictnessLevel | ''): Promise<void> {
     await this.setConfig('agentStrictness', level);
+  }
+
+  /** REQ-AGT-028: Maximum tokens the model may spend on reasoning. */
+  getReasoningBudgetTokens(): number {
+    return this.getConfig<number>('reasoningBudgetTokens', 4000);
+  }
+
+  // ── Agent mode (REQ-AGT-030) ─────────────────────────────────────────
+
+  /** Get the active agent operating mode. Defaults to 'build' for fresh installs. */
+  getAgentMode(): AgentMode {
+    const value = this.getConfig<AgentMode>('agentMode', 'build');
+    return value === 'spec' ? 'spec' : 'build';
+  }
+
+  /** Persist the active agent operating mode (workspace scope). */
+  async setAgentMode(mode: AgentMode): Promise<void> {
+    const config = vscode.workspace.getConfiguration(CONFIGURATION_SECTION);
+    const target = vscode.workspace.workspaceFolders?.length
+      ? vscode.ConfigurationTarget.Workspace
+      : vscode.ConfigurationTarget.Global;
+    await config.update('agentMode', mode, target);
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────

@@ -2,7 +2,8 @@
 // Supports image pasting from clipboard with thumbnail preview
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { FileBrowser } from './FileBrowser';
-import type { EndpointStatus, ImageAttachment, FileAttachment, AvailableModel, SpecHealthColor } from './useAgentMessages';
+import { ModeSwitcher } from './ModeSwitcher';
+import type { EndpointStatus, ImageAttachment, FileAttachment, AvailableModel, SpecHealthColor, AgentMode } from './useAgentMessages';
 import { getVsCodeApi } from '../shared/vscodeApi';
 
 const SPEC_HEALTH_TOOLTIPS: Record<string, string> = {
@@ -59,6 +60,8 @@ interface InputBoxProps {
   specHealth: SpecHealthColor;
   planExists: boolean;
   onOpenPlan: () => void;
+  agentMode: AgentMode;
+  onSetAgentMode: (mode: AgentMode) => void;
 }
 
 export const InputBox: React.FC<InputBoxProps> = ({
@@ -76,6 +79,8 @@ export const InputBox: React.FC<InputBoxProps> = ({
   specHealth,
   planExists,
   onOpenPlan,
+  agentMode,
+  onSetAgentMode,
 }) => {
   const [value, setValue] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -385,6 +390,7 @@ export const InputBox: React.FC<InputBoxProps> = ({
               <path d="M3.5 8.2V5.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
             </svg>
           </button>
+          <ModeSwitcher mode={agentMode} onChange={onSetAgentMode} />
           <div className="input-bottom-spacer" />
           {availableModels.length === 0 ? (
             <button

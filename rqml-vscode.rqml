@@ -1254,6 +1254,94 @@
           </criterion>
         </acceptance>
       </req>
+      <req id="REQ-AGT-028" type="FR" title="Reasoning stream capture" status="draft" priority="must">
+        <statement>For models whose catalog entry declares the `reasoning` capability, the agent SHALL capture model reasoning output (chain-of-thought / "thinking" trace) from the streaming response and forward it to the conversation UI in real time, separately from the final answer text. For providers that require explicit opt-in to surface reasoning (e.g. Anthropic extended thinking), the agent SHALL pass the appropriate provider options automatically when the active model is reasoning-capable.</statement>
+        <notes>The implementation depends on the Vercel AI SDK's reasoning stream parts (`reasoning-start`, `reasoning-delta`, `reasoning-end`) and Anthropic's `providerOptions.anthropic.thinking` configuration. Reasoning-capable providers include Anthropic (Claude Opus and Sonnet families with extended thinking), DeepSeek (Reasoner / R1), OpenAI (o-series), Google (Gemini with thinking mode), Groq (DeepSeek R1 distill, Qwen QwQ), and xAI (Grok with reasoning). A user-facing setting `rqml.reasoningBudgetTokens` MAY be exposed to tune the thinking budget for providers that require one.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-028-01">
+            <given>The active model declares the `reasoning` capability and the user submits a prompt that triggers reasoning.</given>
+            <when>The model emits reasoning stream parts during the response.</when>
+            <then>The agent forwards each reasoning delta to the webview as it is received, distinguishing reasoning content from final answer text.</then>
+          </criterion>
+          <criterion id="AC-AGT-028-02">
+            <given>The active provider is Anthropic and the active model declares the `reasoning` capability.</given>
+            <when>The agent issues a streaming request.</when>
+            <then>The request includes `providerOptions.anthropic.thinking` with a budget derived from `rqml.reasoningBudgetTokens` (defaulting to a reasonable value such as 4000).</then>
+          </criterion>
+          <criterion id="AC-AGT-028-03">
+            <given>The active model does not declare the `reasoning` capability.</given>
+            <when>The agent issues a streaming request.</when>
+            <then>No reasoning provider options are sent and the response is treated as text-only.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-029" type="UXR" title="Reasoning UI panel" status="draft" priority="should">
+        <statement>The conversation UI SHALL render streamed model reasoning in a visually distinct, collapsible panel attached to the current assistant message. The panel SHALL stream reasoning text live while the model is thinking, auto-collapse once the final answer begins streaming, and SHALL display a header with the elapsed thinking time. Users SHALL be able to expand a collapsed reasoning panel to inspect the full reasoning trace at any time during or after the response.</statement>
+        <notes>The visual treatment should be subtle (e.g. dim/italic) so reasoning does not compete with the final answer for attention. While the model is actively reasoning, the panel should be open by default; once the model transitions to producing the final answer (first `text-delta` after `reasoning-end`), the panel collapses.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-029-01">
+            <when>Reasoning stream parts arrive from the active model.</when>
+            <then>A reasoning panel attached to the in-progress assistant message becomes visible and updates live as reasoning deltas arrive.</then>
+          </criterion>
+          <criterion id="AC-AGT-029-02">
+            <when>The final answer text begins streaming after the reasoning phase.</when>
+            <then>The reasoning panel automatically collapses, retaining the full reasoning trace internally so the user can re-expand it.</then>
+          </criterion>
+          <criterion id="AC-AGT-029-03">
+            <when>The user clicks the reasoning panel header on a completed assistant message.</when>
+            <then>The panel toggles between collapsed and expanded states.</then>
+          </criterion>
+          <criterion id="AC-AGT-029-04">
+            <then>The reasoning panel uses VS Code theme variables and remains legible in light, dark, and high-contrast themes.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-030" type="FR" title="Agent operating modes (Spec / Build)" status="draft" priority="must">
+        <statement>The RQML Agent SHALL support two operating modes: Spec mode and Build mode. In Spec mode the agent SHALL only invoke spec-editing, planning, ADR-drafting, and `/cmd`-prompt-generation capabilities; it SHALL politely refuse direct code-implementation requests and SHALL instead offer to generate a `/cmd` prompt that the user can hand to an external coding agent. In Build mode the agent SHALL retain full project-wide capabilities, including writing arbitrary workspace files. The active mode SHALL persist per workspace and SHALL default to Build for fresh installs.</statement>
+        <notes>Spec mode is a soft persona enforced primarily by the system prompt and reinforced by a tool-level gate: the writeFile tool returns a refusal when called in Spec mode. The updateSpec tool remains enabled in both modes because spec maintenance is the primary purpose of Spec mode. Switching modes mid-stream stops the current generation; the new mode applies from the next turn.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-030-01">
+            <given>The agent is in Build mode.</given>
+            <when>The user asks the agent to implement code changes.</when>
+            <then>The agent uses the writeFile tool to propose and (after user approval) apply file changes, as today.</then>
+          </criterion>
+          <criterion id="AC-AGT-030-02">
+            <given>The agent is in Spec mode.</given>
+            <when>The user asks the agent to implement code changes.</when>
+            <then>The agent declines politely, explains it is in Spec mode, and offers to generate a `/cmd`-style prompt for an external coding agent. The writeFile tool, if called, returns a refusal without writing.</then>
+          </criterion>
+          <criterion id="AC-AGT-030-03">
+            <given>The agent is in Spec mode.</given>
+            <when>The user asks to add or modify a requirement, ADR, or implementation plan.</when>
+            <then>The agent proceeds using updateSpec (for the RQML spec) or proposes ADR/plan content, without refusal.</then>
+          </criterion>
+          <criterion id="AC-AGT-030-04">
+            <when>The user changes the active mode and then reloads the window or reopens the workspace.</when>
+            <then>The previously selected mode is restored from per-workspace persistence; a fresh install defaults to Build.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-AGT-031" type="UXR" title="Mode switcher control" status="draft" priority="must">
+        <statement>The agent input area SHALL surface a mode switcher at the bottom of the input box, positioned immediately to the right of the "Summarize architectural decisions" button and left-justified within the bottom action bar. Activating the switcher SHALL present the two operating modes with descriptive labels: "Spec mode — RQML Agent will work on spec and design but not implement" and "Build mode — RQML Agent works on all parts of the software process, including implementation". Selecting a mode SHALL persist it for the current workspace and update the agent's behaviour from the next turn onward without a window reload.</statement>
+        <notes>The current mode SHALL be visually indicated on the switcher control itself (e.g. a short label such as "Spec" or "Build") and use VS Code theme variables so it remains legible across themes. The popover SHALL close on selection or when the user clicks outside.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-031-01">
+            <when>The agent input bottom bar is rendered.</when>
+            <then>The mode switcher control is visible immediately to the right of the "Summarize architectural decisions" button, left-justified, and displays the currently active mode.</then>
+          </criterion>
+          <criterion id="AC-AGT-031-02">
+            <when>The user clicks the mode switcher control.</when>
+            <then>A popover appears showing the two mode options with their full descriptive labels, and the currently active option is visually distinguished.</then>
+          </criterion>
+          <criterion id="AC-AGT-031-03">
+            <when>The user selects a mode from the popover.</when>
+            <then>The popover closes, the switcher label updates to reflect the new mode, the selection is persisted to workspace state, and the agent's subsequent turns honour the new mode without a window reload.</then>
+          </criterion>
+          <criterion id="AC-AGT-031-04">
+            <then>The switcher and popover use VS Code theme variables and remain legible in light, dark, and high-contrast themes.</then>
+          </criterion>
+        </acceptance>
+      </req>
     </reqPackage>
     <reqPackage id="PKG-CMD" title="Agent Slash Commands">
       <description>Slash commands exposed through the RQML Agent prompt. Commands use a terminal-style syntax (/command [args] [--flags]) and are entered in the agent panel's text input.</description>
@@ -2382,6 +2470,25 @@
     </traceEdge>
     <traceEdge id="TR-147" from="REQ-MAT-008" to="GOAL-SE-PRINCIPLES" type="satisfies">
       <notes>Visible traceability warnings (REQ-MAT-008) satisfy the software engineering rigor goal (GOAL-SE-PRINCIPLES) by making missing verification, missing implementation, and broken references discoverable.</notes>
+    </traceEdge>
+    <!-- Reasoning streaming (agent silence improvement) -->
+    <traceEdge id="TR-148" from="REQ-AGT-028" to="REQ-AGT-003" type="dependsOn">
+      <notes>Reasoning stream capture (REQ-AGT-028) depends on Vercel AI SDK integration (REQ-AGT-003), specifically the reasoning-start/delta/end stream parts and provider-options support.</notes>
+    </traceEdge>
+    <traceEdge id="TR-149" from="REQ-AGT-029" to="REQ-AGT-028" type="refines">
+      <notes>The reasoning UI panel (REQ-AGT-029) refines reasoning stream capture (REQ-AGT-028) by specifying how captured reasoning is presented to the user.</notes>
+    </traceEdge>
+    <traceEdge id="TR-150" from="REQ-AGT-029" to="REQ-AGT-015" type="refines">
+      <notes>The reasoning panel (REQ-AGT-029) refines streaming response display (REQ-AGT-015) by adding a separate live stream for reasoning content.</notes>
+    </traceEdge>
+    <traceEdge id="TR-151" from="REQ-AGT-031" to="REQ-AGT-030" type="satisfies">
+      <notes>The mode switcher control (REQ-AGT-031) is the UI affordance that satisfies the operating-modes capability defined in REQ-AGT-030.</notes>
+    </traceEdge>
+    <traceEdge id="TR-152" from="REQ-AGT-030" to="REQ-AGT-002" type="dependsOn">
+      <notes>Operating modes (REQ-AGT-030) shape how the agent handles every user message, so they depend on the prompt input (REQ-AGT-002) as the channel through which mode-aware behaviour applies.</notes>
+    </traceEdge>
+    <traceEdge id="TR-153" from="REQ-AGT-030" to="REQ-CMD-010" type="relatesTo">
+      <notes>In Spec mode the agent orchestrates implementation by generating /cmd-style prompts for external coding agents. The /cmd command surface is described by REQ-CMD-010.</notes>
     </traceEdge>
   </trace>
 </rqml>

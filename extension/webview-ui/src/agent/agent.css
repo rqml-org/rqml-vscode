@@ -156,6 +156,73 @@
   border-radius: var(--agent-radius);
 }
 
+/* ── Reasoning panel (REQ-AGT-029) ───────────────────────────────────────── */
+
+.reasoning-panel {
+  margin: 0 0 8px 0;
+  border-left: 2px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.4));
+  padding-left: 8px;
+  font-size: 0.92em;
+  opacity: 0.75;
+}
+
+.reasoning-panel.active {
+  border-left-color: var(--vscode-charts-blue, var(--vscode-textLink-foreground));
+  opacity: 0.95;
+}
+
+.reasoning-header {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-style: italic;
+}
+
+.reasoning-header:hover {
+  opacity: 1;
+}
+
+.reasoning-header:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.reasoning-icon {
+  display: inline-block;
+  width: 0.9em;
+  text-align: center;
+  font-style: normal;
+}
+
+.reasoning-body {
+  margin-top: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: var(--vscode-editor-font-family, var(--vscode-font-family));
+  font-size: 0.92em;
+  line-height: 1.45;
+  color: var(--vscode-descriptionForeground, var(--vscode-foreground));
+}
+
+.reasoning-cursor {
+  display: inline-block;
+  width: 1px;
+  height: 0.9em;
+  margin-left: 2px;
+  background: currentColor;
+  animation: blink 1s steps(2, end) infinite;
+  vertical-align: text-bottom;
+}
+
 .message-system {
   align-self: center;
   opacity: 0.6;
@@ -1361,4 +1428,122 @@
   opacity: 1;
   background: rgba(200, 0, 0, 0.6);
   color: #fff;
+}
+
+/* ── Mode switcher (REQ-AGT-030, REQ-AGT-031) ── */
+
+.mode-switcher-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.mode-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.3));
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-size: 0.8em;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 11px;
+  opacity: 0.8;
+}
+
+.mode-switcher:hover,
+.mode-switcher.open {
+  opacity: 1;
+  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.15));
+}
+
+.mode-switcher:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.mode-switcher-icon {
+  flex: none;
+  display: inline-block;
+  color: currentColor;
+  opacity: 0.9;
+}
+
+.mode-switcher-label {
+  font-weight: 500;
+}
+
+.mode-switcher-caret {
+  opacity: 0.7;
+}
+
+.mode-switcher-popover {
+  position: fixed;
+  min-width: 280px;
+  max-width: 360px;
+  background: var(--vscode-editorSuggestWidget-background, var(--vscode-input-background));
+  border: 1px solid var(--vscode-editorSuggestWidget-border, var(--vscode-widget-border));
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mode-switcher-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  padding: 8px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.mode-switcher-option-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 1px;
+  opacity: 0.9;
+}
+
+.mode-switcher-option-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mode-switcher-option:hover {
+  background: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.15));
+}
+
+.mode-switcher-option.active {
+  background: var(--vscode-list-activeSelectionBackground, var(--vscode-list-hoverBackground));
+  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
+}
+
+.mode-switcher-option-title {
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.mode-switcher-option-desc {
+  font-size: 0.78em;
+  opacity: 0.8;
+  line-height: 1.3;
 }

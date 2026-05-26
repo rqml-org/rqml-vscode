@@ -6,6 +6,7 @@ import { renderMermaidDiagram } from './mermaidRenderer';
 import { ChangeProposal } from './ChangeProposal';
 import { ToolApprovalCard } from './ToolApprovalCard';
 import { UserChoiceCard } from './UserChoiceCard';
+import { ReasoningPanel } from './ReasoningPanel';
 import { getVsCodeApi } from '../shared/vscodeApi';
 
 interface MessageBubbleProps {
@@ -165,13 +166,26 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   return (
     <div className={className}>
+      {(message.reasoning || message.reasoningActive) && (
+        <ReasoningPanel
+          reasoning={message.reasoning ?? ''}
+          active={!!message.reasoningActive}
+          startedAt={message.reasoningStartedAt}
+          endedAt={message.reasoningEndedAt}
+        />
+      )}
       <div
         ref={contentRef}
         className={`markdown-content${message.streaming ? ' streaming' : ''}`}
         dangerouslySetInnerHTML={{ __html: html }}
         onClick={handleClick}
       />
-      {message.streaming && <span className="streaming-cursor" />}
+      {/* Hide the body cursor while reasoning is active or while we're between
+          reasoning-end and the first text-delta — the reasoning panel's cursor
+          is the active indicator. */}
+      {message.streaming && !message.reasoningActive && message.content.length > 0 && (
+        <span className="streaming-cursor" />
+      )}
       {message.change && (
         <ChangeProposal
           change={message.change}

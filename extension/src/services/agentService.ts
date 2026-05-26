@@ -14,6 +14,8 @@ import { createCommandRegistry, type CommandRegistry, type CommandContext } from
 import { getXsdPath, isXsdAvailable } from './xsdVersions';
 import { getSkillService } from './skillService';
 import { computeLineDiff, type DiffRow } from './diffUtil';
+import { getModelCatalogService } from './modelCatalogService';
+import { buildReasoningProviderOptions } from '../models/catalog';
 
 /** Message sent to the webview */
 export interface AgentWebviewMessage {
@@ -266,12 +268,14 @@ export class AgentService {
 
       this.currentAbort = new AbortController();
 
+      const providerOptions = this.getStreamProviderOptions();
       const result = streamText({
         model,
         system: systemPrompt,
         messages: this.conversationHistory,
         abortSignal: this.currentAbort.signal,
         ...(tools ? { tools, stopWhen: stepCountIs(15) } : {}),
+        ...(providerOptions ? { providerOptions } : {}),
       });
 
       // Each step's text gets its own message ID. When a tool call occurs,
@@ -282,6 +286,9 @@ export class AgentService {
       // until the next step begins (i.e. the user has responded and tool
       // execution completed).
       let askUserPending = false;
+      // REQ-AGT-028: accumulate reasoning so we can stream it to the webview
+      // alongside the assistant text. Resets per message id.
+      let stepReasoning = '';
 
       for await (const part of result.fullStream) {
         switch (part.type) {
@@ -291,6 +298,32 @@ export class AgentService {
             this._onDidReceiveMessage.fire({
               type: 'agentStreaming',
               payload: { id: currentMsgId, content: this.stripProposalForDisplay(stepContent) },
+            });
+            break;
+          }
+          case 'reasoning-start': {
+            // Start of a reasoning block. Reset the accumulator only when no
+            // reasoning has been streamed for this message yet, so multi-block
+            // traces concatenate rather than overwrite.
+            this._onDidReceiveMessage.fire({
+              type: 'agentReasoning',
+              payload: { id: currentMsgId, reasoning: stepReasoning, status: 'start' },
+            });
+            break;
+          }
+          case 'reasoning-delta': {
+            if (askUserPending) { break; }
+            stepReasoning += part.text;
+            this._onDidReceiveMessage.fire({
+              type: 'agentReasoning',
+              payload: { id: currentMsgId, reasoning: stepReasoning, status: 'delta' },
+            });
+            break;
+          }
+          case 'reasoning-end': {
+            this._onDidReceiveMessage.fire({
+              type: 'agentReasoning',
+              payload: { id: currentMsgId, reasoning: stepReasoning, status: 'end' },
             });
             break;
           }
@@ -304,6 +337,7 @@ export class AgentService {
                 payload: { id: currentMsgId, content: stepContent ? this.stripProposalForDisplay(stepContent) : '' },
               });
               stepContent = '';
+              stepReasoning = '';
               currentMsgId = crypto.randomUUID();
             }
             if (part.toolName === 'askUser') {
@@ -384,6 +418,20 @@ export class AgentService {
   }
 
   /**
+   * REQ-AGT-028: Build provider-options for the current active model.
+   * Returns an object to spread into `streamText({...})` (under
+   * `providerOptions`), or an empty object when no reasoning config applies.
+   */
+  private getStreamProviderOptions(): import('ai').ProviderMetadata | undefined {
+    const config = getConfigurationService();
+    const active = config.getActiveModel();
+    if (!active) return undefined;
+    const entry = getModelCatalogService().findModel(active.modelId, active.providerId);
+    if (!entry) return undefined;
+    return buildReasoningProviderOptions(entry, config.getReasoningBudgetTokens());
+  }
+
+  /**
    * REQ-AGT-006, REQ-AGT-010, REQ-AGT-011, REQ-AGT-012, REQ-AGT-013:
    * Build the system prompt with current spec, schema, and strictness context
    */
@@ -391,6 +439,7 @@ export class AgentService {
     const strictness = await this.resolveStrictness();
     const specContent = await this.getSpecContent();
     const agentsMd = await this.getAgentsMd();
+    const agentMode = getConfigurationService().getAgentMode();
 
     const parts: string[] = [];
 
@@ -400,12 +449,40 @@ export class AgentService {
     parts.push('If the workspace contains only a spec file and no source code, implementation has not yet begun.');
     parts.push('You personality is encourraging and collagorative and you love to build software with the user.');
     parts.push('You always provide the user with a clear path forward, whether it is updating the spec or implementing the next stage in the plan.');
+    parts.push('');
+
+    // REQ-AGT-030: Operating mode
+    if (agentMode === 'spec') {
+      parts.push('## Operating Mode: SPEC');
+      parts.push('You are in **Spec mode**. Your scope is restricted to:');
+      parts.push('1. Maintaining the RQML spec (use the updateSpec tool or change proposals).');
+      parts.push('2. Drafting and updating Architecture Decision Records (ADRs) in `.rqml/adr/`.');
+      parts.push('3. Helping with project planning (the `.rqml/plan.md` file and staged plans).');
+      parts.push('4. Orchestrating external coding agents by generating `/cmd`-style prompts.');
+      parts.push('');
+      parts.push('You MUST NOT write or modify project source code in Spec mode.');
+      parts.push('- Do not call the writeFile tool on non-spec files. (It will be refused at the tool level even if you try.)');
+      parts.push('- If the user asks you to implement code directly, decline politely, explain that you are in Spec mode, and offer to generate a `/cmd`-style prompt they can hand to an external coding agent.');
+      parts.push('- ADR markdown files under `.rqml/adr/` and the plan file `.rqml/plan.md` are allowed targets for writeFile because they are design/planning artifacts, not source code. Use them sparingly and only for ADR/plan content.');
+      parts.push('- The updateSpec tool remains fully available — spec maintenance is the primary purpose of Spec mode.');
+      parts.push('');
+      parts.push('Frame your responses around the spec/design/planning view of the work. When the user is ready to implement, suggest switching to Build mode or using `/cmd`.');
+      parts.push('');
+    } else {
+      parts.push('## Operating Mode: BUILD');
+      parts.push('You are in **Build mode** — full project-wide capabilities. You may read, write, and edit any file in the workspace, subject to user approval for write operations.');
+      parts.push('');
+    }
 
     // REQ-AGT-009: Tools available in chat
     parts.push('## Tools');
     parts.push('You have the following tools available:');
     parts.push('- **readFile**: Read a file in the workspace');
-    parts.push('- **writeFile**: Write/create a file (requires user approval)');
+    if (agentMode === 'spec') {
+      parts.push('- **writeFile**: Write/create a file (requires user approval). RESTRICTED in Spec mode — use only for ADR or plan files under `.rqml/`. Calls against project source code will be refused.');
+    } else {
+      parts.push('- **writeFile**: Write/create a file (requires user approval)');
+    }
     parts.push('- **listFiles**: List files matching a glob pattern');
     parts.push('- **readSpec**: Read the current RQML spec');
     parts.push('- **updateSpec**: Update the RQML spec (requires user approval)');
@@ -830,6 +907,7 @@ export class AgentService {
         model,
         system: systemPrompt,
         messages,
+        ...(this.getStreamProviderOptions() ? { providerOptions: this.getStreamProviderOptions()! } : {}),
       });
 
       // Collect the full response without streaming to the UI
@@ -1108,6 +1186,25 @@ export class AgentService {
     const llmService = getLlmService();
     const msgId = crypto.randomUUID();
 
+    // REQ-AGT-030: /implement is a code-writing flow; refuse in Spec mode.
+    if (getConfigurationService().getAgentMode() === 'spec') {
+      this._onDidReceiveMessage.fire({
+        type: 'agentResponse',
+        payload: {
+          id: msgId,
+          content:
+            'I am in **Spec mode**, so I cannot run `/implement` (which directly writes code). ' +
+            'Switch to Build mode using the mode switcher in the input bar, or use `/cmd` to generate ' +
+            'a prompt you can hand to an external coding agent.',
+        },
+      });
+      this._onDidReceiveMessage.fire({
+        type: 'agentStreamEnd',
+        payload: { id: msgId, content: '', final: true },
+      });
+      return;
+    }
+
     this.toolStreamActive = true;
     try {
       const model = await llmService.getModel();
@@ -1136,6 +1233,7 @@ export class AgentService {
 
       this.currentAbort = new AbortController();
 
+      const implProviderOptions = this.getStreamProviderOptions();
       const result = streamText({
         model,
         system: systemPrompt,
@@ -1143,6 +1241,7 @@ export class AgentService {
         tools,
         stopWhen: stepCountIs(15),
         abortSignal: this.currentAbort.signal,
+        ...(implProviderOptions ? { providerOptions: implProviderOptions } : {}),
       });
 
       // Each text segment gets its own message ID so tool-call system messages
@@ -1150,6 +1249,8 @@ export class AgentService {
       // we finalize the current text message and create a fresh ID for the next one.
       let currentMsgId = msgId;
       let stepContent = '';
+      // REQ-AGT-028: streamed reasoning trace for the current message.
+      let stepReasoning = '';
       // Suppress tool-call messages after askUser within the same step
       let suppressToolMessages = false;
 
@@ -1164,6 +1265,29 @@ export class AgentService {
             });
             break;
           }
+          case 'reasoning-start': {
+            this._onDidReceiveMessage.fire({
+              type: 'agentReasoning',
+              payload: { id: currentMsgId, reasoning: stepReasoning, status: 'start' },
+            });
+            break;
+          }
+          case 'reasoning-delta': {
+            if (suppressToolMessages) { break; }
+            stepReasoning += part.text;
+            this._onDidReceiveMessage.fire({
+              type: 'agentReasoning',
+              payload: { id: currentMsgId, reasoning: stepReasoning, status: 'delta' },
+            });
+            break;
+          }
+          case 'reasoning-end': {
+            this._onDidReceiveMessage.fire({
+              type: 'agentReasoning',
+              payload: { id: currentMsgId, reasoning: stepReasoning, status: 'end' },
+            });
+            break;
+          }
           case 'tool-call': {
             // Finalize any preceding text (or clean up empty placeholder)
             // and always rotate the message ID so the next text segment
@@ -1174,6 +1298,7 @@ export class AgentService {
                 payload: { id: currentMsgId, content: stepContent ? this.stripProposalForDisplay(stepContent) : '' },
               });
               stepContent = '';
+              stepReasoning = '';
               currentMsgId = crypto.randomUUID();
             }
             if (part.toolName === 'askUser') {

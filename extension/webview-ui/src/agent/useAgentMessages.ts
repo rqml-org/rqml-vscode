@@ -55,6 +55,14 @@ export interface Message {
   role: 'user' | 'assistant' | 'system' | 'command';
   content: string;
   streaming?: boolean;
+  /** REQ-AGT-028/029: streamed model reasoning trace. */
+  reasoning?: string;
+  /** True while reasoning is actively streaming (before any text-delta arrives). */
+  reasoningActive?: boolean;
+  /** Epoch ms when reasoning first started, for elapsed time display. */
+  reasoningStartedAt?: number;
+  /** Epoch ms when reasoning finished, for elapsed time display. */
+  reasoningEndedAt?: number;
   change?: ChangeInfo;
   toolApproval?: ToolApprovalInfo;
   userChoice?: UserChoiceInfo;
@@ -82,6 +90,9 @@ export interface StartupStatus {
 
 export type SpecHealthColor = 'gray' | 'yellow' | 'green' | 'red' | 'blue';
 
+/** REQ-AGT-030: Agent operating mode. */
+export type AgentMode = 'spec' | 'build';
+
 export interface AgentState {
   messages: Message[];
   endpointStatus: EndpointStatus;
@@ -108,6 +119,12 @@ export function useAgentMessages() {
   const [selectedModelId, setSelectedModelId] = useState('');
   const [specHealth, setSpecHealth] = useState<SpecHealthColor>('gray');
   const [planExists, setPlanExists] = useState(false);
+  const [agentMode, setAgentModeState] = useState<AgentMode>(() => {
+    // Seed from the data injected into the webview HTML so we don't flash the
+    // wrong mode on first paint while waiting for the host roundtrip.
+    const initial = (window as any).__WEBVIEW_DATA__?.agentMode;
+    return initial === 'spec' ? 'spec' : 'build';
+  });
   const autoApproveRef = useRef(false);
   const autoApproveToolsRef = useRef(false);
   const vscode = getVsCodeApi();
@@ -120,6 +137,7 @@ export function useAgentMessages() {
     vscode.postMessage({ type: 'requestSpecHealth' });
     vscode.postMessage({ type: 'requestModelList' });
     vscode.postMessage({ type: 'requestPlanStatus' });
+    vscode.postMessage({ type: 'requestAgentMode' });
 
     function handleMessage(event: MessageEvent) {
       const msg = event.data;
@@ -134,12 +152,63 @@ export function useAgentMessages() {
             // may have been inserted after it, so it may not be the last message)
             const idx = prev.findIndex(m => m.id === streamId && m.streaming);
             if (idx !== -1) {
+              const existing = prev[idx];
               const updated = [...prev];
-              updated[idx] = { ...prev[idx], content };
+              // First text-delta after reasoning means the model is now producing
+              // the final answer — collapse the reasoning panel.
+              const wasReasoning = existing.reasoningActive ?? false;
+              updated[idx] = {
+                ...existing,
+                content,
+                reasoningActive: false,
+                reasoningEndedAt: wasReasoning && !existing.reasoningEndedAt
+                  ? Date.now()
+                  : existing.reasoningEndedAt,
+              };
               return updated;
             }
             // New stream — create message
             return [...prev, { id: streamId, role: 'assistant', content, streaming: true }];
+          });
+          break;
+        }
+
+        case 'agentReasoning': {
+          const { id, reasoning, status } = msg.payload as {
+            id: string;
+            reasoning: string;
+            status: 'start' | 'delta' | 'end';
+          };
+          const streamId = `stream-${id}`;
+          setMessages(prev => {
+            const idx = prev.findIndex(m => m.id === streamId);
+            const now = Date.now();
+            if (idx !== -1) {
+              const existing = prev[idx];
+              const updated = [...prev];
+              updated[idx] = {
+                ...existing,
+                reasoning,
+                reasoningActive: status !== 'end',
+                reasoningStartedAt: existing.reasoningStartedAt ?? now,
+                reasoningEndedAt: status === 'end' ? now : existing.reasoningEndedAt,
+              };
+              return updated;
+            }
+            // Reasoning before any text — create the placeholder message.
+            return [
+              ...prev,
+              {
+                id: streamId,
+                role: 'assistant',
+                content: '',
+                streaming: true,
+                reasoning,
+                reasoningActive: status !== 'end',
+                reasoningStartedAt: now,
+                reasoningEndedAt: status === 'end' ? now : undefined,
+              },
+            ];
           });
           break;
         }
@@ -348,6 +417,12 @@ export function useAgentMessages() {
           break;
         }
 
+        case 'agentModeChanged': {
+          const { mode } = msg.payload as { mode: AgentMode };
+          setAgentModeState(mode === 'spec' ? 'spec' : 'build');
+          break;
+        }
+
         case 'userChoiceRequest': {
           const { choiceId, question, options, recommended } = msg.payload as {
             choiceId: string; question: string; options: string[]; recommended?: number;
@@ -427,6 +502,13 @@ export function useAgentMessages() {
     vscode.postMessage({ type: 'selectModel', payload: { modelId } });
   }, []);
 
+  const setAgentMode = useCallback((mode: AgentMode) => {
+    // Optimistic local update; the host will echo back agentModeChanged with
+    // the canonical value (a no-op for the happy path).
+    setAgentModeState(mode);
+    vscode.postMessage({ type: 'setAgentMode', payload: { mode } });
+  }, []);
+
   const respondToChoice = useCallback((choiceId: string, selected: string) => {
     vscode.postMessage({ type: 'respondToChoice', payload: { choiceId, selected } });
     setMessages(prev => prev.map(m =>
@@ -457,5 +539,7 @@ export function useAgentMessages() {
     allowAllToolCalls,
     selectModel,
     respondToChoice,
+    agentMode,
+    setAgentMode,
   };
 }

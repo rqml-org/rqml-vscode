@@ -10,7 +10,7 @@ import { getAgentService } from '../services/agentService';
 import { getSpecService } from '../services/specService';
 import { getModelCatalogService } from '../services/modelCatalogService';
 import { getConfigurationService } from '../services/configurationService';
-import type { ProviderId } from '../types/configuration';
+import type { ProviderId, AgentMode } from '../types/configuration';
 
 /**
  * WebviewViewProvider for the RQML Agent panel tab.
@@ -48,7 +48,7 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
     );
 
     // Colored RQML icon variants for spec health indicator
-    const iconColors = ['gray', 'yellow', 'green', 'red', 'blue'] as const;
+    const iconColors = ['gray', 'yellow', 'green', 'red', 'blue', 'purple'] as const;
     const rqmlIcons: Record<string, string> = {};
     for (const color of iconColors) {
       rqmlIcons[color] = webviewView.webview.asWebviewUri(
@@ -56,12 +56,18 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
       ).toString();
     }
 
+    const agentMode = getConfigurationService().getAgentMode();
+
     webviewView.webview.html = getWebviewContent(
       webviewView.webview,
       this.extensionUri,
       'agent',
       'RQML AGENT',
-      { logoUri: logoUri.toString(), rqmlIcons: JSON.stringify(rqmlIcons) }
+      {
+        logoUri: logoUri.toString(),
+        rqmlIcons: JSON.stringify(rqmlIcons),
+        agentMode,
+      }
     );
 
     // Handle messages from webview
@@ -245,6 +251,22 @@ export class AgentViewProvider implements vscode.WebviewViewProvider {
       case 'listWorkspaceFiles': {
         const { relativePath } = message.payload as { relativePath: string };
         await this.listWorkspaceFiles(relativePath);
+        break;
+      }
+      case 'setAgentMode': {
+        // REQ-AGT-030, REQ-AGT-031: Persist the new mode and echo it back so
+        // the webview reflects the canonical stored value.
+        const { mode } = message.payload as { mode: AgentMode };
+        const next: AgentMode = mode === 'spec' ? 'spec' : 'build';
+        await getConfigurationService().setAgentMode(next);
+        this.postToWebview({ type: 'agentModeChanged', payload: { mode: next } });
+        break;
+      }
+      case 'requestAgentMode': {
+        this.postToWebview({
+          type: 'agentModeChanged',
+          payload: { mode: getConfigurationService().getAgentMode() },
+        });
         break;
       }
     }

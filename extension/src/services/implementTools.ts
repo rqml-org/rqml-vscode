@@ -6,7 +6,22 @@ import { z } from 'zod';
 import * as vscode from 'vscode';
 import type { AgentService } from './agentService';
 import { getSpecService } from './specService';
+import { getConfigurationService } from './configurationService';
 import { computeLineDiff } from './diffUtil';
+
+/**
+ * REQ-AGT-030: In Spec mode the agent must not write project source code.
+ * ADR and plan files under `.rqml/` are exempt because they are design/planning
+ * artifacts the spec-mode agent legitimately maintains.
+ */
+function isSpecModeAllowedWritePath(path: string): boolean {
+  const normalized = path.replace(/\\/g, '/').replace(/^\.\//, '');
+  return (
+    normalized.startsWith('.rqml/adr/') ||
+    normalized === '.rqml/plan.md' ||
+    normalized.startsWith('.rqml/plans/')
+  );
+}
 
 /**
  * Create the tool set for the /implement agentic loop.
@@ -42,6 +57,19 @@ export function createImplementTools(
         content: z.string().describe('Full file content to write'),
       }),
       execute: async ({ path, content }) => {
+        // REQ-AGT-030: Hard-gate writeFile in Spec mode. Allow ADR/plan files
+        // under `.rqml/` but refuse all other paths with a helpful message.
+        if (
+          getConfigurationService().getAgentMode() === 'spec' &&
+          !isSpecModeAllowedWritePath(path)
+        ) {
+          return (
+            `writeFile to "${path}" is unavailable in Spec mode. ` +
+            `Switch to Build mode for direct edits, or use /cmd to generate an implementation prompt for an external coding agent. ` +
+            `In Spec mode you may still write ADRs under .rqml/adr/ and the plan file .rqml/plan.md.`
+          );
+        }
+
         const approvalId = crypto.randomUUID();
 
         // Read existing file content so we can show a side-by-side diff

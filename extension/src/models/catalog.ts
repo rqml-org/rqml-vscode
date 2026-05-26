@@ -36,6 +36,20 @@ export interface ProviderEntry {
   requiresEndpointUrl?: boolean;
   /** Env var for the endpoint URL when `requiresEndpointUrl` is true */
   endpointUrlEnvVar?: string;
+  /**
+   * REQ-AGT-028: How this provider exposes model reasoning ("thinking").
+   *
+   *   - `'native'`: the provider streams reasoning automatically when the
+   *     selected model is reasoning-capable. No extra options required
+   *     (DeepSeek, Gemini thinking mode, Groq R1 distills, Grok, OpenAI
+   *     o-series with default summary).
+   *   - `'anthropic-thinking'`: reasoning is opt-in via the Anthropic
+   *     `thinking` providerOptions block; the agent passes a budget derived
+   *     from the user's setting when the model is reasoning-capable.
+   *   - `'none'` / omitted: provider does not expose reasoning at the SDK
+   *     level.
+   */
+  reasoning?: 'native' | 'anthropic-thinking' | 'none';
 }
 
 /**
@@ -71,6 +85,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://console.anthropic.com/settings/keys',
     sdkModule: '@ai-sdk/anthropic',
     sdkFactory: 'createAnthropic',
+    reasoning: 'anthropic-thinking',
   },
   {
     id: 'openai',
@@ -80,6 +95,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://platform.openai.com/api-keys',
     sdkModule: '@ai-sdk/openai',
     sdkFactory: 'createOpenAI',
+    reasoning: 'native',
   },
   {
     id: 'google',
@@ -89,6 +105,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://aistudio.google.com/apikey',
     sdkModule: '@ai-sdk/google',
     sdkFactory: 'createGoogleGenerativeAI',
+    reasoning: 'native',
   },
   {
     id: 'azure-openai',
@@ -100,6 +117,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     sdkFactory: 'createAzure',
     requiresEndpointUrl: true,
     endpointUrlEnvVar: 'AZURE_RESOURCE_NAME',
+    reasoning: 'native',
   },
   {
     id: 'xai',
@@ -109,6 +127,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://docs.x.ai/',
     sdkModule: '@ai-sdk/xai',
     sdkFactory: 'createXai',
+    reasoning: 'native',
   },
   {
     id: 'mistral',
@@ -118,6 +137,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://console.mistral.ai/api-keys/',
     sdkModule: '@ai-sdk/mistral',
     sdkFactory: 'createMistral',
+    reasoning: 'none',
   },
   {
     id: 'groq',
@@ -127,6 +147,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://console.groq.com/keys',
     sdkModule: '@ai-sdk/groq',
     sdkFactory: 'createGroq',
+    reasoning: 'native',
   },
   {
     id: 'deepseek',
@@ -136,6 +157,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://platform.deepseek.com/api_keys',
     sdkModule: '@ai-sdk/deepseek',
     sdkFactory: 'createDeepSeek',
+    reasoning: 'native',
   },
   {
     id: 'perplexity',
@@ -145,6 +167,7 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://docs.perplexity.ai/',
     sdkModule: '@ai-sdk/perplexity',
     sdkFactory: 'createPerplexity',
+    reasoning: 'native',
   },
 ];
 
@@ -204,12 +227,20 @@ export const DEFAULT_CATALOG: readonly ModelCatalogEntry[] = [
 
   // ── OpenAI ──
   {
+    modelId: 'gpt-5.5',
+    displayName: 'GPT-5.5',
+    provider: 'openai',
+    capabilities: ['chat', 'code', 'vision', 'function-calling'],
+    contextWindow: 1_050_000,
+    recommended: true,
+  },
+  {
     modelId: 'gpt-5.4',
     displayName: 'GPT-5.4',
     provider: 'openai',
     capabilities: ['chat', 'code', 'vision', 'function-calling'],
     contextWindow: 1_050_000,
-    recommended: true,
+    recommended: false,
   },
   {
     modelId: 'gpt-5.4-pro',
@@ -557,3 +588,37 @@ export const DEFAULT_CATALOG: readonly ModelCatalogEntry[] = [
     recommended: false,
   },
 ];
+
+/**
+ * REQ-AGT-028 AC-AGT-028-02: Provider-options builder for reasoning.
+ *
+ * Returns an object suitable for passing as `providerOptions` to the
+ * Vercel AI SDK's `streamText`. Returns `undefined` when no reasoning
+ * options need to be set (either the model isn't reasoning-capable or
+ * the provider exposes reasoning natively without extra config).
+ */
+export function buildReasoningProviderOptions(
+  model: ModelCatalogEntry,
+  budgetTokens: number,
+): import('ai').ProviderMetadata | undefined {
+  if (!model.capabilities.includes('reasoning')) {
+    return undefined;
+  }
+  const provider = getProvider(model.provider);
+  if (!provider) {
+    return undefined;
+  }
+
+  switch (provider.reasoning) {
+    case 'anthropic-thinking':
+      return {
+        anthropic: {
+          thinking: { type: 'enabled', budgetTokens: Math.max(1024, budgetTokens) },
+        },
+      };
+    case 'native':
+    case 'none':
+    default:
+      return undefined;
+  }
+}

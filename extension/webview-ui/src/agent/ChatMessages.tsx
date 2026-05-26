@@ -81,18 +81,19 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
           onRespondToChoice={onRespondToChoice}
         />
       ))}
-      {isLoading && (
-        <div className="working-indicator">
-          {(window as any).__WEBVIEW_DATA__?.rqmlIconUri && (
-            <img
-              className="working-icon"
-              src={(window as any).__WEBVIEW_DATA__.rqmlIconUri}
-              alt=""
-            />
-          )}
-          <span className="working-text">Working...</span>
-        </div>
-      )}
+      {/* Suppress the generic working indicator while a reasoning panel is
+          actively streaming — the panel's own header + cursor are a clearer
+          indicator. */}
+      {isLoading && !messages.some(m => m.reasoningActive) && (() => {
+        const iconsRaw = (window as any).__WEBVIEW_DATA__?.rqmlIcons;
+        const icons = iconsRaw ? (typeof iconsRaw === 'string' ? JSON.parse(iconsRaw) : iconsRaw) : null;
+        const src = icons?.purple;
+        return (
+          <div className="working-indicator" role="status" aria-label="Working">
+            {src && <img className="working-icon" src={src} alt="Working" />}
+          </div>
+        );
+      })()}
       <div ref={bottomRef} />
     </div>
   );
