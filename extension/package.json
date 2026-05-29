@@ -583,15 +583,13 @@
     "@ai-sdk/azure": "^3.0.27",
     "@ai-sdk/google": "^3.0.22",
     "@ai-sdk/openai": "^3.0.26",
-    "@xmldom/xmldom": "^0.8.11",
     "ai": "^6.0.77",
     "diff": "^7.0.0",
     "docx": "^9.6.1",
     "exceljs": "^4.4.0",
-    "fast-xml-parser": "^4.5.1",
     "pdfkit": "^0.18.0",
     "pptxgenjs": "^4.0.1",
-    "xmllint-wasm": "^5.1.0",
+    "rqml-core": "file:../../rqml-core",
     "zod": "^3.22.0"
   },
   "scripts": {

@@ -1,9 +1,18 @@
 // REQ-UI-005: Tree view of specification
 // REQ-UI-006A: Show all RQML sections
-// This service parses RQML documents and provides structured access to the content.
+//
+// This service exposes the structured, view-facing shape the tree/details/matrix
+// views consume. It no longer parses XML itself: rqml-core is the single parsing
+// engine. parseText() delegates to loadCore().parse() and adapts the rich typed
+// model into the legacy view shape, putting the typed core element on each
+// item.raw (core uses plain property names, so existing raw reads keep working).
 
-import { XMLParser } from 'fast-xml-parser';
 import * as vscode from 'vscode';
+import { loadCore } from './core';
+import type {
+  RqmlDocument as CoreDocument,
+  Locator as CoreLocator,
+} from './core';
 
 /**
  * All possible RQML section names in document order per the schema.
@@ -76,67 +85,20 @@ export interface TraceEdge {
   toDisplay?: string;
 }
 
-/** Type for parsed XML objects */
-type XmlObject = Record<string, unknown>;
-
 /**
- * RqmlParser - Parses RQML XML documents into structured data.
+ * RqmlParser - Adapts rqml-core's typed model into the view-facing shape.
  */
 export class RqmlParser {
-  private parser: XMLParser;
-
-  constructor() {
-    this.parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-      preserveOrder: false,
-      parseAttributeValue: false,
-      trimValues: true
-    });
-  }
-
   /**
    * Parse an RQML document from text content.
    */
   async parseText(content: string, uri: vscode.Uri): Promise<RqmlDocument> {
-    const parsed = this.parser.parse(content) as XmlObject;
-    const rqml = parsed.rqml as XmlObject | undefined;
-
-    if (!rqml) {
-      throw new Error('Invalid RQML document: missing root <rqml> element');
+    const core = await loadCore();
+    const result = core.parse(content);
+    if (!result.ok) {
+      throw new Error(`Invalid RQML document: ${result.error.message}`);
     }
-
-    const doc: RqmlDocument = {
-      version: this.str(rqml['@_version']) || '2.0.1',
-      docId: this.str(rqml['@_docId']) || 'unknown',
-      status: this.str(rqml['@_status']) || 'draft',
-      sections: new Map(),
-      traceEdges: [],
-      raw: rqml,
-      uri
-    };
-
-    // Parse each section, creating empty placeholders for missing ones
-    for (const sectionName of RQML_SECTIONS) {
-      const sectionData = rqml[sectionName];
-      const section: RqmlSection = {
-        name: sectionName,
-        present: sectionData !== undefined,
-        items: [],
-        raw: sectionData
-      };
-
-      if (sectionData) {
-        section.items = this.extractItems(sectionName, sectionData as XmlObject, content);
-      }
-
-      doc.sections.set(sectionName, section);
-    }
-
-    // REQ-UI-006J: Extract trace edges for quick lookup
-    doc.traceEdges = this.extractTraceEdges(rqml);
-
-    return doc;
+    return this.adapt(result.document, content, uri);
   }
 
   /**
@@ -148,375 +110,242 @@ export class RqmlParser {
     return this.parseText(text, uri);
   }
 
-  /**
-   * Safely convert value to string
-   */
-  private str(value: unknown): string | undefined {
-    if (value === undefined || value === null) return undefined;
-    return String(value);
+  /** Adapt a typed core document into the legacy view shape. */
+  private adapt(core: CoreDocument, source: string, uri: vscode.Uri): RqmlDocument {
+    const sections = new Map<RqmlSectionName, RqmlSection>();
+
+    const add = (
+      name: RqmlSectionName,
+      present: boolean,
+      items: RqmlItem[],
+      raw: unknown,
+    ): void => {
+      sections.set(name, { name, present, items, raw });
+    };
+
+    add('meta', true, this.metaItems(core, source), core.meta);
+    add('catalogs', !!core.catalogs, this.catalogItems(core, source), core.catalogs);
+    add('domain', !!core.domain, this.domainItems(core, source), core.domain);
+    add('goals', !!core.goals, this.goalItems(core, source), core.goals);
+    add('scenarios', !!core.scenarios, this.scenarioItems(core, source), core.scenarios);
+    add(
+      'requirements',
+      true,
+      this.requirementItems(core, source),
+      { packages: core.packages, looseRequirements: core.looseRequirements },
+    );
+    add('behavior', !!core.behavior, this.behaviorItems(core, source), core.behavior);
+    add('interfaces', !!core.interfaces, this.interfaceItems(core, source), core.interfaces);
+    add('verification', !!core.verification, this.verificationItems(core, source), core.verification);
+    add('trace', core.trace.length > 0, this.traceItems(core, source), core.trace);
+    add('governance', !!core.governance, this.governanceItems(core, source), core.governance);
+
+    return {
+      version: core.version,
+      docId: core.docId,
+      status: core.status,
+      sections,
+      traceEdges: this.traceEdges(core),
+      raw: core,
+      uri,
+    };
   }
 
-  /**
-   * Extract items from a section based on section type.
-   */
-  private extractItems(sectionName: RqmlSectionName, data: XmlObject, sourceText: string): RqmlItem[] {
+  // ── Section item builders ──────────────────────────────────────────────────
+
+  private metaItems(core: CoreDocument, source: string): RqmlItem[] {
+    return [
+      this.mkItem(core.meta, 'meta', 'meta', source, {
+        id: 'meta',
+        title: core.meta.title || 'Document Metadata',
+      }),
+    ];
+  }
+
+  private catalogItems(core: CoreDocument, source: string): RqmlItem[] {
+    const c = core.catalogs;
+    if (!c) return [];
     const items: RqmlItem[] = [];
-
-    switch (sectionName) {
-      case 'meta':
-        items.push({
-          id: 'meta',
-          type: 'meta',
-          title: this.str(data.title) || 'Document Metadata',
-          raw: data,
-          section: sectionName
-        });
-        break;
-
-      case 'catalogs':
-        this.extractCatalogItems(data, items, sourceText);
-        break;
-
-      case 'domain':
-        this.extractDomainItems(data, items, sourceText);
-        break;
-
-      case 'goals':
-        this.extractGoalItems(data, items, sourceText);
-        break;
-
-      case 'scenarios':
-        this.extractScenarioItems(data, items, sourceText);
-        break;
-
-      case 'requirements':
-        this.extractRequirementItems(data, items, sourceText);
-        break;
-
-      case 'behavior':
-        this.extractBehaviorItems(data, items, sourceText);
-        break;
-
-      case 'interfaces':
-        this.extractInterfaceItems(data, items, sourceText);
-        break;
-
-      case 'verification':
-        this.extractVerificationItems(data, items, sourceText);
-        break;
-
-      case 'trace':
-        this.extractTraceItems(data, items, sourceText);
-        break;
-
-      case 'governance':
-        this.extractGovernanceItems(data, items, sourceText);
-        break;
-    }
-
+    this.pushAll(items, c.glossary, 'term', 'catalogs', source);
+    this.pushAll(items, c.actors, 'actor', 'catalogs', source);
+    this.pushAll(items, c.stakeholders, 'stakeholder', 'catalogs', source);
+    this.pushAll(items, c.constraints, 'constraint', 'catalogs', source);
+    this.pushAll(items, c.policies, 'policy', 'catalogs', source);
+    this.pushAll(items, c.decisions, 'decision', 'catalogs', source);
+    this.pushAll(items, c.risks, 'risk', 'catalogs', source);
     return items;
   }
 
-  private extractCatalogItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    const glossary = data.glossary as XmlObject | undefined;
-    if (glossary) {
-      this.extractArrayItems(glossary, 'term', 'term', items, 'catalogs', sourceText);
-    }
-
-    const actors = data.actors as XmlObject | undefined;
-    if (actors) {
-      this.extractArrayItems(actors, 'actor', 'actor', items, 'catalogs', sourceText);
-    }
-
-    const stakeholders = data.stakeholders as XmlObject | undefined;
-    if (stakeholders) {
-      this.extractArrayItems(stakeholders, 'stakeholder', 'stakeholder', items, 'catalogs', sourceText);
-    }
-
-    const constraints = data.constraints as XmlObject | undefined;
-    if (constraints) {
-      this.extractArrayItems(constraints, 'constraint', 'constraint', items, 'catalogs', sourceText);
-    }
-
-    const policies = data.policies as XmlObject | undefined;
-    if (policies) {
-      this.extractArrayItems(policies, 'policy', 'policy', items, 'catalogs', sourceText);
-    }
-
-    const decisions = data.decisions as XmlObject | undefined;
-    if (decisions) {
-      this.extractArrayItems(decisions, 'decision', 'decision', items, 'catalogs', sourceText);
-    }
-
-    const risks = data.risks as XmlObject | undefined;
-    if (risks) {
-      this.extractArrayItems(risks, 'risk', 'risk', items, 'catalogs', sourceText);
-    }
+  private domainItems(core: CoreDocument, source: string): RqmlItem[] {
+    const d = core.domain;
+    if (!d) return [];
+    const items: RqmlItem[] = [];
+    this.pushAll(items, d.entities, 'entity', 'domain', source);
+    this.pushAll(items, d.businessRules, 'rule', 'domain', source);
+    return items;
   }
 
-  private extractDomainItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    const entities = data.entities as XmlObject | undefined;
-    if (entities) {
-      this.extractArrayItems(entities, 'entity', 'entity', items, 'domain', sourceText);
+  private goalItems(core: CoreDocument, source: string): RqmlItem[] {
+    const g = core.goals;
+    if (!g) return [];
+    const items: RqmlItem[] = [];
+    this.pushAll(items, g.goals, 'goal', 'goals', source);
+    this.pushAll(items, g.qualityGoals, 'qgoal', 'goals', source);
+    this.pushAll(items, g.obstacles, 'obstacle', 'goals', source);
+    this.pushAll(items, g.goalLinks, 'goalLink', 'goals', source);
+    return items;
+  }
+
+  private scenarioItems(core: CoreDocument, source: string): RqmlItem[] {
+    const s = core.scenarios;
+    if (!s) return [];
+    const items: RqmlItem[] = [];
+    this.pushAll(items, s.scenarios, 'scenario', 'scenarios', source);
+    this.pushAll(items, s.misuseCases, 'misuseCase', 'scenarios', source);
+    this.pushAll(items, s.edgeCases, 'edgeCase', 'scenarios', source);
+    return items;
+  }
+
+  private requirementItems(core: CoreDocument, source: string): RqmlItem[] {
+    const items: RqmlItem[] = [];
+    for (const pkg of core.packages) {
+      const children = pkg.requirements.map((req) =>
+        this.mkItem(req, 'req', 'requirements', source, { type: req.type }),
+      );
+      items.push(
+        this.mkItem(pkg, 'reqPackage', 'requirements', source, { children }),
+      );
     }
-
-    const businessRules = data.businessRules as XmlObject | undefined;
-    if (businessRules) {
-      this.extractArrayItems(businessRules, 'rule', 'rule', items, 'domain', sourceText);
+    for (const req of core.looseRequirements) {
+      items.push(
+        this.mkItem(req, 'req', 'requirements', source, { type: req.type }),
+      );
     }
+    return items;
   }
 
-  private extractGoalItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    this.extractArrayItems(data, 'goal', 'goal', items, 'goals', sourceText);
-    this.extractArrayItems(data, 'qgoal', 'qgoal', items, 'goals', sourceText);
-    this.extractArrayItems(data, 'obstacle', 'obstacle', items, 'goals', sourceText);
-    this.extractArrayItems(data, 'goalLink', 'goalLink', items, 'goals', sourceText);
+  private behaviorItems(core: CoreDocument, source: string): RqmlItem[] {
+    const machines = core.behavior?.stateMachines ?? [];
+    return machines.map((sm) => {
+      const children: RqmlItem[] = [];
+      this.pushAll(children, sm.states, 'state', 'behavior', source);
+      this.pushAll(children, sm.transitions, 'transition', 'behavior', source);
+      return this.mkItem(sm, 'stateMachine', 'behavior', source, { children });
+    });
   }
 
-  private extractScenarioItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    this.extractArrayItems(data, 'scenario', 'scenario', items, 'scenarios', sourceText);
-    this.extractArrayItems(data, 'misuseCase', 'misuseCase', items, 'scenarios', sourceText);
-    this.extractArrayItems(data, 'edgeCase', 'edgeCase', items, 'scenarios', sourceText);
-  }
-
-  private extractRequirementItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    // Requirement packages
-    const packages = this.toArray(data.reqPackage);
-    for (const pkg of packages) {
-      const pkgItem: RqmlItem = {
-        id: this.str(pkg['@_id']) || 'unknown',
-        type: 'reqPackage',
-        title: this.str(pkg['@_title']),
-        raw: pkg,
-        section: 'requirements',
-        line: this.findLineNumber(sourceText, this.str(pkg['@_id'])),
-        children: []
-      };
-
-      // Requirements within package
-      const reqs = this.toArray(pkg.req);
-      for (const req of reqs) {
-        pkgItem.children!.push({
-          id: this.str(req['@_id']) || 'unknown',
-          type: this.str(req['@_type']) || 'FR',
-          title: this.str(req['@_title']),
-          status: this.str(req['@_status']),
-          priority: this.str(req['@_priority']),
-          raw: req,
-          section: 'requirements',
-          line: this.findLineNumber(sourceText, this.str(req['@_id']))
-        });
-      }
-
-      items.push(pkgItem);
+  private interfaceItems(core: CoreDocument, source: string): RqmlItem[] {
+    const it = core.interfaces;
+    if (!it) return [];
+    const items: RqmlItem[] = [];
+    for (const api of it.apis ?? []) {
+      const children: RqmlItem[] = [];
+      this.pushAll(children, api.endpoints, 'endpoint', 'interfaces', source);
+      items.push(this.mkItem(api, 'api', 'interfaces', source, { children }));
     }
-
-    // Top-level requirements (not in packages)
-    const topLevelReqs = this.toArray(data.req);
-    for (const req of topLevelReqs) {
-      items.push({
-        id: this.str(req['@_id']) || 'unknown',
-        type: this.str(req['@_type']) || 'FR',
-        title: this.str(req['@_title']),
-        status: this.str(req['@_status']),
-        priority: this.str(req['@_priority']),
-        raw: req,
-        section: 'requirements',
-        line: this.findLineNumber(sourceText, this.str(req['@_id']))
-      });
-    }
+    this.pushAll(items, it.events, 'event', 'interfaces', source);
+    return items;
   }
 
-  private extractBehaviorItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    const machines = this.toArray(data.stateMachine);
-    for (const sm of machines) {
-      const smItem: RqmlItem = {
-        id: this.str(sm['@_id']) || 'unknown',
-        type: 'stateMachine',
-        name: this.str(sm['@_name']),
-        raw: sm,
-        section: 'behavior',
-        line: this.findLineNumber(sourceText, this.str(sm['@_id'])),
-        children: []
-      };
-
-      const states = this.toArray(sm.state);
-      for (const state of states) {
-        smItem.children!.push({
-          id: this.str(state['@_id']) || 'unknown',
-          type: 'state',
-          name: this.str(state['@_name']),
-          raw: state,
-          section: 'behavior',
-          line: this.findLineNumber(sourceText, this.str(state['@_id']))
-        });
-      }
-
-      const transitions = this.toArray(sm.transition);
-      for (const trans of transitions) {
-        smItem.children!.push({
-          id: this.str(trans['@_id']) || 'unknown',
-          type: 'transition',
-          raw: trans,
-          section: 'behavior',
-          line: this.findLineNumber(sourceText, this.str(trans['@_id']))
-        });
-      }
-
-      items.push(smItem);
-    }
+  private verificationItems(core: CoreDocument, source: string): RqmlItem[] {
+    const v = core.verification;
+    if (!v) return [];
+    const items: RqmlItem[] = [];
+    this.pushAll(items, v.testSuites, 'testSuite', 'verification', source);
+    this.pushAll(items, v.testCases, 'testCase', 'verification', source);
+    return items;
   }
 
-  private extractInterfaceItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    const apis = this.toArray(data.api);
-    for (const api of apis) {
-      const apiItem: RqmlItem = {
-        id: this.str(api['@_id']) || 'unknown',
-        type: 'api',
-        name: this.str(api['@_name']),
-        raw: api,
-        section: 'interfaces',
-        line: this.findLineNumber(sourceText, this.str(api['@_id'])),
-        children: []
-      };
-
-      const endpoints = this.toArray(api.endpoint);
-      for (const ep of endpoints) {
-        apiItem.children!.push({
-          id: this.str(ep['@_id']) || 'unknown',
-          type: 'endpoint',
-          raw: ep,
-          section: 'interfaces',
-          line: this.findLineNumber(sourceText, this.str(ep['@_id']))
-        });
-      }
-
-      items.push(apiItem);
-    }
-
-    this.extractArrayItems(data, 'event', 'event', items, 'interfaces', sourceText);
+  private traceItems(core: CoreDocument, source: string): RqmlItem[] {
+    return core.trace.map((edge) =>
+      this.mkItem(edge, 'edge', 'trace', source),
+    );
   }
 
-  private extractVerificationItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    const suites = this.toArray(data.testSuite);
-    for (const suite of suites) {
-      items.push({
-        id: this.str(suite['@_id']) || 'unknown',
-        type: 'testSuite',
-        title: this.str(suite['@_title']),
-        raw: suite,
-        section: 'verification',
-        line: this.findLineNumber(sourceText, this.str(suite['@_id']))
-      });
-    }
-
-    this.extractArrayItems(data, 'testCase', 'testCase', items, 'verification', sourceText);
+  private governanceItems(core: CoreDocument, source: string): RqmlItem[] {
+    const g = core.governance;
+    if (!g) return [];
+    const items: RqmlItem[] = [];
+    this.pushAll(items, g.issues, 'issue', 'governance', source);
+    this.pushAll(items, g.approvals, 'approval', 'governance', source);
+    return items;
   }
 
-  private extractTraceItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    this.extractArrayItems(data, 'edge', 'edge', items, 'trace', sourceText);
-  }
+  // ── Trace edges (flat, resolved) ───────────────────────────────────────────
 
   /**
-   * REQ-UI-006J: Extract all trace edges as structured objects for quick lookup.
-   * Supports RQML 2.1.0 structured endpoints: edge/from/locator/{local|doc|external}
+   * REQ-UI-006J: Flatten core's normalized trace into resolved view edges.
+   * Local endpoints carry their id; doc/external endpoints carry a display URI.
    */
-  private extractTraceEdges(rqml: XmlObject): TraceEdge[] {
-    const edges: TraceEdge[] = [];
-    const traceSection = rqml.trace as XmlObject | undefined;
-
-    if (!traceSection) {
-      return edges;
-    }
-
-    const edgeElements = this.toArray(traceSection.edge);
-    for (const edge of edgeElements) {
-      const notes = edge.notes;
-      const { id: fromId, display: fromDisplay } = this.resolveEndpoint(edge.from as XmlObject | undefined);
-      const { id: toId, display: toDisplay } = this.resolveEndpoint(edge.to as XmlObject | undefined);
-      edges.push({
-        id: this.str(edge['@_id']) || 'unknown',
-        from: fromId,
-        to: toId,
-        type: this.str(edge['@_type']) || 'relatedTo',
-        notes: typeof notes === 'string' ? notes : undefined,
-        fromDisplay: fromDisplay !== fromId ? fromDisplay : undefined,
-        toDisplay: toDisplay !== toId ? toDisplay : undefined,
-      });
-    }
-
-    return edges;
+  private traceEdges(core: CoreDocument): TraceEdge[] {
+    return core.trace.map((edge) => {
+      const from = this.endpoint(edge.from);
+      const to = this.endpoint(edge.to);
+      const view: TraceEdge = {
+        id: edge.id,
+        from: from.id,
+        to: to.id,
+        type: edge.type,
+      };
+      if (edge.notes !== undefined) view.notes = edge.notes;
+      if (from.display !== from.id) view.fromDisplay = from.display;
+      if (to.display !== to.id) view.toDisplay = to.display;
+      return view;
+    });
   }
 
-  /**
-   * Resolve a trace endpoint (from/to) to a local ID and display string.
-   * Handles: local (id), doc (uri + id), external (uri).
-   */
-  private resolveEndpoint(endpoint: XmlObject | undefined): { id: string; display: string } {
-    if (!endpoint) return { id: '', display: '' };
-
-    const locator = endpoint.locator as XmlObject | undefined;
-    if (!locator) return { id: '', display: '' };
-
-    // Local reference: <local id="REQ-001"/>
-    const local = locator.local as XmlObject | undefined;
-    if (local) {
-      const id = this.str(local['@_id']) || '';
-      return { id, display: id };
+  /** Resolve a core locator to a local id and a human display string. */
+  private endpoint(loc: CoreLocator): { id: string; display: string } {
+    if (loc.kind === 'local') return { id: loc.id, display: loc.id };
+    if (loc.kind === 'doc') {
+      return { id: '', display: loc.uri ? `${loc.uri}#${loc.id}` : loc.id };
     }
-
-    // Document reference: <doc uri="..." id="REQ-001"/>
-    const doc = locator.doc as XmlObject | undefined;
-    if (doc) {
-      const id = this.str(doc['@_id']) || '';
-      const uri = this.str(doc['@_uri']) || '';
-      return { id: '', display: uri ? `${uri}#${id}` : id };
-    }
-
-    // External reference: <external uri="..."/>
-    const ext = locator.external as XmlObject | undefined;
-    if (ext) {
-      const uri = this.str(ext['@_uri']) || '';
-      return { id: '', display: uri };
-    }
-
-    return { id: '', display: '' };
+    return { id: '', display: loc.uri };
   }
 
-  private extractGovernanceItems(data: XmlObject, items: RqmlItem[], sourceText: string): void {
-    this.extractArrayItems(data, 'issue', 'issue', items, 'governance', sourceText);
-    this.extractArrayItems(data, 'approval', 'approval', items, 'governance', sourceText);
-  }
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-  private extractArrayItems(
-    container: XmlObject,
-    key: string,
-    type: string,
+  private pushAll(
     items: RqmlItem[],
+    els: unknown[] | undefined,
+    kind: string,
     section: RqmlSectionName,
-    sourceText: string
+    source: string,
   ): void {
-    const arr = this.toArray(container[key]);
-
-    for (const item of arr) {
-      items.push({
-        id: this.str(item['@_id']) || 'unknown',
-        type,
-        title: this.str(item['@_title']),
-        name: this.str(item['@_name']),
-        status: this.str(item['@_status']),
-        priority: this.str(item['@_priority']),
-        raw: item,
-        section,
-        line: this.findLineNumber(sourceText, this.str(item['@_id']))
-      });
+    for (const el of els ?? []) {
+      items.push(this.mkItem(el, kind, section, source));
     }
   }
 
-  private toArray(value: unknown): XmlObject[] {
-    if (!value) return [];
-    if (Array.isArray(value)) return value as XmlObject[];
-    return [value as XmlObject];
+  /** Build a view item from a typed core element (kept on item.raw). */
+  private mkItem(
+    el: unknown,
+    kind: string,
+    section: RqmlSectionName,
+    source: string,
+    opts?: { id?: string; type?: string; title?: string; children?: RqmlItem[] },
+  ): RqmlItem {
+    const r = (el && typeof el === 'object' ? el : {}) as Rec;
+    const id = opts?.id ?? this.str(r.id) ?? 'unknown';
+    const item: RqmlItem = {
+      id,
+      type: opts?.type ?? kind,
+      title: opts?.title ?? this.str(r.title),
+      name: this.str(r.name),
+      status: this.str(r.status),
+      priority: this.str(r.priority),
+      raw: el,
+      section,
+      line: this.findLineNumber(source, this.str(r.id)),
+    };
+    if (opts?.children) item.children = opts.children;
+    return item;
+  }
+
+  /** Safely convert a value to a trimmed string. */
+  private str(value: unknown): string | undefined {
+    if (value === undefined || value === null) return undefined;
+    return String(value);
   }
 
   /**
@@ -542,6 +371,9 @@ export class RqmlParser {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
+
+/** Loose record view of a typed core element for field extraction. */
+type Rec = Record<string, unknown>;
 
 /** Singleton parser instance */
 let parserInstance: RqmlParser | undefined;

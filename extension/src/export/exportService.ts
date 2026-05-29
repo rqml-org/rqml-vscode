@@ -3,8 +3,11 @@
 
 import type { LanguageModel } from 'ai';
 import type { RqmlDocument } from '../services/rqmlParser';
+import type { RqmlDocument as CoreDocument } from '../services/core';
+import { loadCore } from '../services/core';
 import type { ExportConfig, ExportData } from './generators/types';
 import { transformToExportData } from './rqmlToExportData';
+import { scopeOutline } from './exportMarkdown';
 import { LlmReportGenerator } from './llmReportGenerator';
 import { PptxGenerator } from './generators/pptxGenerator';
 import { DocxGenerator } from './generators/docxGenerator';
@@ -27,6 +30,7 @@ export class ExportService {
     // 1. Transform spec data per selection
     onProgress?.('Preparing specification data...', 10);
     const data = transformToExportData(doc, config.selectedSections);
+    data.content = await this.buildContent(doc, config);
 
     // 2. Resolve LLM model
     onProgress?.('Connecting to AI model...', 20);
@@ -49,6 +53,19 @@ export class ExportService {
 
     onProgress?.('Done', 100);
     return buffer;
+  }
+
+  /**
+   * Build the rich markdown the LLM consumes. The view document carries the
+   * typed core document on `.raw` (set by the parser adapter); we render its
+   * outline scoped to the wizard's section/item selection.
+   */
+  private async buildContent(doc: RqmlDocument, config: ExportConfig): Promise<string> {
+    const core = await loadCore();
+    const coreDoc = doc.raw as CoreDocument;
+    const outline = core.buildOutline(coreDoc);
+    const scoped = scopeOutline(outline, config.selectedSections);
+    return core.outlineToMarkdown(scoped);
   }
 
   private async resolveModel(config: ExportConfig): Promise<LanguageModel> {

@@ -77,6 +77,13 @@ export interface ExportData {
   status: string;
   sections: ExportDataSection[];
   traceEdges: ExportTraceEdge[];
+  /**
+   * Rich markdown rendering of the selected sections (full statements,
+   * acceptance criteria, goals, scenarios, behavior, etc.), produced by
+   * rqml-core's outline serializer. This is what the LLM prompt consumes; the
+   * flat `sections`/`traceEdges` above remain for the format generators.
+   */
+  content?: string;
 }
 
 export interface ExportGenerator {

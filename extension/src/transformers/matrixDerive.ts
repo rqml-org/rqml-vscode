@@ -365,30 +365,30 @@ export function detectWarnings(
   return out;
 }
 
-// ── Raw-XML helpers ─────────────────────────────────────────────────────────
+// ── Raw-model helpers ───────────────────────────────────────────────────────
 //
-// The parser exposes the original XML object on `item.raw` but doesn't promote
-// `<rationale>`, `<statement>`, or `@_ownerRef` to first-class fields. We read
-// them directly here so the transformer doesn't need parser changes.
+// `item.raw` is the typed rqml-core element. Core uses plain property names for
+// both attributes and child text (e.g. `ownerRef`, `rationale`, `statement`),
+// so attributes and child elements are read the same way.
 
-/** Extract a string-valued child element (e.g. <rationale>...</rationale>). */
+/** Extract a string-valued child element (e.g. rationale, statement). */
 export function readChildText(raw: unknown, childName: string): string | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const value = (raw as Record<string, unknown>)[childName];
   return readTextValue(value);
 }
 
-/** Extract an attribute (e.g. ownerRef → @_ownerRef). */
+/** Extract an attribute-derived field (e.g. ownerRef) off the typed element. */
 export function readAttribute(raw: unknown, attrName: string): string | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
-  const v = (raw as Record<string, unknown>)['@_' + attrName];
+  const v = (raw as Record<string, unknown>)[attrName];
   if (typeof v === 'string') return v;
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
   return undefined;
 }
 
 /**
- * fast-xml-parser may produce strings, objects with `#text`, or arrays — be tolerant.
+ * Core models prose as plain strings, but stay tolerant of object/array forms.
  */
 function readTextValue(value: unknown): string | undefined {
   if (value == null) return undefined;

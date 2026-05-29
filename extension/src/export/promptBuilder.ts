@@ -48,9 +48,15 @@ export function buildSystemPrompt(reportType: ReportTypeId, format: ExportFormat
 }
 
 /**
- * Serialize ExportData into a compact text representation for the LLM prompt.
+ * Serialize ExportData into the text the LLM prompt consumes. Prefers the rich
+ * markdown outline (`data.content`) produced by rqml-core; falls back to the
+ * flat id/title list only when no rich content is available.
  */
 export function serializeExportData(data: ExportData): string {
+  if (data.content && data.content.trim()) {
+    return data.content;
+  }
+
   const lines: string[] = [];
 
   lines.push(`# ${data.title}`);
