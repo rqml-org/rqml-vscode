@@ -4,6 +4,15 @@ All notable changes to the RQML for VS Code extension are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Per VS Code marketplace convention, odd MINOR versions (`0.1.x`) are pre-release and even MINOR versions (`0.2.x`, `0.4.x`, ...) are stable.
 
+## [1.1.7] — 2026-05-31
+
+### Changed
+- **Core functionality externalized into `rqml-core`.** The shared RQML parsing, validation, and document logic that previously lived inside the extension has been factored out into the standalone `rqml-core` library. The extension now consumes `rqml-core`, keeping the two in lockstep and making the core reusable across other tools.
+- **New RQML object model.** Spec exports are now driven by a proper RQML object model rather than ad-hoc serialization. This greatly increases the quality and fidelity of generated spec exports (PDF, Word, PowerPoint, Excel) — sections, relationships, and structured content are represented faithfully end to end.
+
+### Fixed
+- **Spec export schema validation.** Fixed an *"Invalid schema for response_format"* error when generating reports with OpenAI strict structured-output models. The report output schema's optional/defaulted fields (`layoutHint`, `subtitle`) are now expressed as nullable so every property is included in the schema's `required` set.
+
 ## [0.1.6] — 2026-05-24
 
 ### Added

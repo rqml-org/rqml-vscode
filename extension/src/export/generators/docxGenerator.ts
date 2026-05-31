@@ -72,7 +72,7 @@ export class DocxGenerator implements ExportGenerator {
     const doc = new Document({
       creator: 'RQML Export',
       title: report.title,
-      description: report.subtitle,
+      description: report.subtitle ?? undefined,
       sections: [{
         properties: {},
         children,

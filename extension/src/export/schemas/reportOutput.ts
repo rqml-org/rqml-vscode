@@ -44,13 +44,13 @@ export const generatedSection = z.object({
     'two-column',
     'summary',
     'auto',
-  ]).default('auto').describe('Layout hint for presentation formats (PPT). Ignored by document formats.'),
+  ]).nullable().describe('Layout hint for presentation formats (PPT). Use "auto" (or null) for document formats. Defaults to "auto" when null.'),
   content: z.array(generatedContent).describe('Content blocks within this section'),
 });
 
 export const generatedReport = z.object({
   title: z.string().describe('Report title'),
-  subtitle: z.string().optional().describe('Report subtitle'),
+  subtitle: z.string().nullable().describe('Report subtitle, or null if none'),
   sections: z.array(generatedSection).describe('Report sections in order'),
 });
 
