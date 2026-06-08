@@ -326,14 +326,18 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
     const state = this.specState;
 
     let label = 'RQML Spec';
+    const activeFileName = state?.activeSpecUri?.fsPath.split('/').pop() || '';
     if (state?.status === 'none') {
       label = 'RQML Spec (no file)';
     } else if (state?.status === 'invalid') {
-      label = 'RQML Spec (invalid)';
-    } else if (state?.status === 'single' && state.files.length > 1 && state.activeSpecUri) {
+      // Surface which spec is broken when multiple exist, so the user knows
+      // what they're switching away from.
+      label = state.files.length > 1 && activeFileName
+        ? `RQML Spec (${activeFileName} — invalid)`
+        : 'RQML Spec (invalid)';
+    } else if (state?.status === 'single' && state.files.length > 1 && activeFileName) {
       // Show active filename when multiple specs exist
-      const fileName = state.activeSpecUri.fsPath.split('/').pop() || '';
-      label = `RQML Spec (${fileName})`;
+      label = `RQML Spec (${activeFileName})`;
     }
 
     return {

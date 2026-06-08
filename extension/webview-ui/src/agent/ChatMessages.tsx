@@ -1,12 +1,21 @@
 // Scrollable chat message list with auto-scroll
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Message, StartupStatus } from './useAgentMessages';
 import { MessageBubble } from './MessageBubble';
 import { getVsCodeApi } from '../shared/vscodeApi';
 
+/** Format elapsed seconds as e.g. "8s" or "1m 05s". */
+function formatElapsed(totalSeconds: number): string {
+  if (totalSeconds < 60) { return `${totalSeconds}s`; }
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}m ${s.toString().padStart(2, '0')}s`;
+}
+
 interface ChatMessagesProps {
   messages: Message[];
   isLoading: boolean;
+  tokensUsed: number;
   startupStatus: StartupStatus | null;
   onAcceptChange: (changeId: string) => void;
   onRejectChange: (changeId: string) => void;
@@ -20,6 +29,7 @@ interface ChatMessagesProps {
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
   isLoading,
+  tokensUsed,
   startupStatus,
   onAcceptChange,
   onRejectChange,
@@ -36,6 +46,19 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  // REQ-AGT-033: tick elapsed seconds while the agent is working. Restarts each
+  // time work begins (isLoading false → true).
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!isLoading) { return; }
+    const start = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isLoading]);
 
   return (
     <div className="chat-messages" ref={containerRef}>
@@ -91,6 +114,11 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
         return (
           <div className="working-indicator" role="status" aria-label="Working">
             {src && <img className="working-icon" src={src} alt="Working" />}
+            <span className="working-stats">
+              <span className="working-stat">{formatElapsed(elapsed)}</span>
+              <span className="working-stat-dot" />
+              <span className="working-stat">{tokensUsed.toLocaleString()} tokens</span>
+            </span>
           </div>
         );
       })()}

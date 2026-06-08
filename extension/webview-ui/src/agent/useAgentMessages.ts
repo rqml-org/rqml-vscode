@@ -114,6 +114,8 @@ export function useAgentMessages() {
   const [endpointStatus, setEndpointStatus] = useState<EndpointStatus>({ configured: false });
   const [commandNames, setCommandNames] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // REQ-AGT-033: cumulative tokens used in the current turn, for the working indicator.
+  const [tokensUsed, setTokensUsed] = useState(0);
   const [startupStatus, setStartupStatus] = useState<StartupStatus | null>(null);
   const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState('');
@@ -266,6 +268,12 @@ export function useAgentMessages() {
             }
             return [...prev, { id: endStreamId, role: 'assistant', content, streaming: false, change: changeInfo }];
           });
+          break;
+        }
+
+        case 'agentUsage': {
+          const { totalTokens } = msg.payload as { totalTokens: number };
+          setTokensUsed(totalTokens);
           break;
         }
 
@@ -451,6 +459,7 @@ export function useAgentMessages() {
       files: files?.length ? files : undefined,
     }]);
     setIsLoading(true);
+    setTokensUsed(0);
     vscode.postMessage({
       type: 'sendPrompt',
       payload: {
@@ -523,6 +532,7 @@ export function useAgentMessages() {
     endpointStatus,
     commandNames,
     isLoading,
+    tokensUsed,
     startupStatus,
     availableModels,
     selectedModelId,

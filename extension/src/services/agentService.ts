@@ -16,6 +16,7 @@ import { getSkillService } from './skillService';
 import { computeLineDiff, type DiffRow } from './diffUtil';
 import { getModelCatalogService } from './modelCatalogService';
 import { buildReasoningProviderOptions } from '../models/catalog';
+import { formatLlmError } from './llmErrors';
 
 /** Message sent to the webview */
 export interface AgentWebviewMessage {
@@ -253,6 +254,9 @@ export class AgentService {
   private async streamResponse(): Promise<void> {
     const llmService = getLlmService();
     let currentMsgId = crypto.randomUUID();
+    // REQ-AGT-032: capture the fullStream `error` part so the catch block can
+    // report the real provider error instead of the generic NoOutputGeneratedError.
+    let streamError: unknown;
 
     try {
       const model = await llmService.getModel();
@@ -272,7 +276,7 @@ export class AgentService {
       const result = streamText({
         model,
         system: systemPrompt,
-        messages: this.conversationHistory,
+        messages: this.sanitizeHistoryForProvider(this.conversationHistory),
         abortSignal: this.currentAbort.signal,
         ...(tools ? { tools, stopWhen: stepCountIs(15) } : {}),
         ...(providerOptions ? { providerOptions } : {}),
@@ -289,9 +293,16 @@ export class AgentService {
       // REQ-AGT-028: accumulate reasoning so we can stream it to the webview
       // alongside the assistant text. Resets per message id.
       let stepReasoning = '';
+      // REQ-AGT-033: cumulative tokens used across all steps of this turn, sent
+      // to the webview for the working-indicator stats.
+      let totalTokens = 0;
 
       for await (const part of result.fullStream) {
         switch (part.type) {
+          case 'error': {
+            streamError = part.error;
+            break;
+          }
           case 'text-delta': {
             if (askUserPending) { break; } // Suppress text while waiting for user choice
             stepContent += part.text;
@@ -356,13 +367,30 @@ export class AgentService {
             }
             break;
           }
+          case 'finish-step': {
+            // Step boundary — resume normal output and report cumulative tokens.
+            askUserPending = false;
+            totalTokens += part.usage?.totalTokens ?? 0;
+            this._onDidReceiveMessage.fire({ type: 'agentUsage', payload: { totalTokens } });
+            break;
+          }
           case 'tool-result':
-          case 'finish-step':
           case 'start-step':
             // Step boundary or tool completion — resume normal output
             askUserPending = false;
             break;
         }
+      }
+
+      // REQ-AGT-032: some providers (e.g. OpenAI) emit an `error` stream part
+      // and then finish the stream cleanly — `await result.response` does NOT
+      // throw, so the catch block never runs. Surface the captured error here
+      // so the failure is not silent.
+      if (streamError) {
+        const content = formatLlmError({ area: 'agent', streamError });
+        this._onDidReceiveMessage.fire({ type: 'agentResponse', payload: { id: currentMsgId, content } });
+        this._onDidReceiveMessage.fire({ type: 'agentStreamEnd', payload: { id: currentMsgId, content: '', final: true } });
+        return;
       }
 
       // The final step's text is in stepContent — extract change proposals from it
@@ -403,10 +431,10 @@ export class AgentService {
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const content = formatLlmError({ area: 'agent', streamError, downstreamError: error });
       this._onDidReceiveMessage.fire({
         type: 'agentResponse',
-        payload: { id: currentMsgId, content: `Error communicating with LLM: ${message}` }
+        payload: { id: currentMsgId, content }
       });
       // Belt-and-braces: ensure the working indicator clears even if the stream
       // failed before emitting a final agentStreamEnd.
@@ -429,6 +457,32 @@ export class AgentService {
     const entry = getModelCatalogService().findModel(active.modelId, active.providerId);
     if (!entry) return undefined;
     return buildReasoningProviderOptions(entry, config.getReasoningBudgetTokens());
+  }
+
+  /**
+   * REQ-AGT-028: Strip reasoning parts that belong to a *different* provider
+   * before sending history to the active provider. Provider-specific reasoning
+   * blocks (e.g. Anthropic "thinking" parts carry a signature) are only valid
+   * for the provider that produced them; replaying them to another provider
+   * (e.g. after switching Anthropic → OpenAI) is rejected/skipped with warnings.
+   *
+   * Returns a shallow-cleaned copy — the stored `conversationHistory` is left
+   * intact so switching back to the original provider still works.
+   */
+  private sanitizeHistoryForProvider(messages: ModelMessage[]): ModelMessage[] {
+    const providerId = getConfigurationService().getActiveModel()?.providerId;
+    if (!providerId) { return messages; }
+    return messages.map(msg => {
+      if (msg.role !== 'assistant' || !Array.isArray(msg.content)) { return msg; }
+      const filtered = msg.content.filter(part => {
+        if (part.type !== 'reasoning') { return true; }
+        const opts = part.providerOptions;
+        // Keep generic reasoning (no provider tag) and reasoning that belongs to
+        // the active provider; drop reasoning tagged for another provider.
+        return !opts || Object.prototype.hasOwnProperty.call(opts, providerId);
+      });
+      return filtered.length === msg.content.length ? msg : { ...msg, content: filtered };
+    });
   }
 
   /**
@@ -893,15 +947,18 @@ export class AgentService {
     const llmService = getLlmService();
     if (!(await llmService.isReady())) { return; }
 
+    // REQ-AGT-032: capture any fullStream `error` part for diagnostics.
+    let streamError: unknown;
+
     try {
       const model = await llmService.getModel();
       const systemPrompt = await this.buildSystemPrompt();
 
       // Use a temporary history so background checks don't pollute conversation
-      const messages: ModelMessage[] = [
+      const messages: ModelMessage[] = this.sanitizeHistoryForProvider([
         ...this.conversationHistory,
         { role: 'user', content: prompt },
-      ];
+      ]);
 
       const result = streamText({
         model,
@@ -915,7 +972,15 @@ export class AgentService {
       for await (const part of result.fullStream) {
         if (part.type === 'text-delta') {
           fullText += part.text;
+        } else if (part.type === 'error') {
+          streamError = part.error;
         }
+      }
+
+      // REQ-AGT-032: log a non-throwing stream error for diagnosability (no UI).
+      if (streamError) {
+        formatLlmError({ area: 'agent-bg', streamError });
+        return;
       }
 
       const trimmed = fullText.trim();
@@ -934,8 +999,9 @@ export class AgentService {
         type: 'agentResponse',
         payload: { id: msgId, content: trimmed },
       });
-    } catch {
-      // Silently fail for background analysis
+    } catch (error) {
+      // Silently fail for background analysis (no UI), but log for diagnosability.
+      formatLlmError({ area: 'agent-bg', streamError, downstreamError: error });
     }
   }
 
@@ -1206,6 +1272,9 @@ export class AgentService {
     }
 
     this.toolStreamActive = true;
+    // REQ-AGT-032: capture the fullStream `error` part so the catch block can
+    // report the real provider error instead of the generic NoOutputGeneratedError.
+    let streamError: unknown;
     try {
       const model = await llmService.getModel();
       const systemPrompt = await this.buildImplementPrompt(target);
@@ -1237,7 +1306,7 @@ export class AgentService {
       const result = streamText({
         model,
         system: systemPrompt,
-        messages: this.conversationHistory,
+        messages: this.sanitizeHistoryForProvider(this.conversationHistory),
         tools,
         stopWhen: stepCountIs(15),
         abortSignal: this.currentAbort.signal,
@@ -1253,9 +1322,15 @@ export class AgentService {
       let stepReasoning = '';
       // Suppress tool-call messages after askUser within the same step
       let suppressToolMessages = false;
+      // REQ-AGT-033: cumulative tokens used across all steps of this turn.
+      let totalTokens = 0;
 
       for await (const part of result.fullStream) {
         switch (part.type) {
+          case 'error': {
+            streamError = part.error;
+            break;
+          }
           case 'text-delta': {
             if (suppressToolMessages) { break; } // Suppress text while askUser is pending
             stepContent += part.text;
@@ -1317,13 +1392,28 @@ export class AgentService {
             }
             break;
           }
+          case 'finish-step': {
+            // Step boundary — resume normal output and report cumulative tokens.
+            suppressToolMessages = false;
+            totalTokens += part.usage?.totalTokens ?? 0;
+            this._onDidReceiveMessage.fire({ type: 'agentUsage', payload: { totalTokens } });
+            break;
+          }
           case 'tool-result':
           case 'start-step':
-          case 'finish-step':
             // Step boundary or tool completion — resume normal output
             suppressToolMessages = false;
             break;
         }
+      }
+
+      // REQ-AGT-032: surface a stream `error` part that did not throw (see the
+      // equivalent guard in streamResponse).
+      if (streamError) {
+        const content = 'During /implement: ' + formatLlmError({ area: 'implement', streamError });
+        this._onDidReceiveMessage.fire({ type: 'agentResponse', payload: { id: msgId, content } });
+        this._onDidReceiveMessage.fire({ type: 'agentStreamEnd', payload: { id: msgId, content: '', final: true } });
+        return;
       }
 
       // Add proper response messages to conversation history (preserves tool calls/results)
@@ -1339,10 +1429,10 @@ export class AgentService {
         payload: { id: currentMsgId, content: finalContent, final: true },
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const content = 'During /implement: ' + formatLlmError({ area: 'implement', streamError, downstreamError: error });
       this._onDidReceiveMessage.fire({
         type: 'agentResponse',
-        payload: { id: msgId, content: `Error during /implement: ${message}` },
+        payload: { id: msgId, content },
       });
       // Belt-and-braces: ensure the working indicator clears even if the stream
       // failed before emitting a final agentStreamEnd.

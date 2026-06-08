@@ -68,6 +68,14 @@ export interface ModelCatalogEntry {
   contextWindow: number;
   /** Whether this model is a suggested default for its provider */
   recommended: boolean;
+  /**
+   * REQ-AGT-028: Which generation of the Anthropic "thinking" API this model
+   * uses. Newer models (Claude Opus 4.8+) require the adaptive thinking API
+   * (`thinking.type.adaptive`, tuned via `output_config.effort`) and reject the
+   * legacy `thinking.type.enabled` + `budgetTokens` shape. Defaults to
+   * `'enabled'` when omitted. Only consulted for `anthropic-thinking` providers.
+   */
+  thinkingApi?: 'enabled' | 'adaptive';
 }
 
 /**
@@ -185,12 +193,21 @@ export function getProvider(id: ProviderId): ProviderEntry | undefined {
 export const DEFAULT_CATALOG: readonly ModelCatalogEntry[] = [
   // ── Anthropic ──
   {
+    modelId: 'claude-opus-4-8',
+    displayName: 'Claude Opus 4.8',
+    provider: 'anthropic',
+    capabilities: ['chat', 'code', 'vision', 'function-calling', 'reasoning'],
+    contextWindow: 1_000_000,
+    recommended: true,
+    thinkingApi: 'adaptive',
+  },
+  {
     modelId: 'claude-opus-4-7',
     displayName: 'Claude Opus 4.7',
     provider: 'anthropic',
     capabilities: ['chat', 'code', 'vision', 'function-calling', 'reasoning'],
     contextWindow: 200_000,
-    recommended: true,
+    recommended: false,
   },
   {
     modelId: 'claude-opus-4-6',
@@ -611,6 +628,16 @@ export function buildReasoningProviderOptions(
 
   switch (provider.reasoning) {
     case 'anthropic-thinking':
+      // Claude Opus 4.8+ use the adaptive thinking API and reject the legacy
+      // `thinking.type.enabled` + `budgetTokens` shape (HTTP 400). For those,
+      // emit `thinking.type.adaptive`; the model self-regulates its thinking.
+      if (model.thinkingApi === 'adaptive') {
+        return {
+          anthropic: {
+            thinking: { type: 'adaptive' },
+          },
+        };
+      }
       return {
         anthropic: {
           thinking: { type: 'enabled', budgetTokens: Math.max(1024, budgetTokens) },

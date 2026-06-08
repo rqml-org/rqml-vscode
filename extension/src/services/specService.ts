@@ -123,6 +123,36 @@ export class SpecService {
   }
 
   /**
+   * Reduce a flat list of discovered .rqml files to the set of "unit specs"
+   * worth offering in the switcher, applying the REQ-UI-015 naming convention
+   * per directory: a directory's spec is `requirements.rqml` if present, else
+   * the sole `*.rqml` in that directory. Directories with multiple .rqml files
+   * and no `requirements.rqml` contribute nothing — this excludes example
+   * folders and test fixtures that bundle many .rqml files in one directory.
+   */
+  private filterUnitSpecs(files: vscode.Uri[]): vscode.Uri[] {
+    const byDir = new Map<string, vscode.Uri[]>();
+    for (const uri of files) {
+      const dir = path.dirname(uri.fsPath);
+      const list = byDir.get(dir) || [];
+      list.push(uri);
+      byDir.set(dir, list);
+    }
+
+    const result: vscode.Uri[] = [];
+    for (const list of byDir.values()) {
+      const requirements = list.find(u => path.basename(u.fsPath) === 'requirements.rqml');
+      if (requirements) {
+        result.push(requirements);
+      } else if (list.length === 1) {
+        result.push(list[0]);
+      }
+      // Multiple .rqml in a directory with no requirements.rqml → skip the directory.
+    }
+    return result;
+  }
+
+  /**
    * Resolve which spec file should be active from the list of discovered files.
    * Priority: persisted path → sole file → first file.
    */
@@ -159,8 +189,11 @@ export class SpecService {
     // Search parent directories for monorepo setups
     const parentFiles = await this.searchParentDirectories(workspaceFolders[0].uri);
 
-    // Merge and deduplicate
-    const allFiles = this.deduplicateUris([...workspaceFiles, ...parentFiles]);
+    // Merge, deduplicate, then reduce to one spec per project unit so the
+    // switcher lists real specs only (not example/fixture .rqml bundles).
+    const allFiles = this.filterUnitSpecs(
+      this.deduplicateUris([...workspaceFiles, ...parentFiles])
+    );
 
     // REQ-UI-011: No spec file found
     if (allFiles.length === 0) {

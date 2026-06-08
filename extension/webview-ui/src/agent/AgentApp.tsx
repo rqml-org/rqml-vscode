@@ -14,6 +14,7 @@ export const AgentApp: React.FC = () => {
     endpointStatus,
     commandNames,
     isLoading,
+    tokensUsed,
     startupStatus,
     availableModels,
     selectedModelId,
@@ -72,6 +73,7 @@ export const AgentApp: React.FC = () => {
       <ChatMessages
         messages={messages}
         isLoading={isLoading}
+        tokensUsed={tokensUsed}
         startupStatus={startupStatus}
         onAcceptChange={acceptChange}
         onRejectChange={rejectChange}

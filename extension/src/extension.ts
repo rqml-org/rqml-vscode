@@ -178,12 +178,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   specService.onDidChangeSpec((state) => {
     updateStatusBar(state);
     vscode.commands.executeCommand('setContext', 'rqml.specStatus', state.status);
+    vscode.commands.executeCommand('setContext', 'rqml.hasMultipleSpecs', state.files.length > 1);
   });
 
   // Initial load
   const initialState = await specService.refresh();
   updateStatusBar(initialState);
   vscode.commands.executeCommand('setContext', 'rqml.specStatus', initialState.status);
+  vscode.commands.executeCommand('setContext', 'rqml.hasMultipleSpecs', initialState.files.length > 1);
 
   // REQ-UI-006J: Set initial document for trace lookup
   detailsProvider.setDocument(initialState.document);
@@ -215,12 +217,19 @@ function updateStatusBar(state: SpecState): void {
       statusBarItem.command = 'rqml-vscode.showSpecStatus';
       break;
 
-    case 'invalid':
-      statusBarItem.text = '$(warning) Spec Invalid';
-      statusBarItem.tooltip = state.error || 'RQML specification is invalid';
+    case 'invalid': {
+      const hasMultiple = state.files.length > 1;
+      const fileName = state.activeSpecUri?.fsPath.split('/').pop();
+      statusBarItem.text = hasMultiple ? `$(warning) RQML: ${fileName}` : '$(warning) Spec Invalid';
+      statusBarItem.tooltip = hasMultiple
+        ? `${state.error || 'RQML specification is invalid'}. Click to switch spec files.`
+        : (state.error || 'RQML specification is invalid');
       statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-      statusBarItem.command = 'rqml-vscode.showSpecStatus';
+      // Keep the switcher reachable even when the active spec fails to parse,
+      // so the user is never stranded on a broken spec.
+      statusBarItem.command = hasMultiple ? 'rqml-vscode.selectSpec' : 'rqml-vscode.showSpecStatus';
       break;
+    }
 
     case 'single': {
       const hasMultiple = state.files.length > 1;

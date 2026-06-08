@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { getSpecService } from '../services/specService';
 import { getConfigurationService } from '../services/configurationService';
 import { getModelCatalogService } from '../services/modelCatalogService';
+import { formatLlmError } from '../services/llmErrors';
 import { getWebviewContent } from './shared/getWebviewContent';
 import type { ExportConfig, SectionTreeNode } from '../export/generators/types';
 import { REPORT_REGISTRY } from '../export/reportRegistry';
@@ -247,9 +248,11 @@ export class ExportViewProvider {
         payload: { filename: uri.fsPath.split('/').pop() || 'export' },
       });
     } catch (err) {
+      // REQ-AGT-032: surface the real provider error (generateObject wraps it in
+      // NoObjectGeneratedError.cause) instead of the generic SDK message.
       this.panel?.webview.postMessage({
         type: 'exportError',
-        payload: { message: err instanceof Error ? err.message : String(err) },
+        payload: { message: formatLlmError({ area: 'export', downstreamError: err }) },
       });
     }
   }

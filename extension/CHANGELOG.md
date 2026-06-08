@@ -4,6 +4,17 @@ All notable changes to the RQML for VS Code extension are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Per VS Code marketplace convention, odd MINOR versions (`0.1.x`) are pre-release and even MINOR versions (`0.2.x`, `0.4.x`, ...) are stable.
 
+## [1.1.8] — 2026-06-06
+
+### Added
+- **Claude Opus 4.8** is now the default Anthropic model, with its full 1,000,000-token context window. It uses Anthropic's adaptive thinking API.
+- **Live working-indicator stats.** While the agent is working, the animated "R" now shows elapsed time and cumulative tokens used (white text with an RQML-purple separator dot), updated as each step completes.
+
+### Fixed
+- **Claude Opus 4.8 thinking failure.** Fixed an *HTTP 400 "thinking.type.enabled is not supported for this model"* error. Newer Anthropic models use the adaptive thinking API (`thinking.type.adaptive`); the agent now selects the correct thinking API per model while older models keep the legacy budget-based thinking.
+- **Silent failures on some providers.** Some providers (e.g. OpenAI) emit a streaming error and then end the stream cleanly without throwing, which previously produced no message at all. The agent now surfaces these errors. Combined with clearer formatting, LLM failures now report the real provider cause (HTTP status, provider message, and an actionable hint) inline, with full detail logged to the **RQML** output channel.
+- **Cross-provider reasoning leakage.** After switching providers mid-conversation (e.g. Anthropic → OpenAI), provider-specific reasoning blocks from earlier turns are no longer replayed to the new provider, eliminating *"Non-OpenAI reasoning parts are not supported"* warnings and related issues.
+
 ## [1.1.7] — 2026-05-31
 
 ### Changed
