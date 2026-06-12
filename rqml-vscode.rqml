@@ -1342,6 +1342,20 @@
           </criterion>
         </acceptance>
       </req>
+      <req id="REQ-AGT-032" type="UXR" title="Actionable LLM error surfacing" status="draft" priority="must">
+        <statement>When an LLM call fails (provider error, stream error, missing or invalid API key, rate limit, or refusal), the extension SHALL surface a concise, actionable message to the user — including the HTTP status or error code, the provider's own error message, an actionable hint, and the active provider and model — and SHALL log the full error detail (stack and response body) to the RQML Output channel. Error parts emitted on the AI SDK fullStream SHALL be captured and reported in preference to the generic downstream "no output generated" failure that would otherwise mask them.</statement>
+        <notes>Centralised in a single formatting service so the agent, implement, background-agent, and export paths produce consistent messages. Hints map common statuses: 401/403 to key configuration, 429 to rate limits, 404 to model id, 400 to unsupported parameters, 5xx to provider outage.</notes>
+        <acceptance>
+          <criterion id="AC-AGT-032-01">
+            <when>A provider returns an HTTP error during an agent or export LLM call.</when>
+            <then>The user-facing message contains the status code, the provider's error message, an actionable hint, and the active provider and model; the full response body is logged to the RQML Output channel.</then>
+          </criterion>
+          <criterion id="AC-AGT-032-02">
+            <when>An error part is emitted on the AI SDK fullStream during streaming.</when>
+            <then>The underlying provider error is reported to the user instead of the generic "no output generated" failure.</then>
+          </criterion>
+        </acceptance>
+      </req>
     </reqPackage>
     <reqPackage id="PKG-CMD" title="Agent Slash Commands">
       <description>Slash commands exposed through the RQML Agent prompt. Commands use a terminal-style syntax (/command [args] [--flags]) and are entered in the agent panel's text input.</description>
@@ -2790,6 +2804,10 @@
       <from><locator><local id="REQ-AGT-030"/></locator></from>
       <to><locator><local id="REQ-AGT-002"/></locator></to>
       <notes>Operating modes (REQ-AGT-030) shape how the agent handles every user message, so they depend on the prompt input (REQ-AGT-002) as the channel through which mode-aware behaviour applies.</notes>
+    </edge>
+    <edge id="E-IMPL-AGT-032" type="implements">
+      <from><locator><external uri="extension/src/services/llmErrors.ts" kind="code"/></locator></from>
+      <to><locator><local id="REQ-AGT-032"/></locator></to>
     </edge>
   </trace>
 </rqml>
