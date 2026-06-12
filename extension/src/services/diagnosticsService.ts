@@ -142,6 +142,10 @@ export class DiagnosticsService {
         return 'Lint';
       case 'trace':
         return 'Trace';
+      case 'coverage':
+        return 'Coverage';
+      case 'drift':
+        return 'Drift';
     }
   }
 
