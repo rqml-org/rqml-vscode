@@ -2033,6 +2033,29 @@
           </criterion>
         </acceptance>
       </req>
+      <req id="REQ-MAT-DELEGATE" type="CR" title="Matrix derived from the core engine" status="draft" priority="should">
+        <statement>
+          The traceability matrix view SHALL be derived from @rqml/core's
+          matrix output, adapting that single source to the view, rather than
+          re-deriving verification, implementation, or coverage status from a
+          separate parse of the document.
+        </statement>
+        <rationale>
+          The matrix currently re-implements coverage classification against
+          the extension's own parser, which can diverge from the engine's
+          verdicts; consuming @rqml/core's matrix keeps the editor, CLI, and
+          MCP in agreement on spec health (rqml ADR-0006 — matrix derivation in
+          core) and removes duplicated derivation logic, consistent with the
+          delegate-to-core principle (ADR-0001, ADR-0004).
+        </rationale>
+        <acceptance>
+          <criterion id="AC-MAT-DELEGATE-01">
+            <given>A spec rendered in the matrix view</given>
+            <when>A requirement's verification and implementation status is shown</when>
+            <then>Each value equals what @rqml/core reports for the same requirement.</then>
+          </criterion>
+        </acceptance>
+      </req>
     </reqPackage>
   </requirements>
   <trace>
@@ -2808,6 +2831,11 @@
     <edge id="E-IMPL-AGT-032" type="implements">
       <from><locator><external uri="extension/src/services/llmErrors.ts" kind="code"/></locator></from>
       <to><locator><local id="REQ-AGT-032"/></locator></to>
+    </edge>
+    <edge id="E-MAT-DELEGATE-SE" type="satisfies" confidence="0.85">
+      <from><locator><local id="REQ-MAT-DELEGATE"/></locator></from>
+      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+      <notes>Deriving the matrix from one engine keeps the editor's spec-health view consistent with the CLI and MCP verdicts, preserving software-engineering rigor.</notes>
     </edge>
   </trace>
 </rqml>
