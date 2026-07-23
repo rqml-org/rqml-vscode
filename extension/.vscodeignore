@@ -44,3 +44,6 @@ node_modules/ai/docs/**
 vsc-extension-quickstart.md
 AGENTS.md
 README-AGENT.md
+
+# Compiled tests and their fixtures — built by `compile`, never used at runtime.
+out/test/**

@@ -16,7 +16,8 @@
     "url": "https://github.com/rqml-org/rqml-vscode/issues"
   },
   "engines": {
-    "vscode": "^1.108.1"
+    "vscode": "^1.108.1",
+    "node": ">=20"
   },
   "categories": [
     "Programming Languages",
@@ -605,9 +606,11 @@
     "watch": "tsc -watch -p ./",
     "build:webview": "node esbuild.js",
     "watch:webview": "node esbuild.js --watch",
-    "pretest": "npm run compile && npm run lint",
+    "pretest:integration": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run",
+    "test:integration": "vscode-test",
     "package": "vsce package --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/",
     "package:pre": "vsce package --pre-release --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/",
     "publish": "vsce publish --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/",
@@ -625,6 +628,7 @@
     "esbuild": "^0.19.0",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.1"
+    "typescript-eslint": "^8.48.1",
+    "vitest": "^3.2.7"
   }
 }

@@ -20,5 +20,9 @@
 		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
 	},
 	"include": ["src/**/*"],
-	"exclude": ["node_modules", "webview-ui", "dist"]
+	// src/test/unit is excluded because this project emits CommonJS and vitest is
+	// ESM-only, so compiling those files here fails with TS1479. They are
+	// type-checked by tsconfig.test.json instead, and run by vitest, which does
+	// its own transform — they are never emitted to out/.
+	"exclude": ["node_modules", "webview-ui", "dist", "src/test/unit"]
 }

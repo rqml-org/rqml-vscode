@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  # The RQML gate. Deliberately its own job: it depends on nothing in the
+  # build, it is the check this project exists to demonstrate, and it should
+  # report independently of whether TypeScript happens to compile.
+  spec:
+    name: RQML gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: rqml check
+        run: npx -y @rqml/cli@0.10.0 check --strictness standard
+
+      - name: rqml lint
+        run: npx -y @rqml/cli@0.10.0 lint --strictness standard
+
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            extension/package-lock.json
+            extension/webview-ui/package-lock.json
+
+      # Two packages, both required: extension/ is the host code, webview-ui/ is
+      # a build input that esbuild bundles into dist/.
+      - name: Install (extension)
+        working-directory: extension
+        run: npm ci
+
+      - name: Install (webview-ui)
+        working-directory: extension/webview-ui
+        run: npm ci
+
+      - name: Lint
+        working-directory: extension
+        run: npm run lint -- --max-warnings 200
+
+      - name: Typecheck (extension host)
+        working-directory: extension
+        run: npx tsc -p ./ --noEmit
+
+      # Separate config: the host emits CommonJS and vitest is ESM-only, so the
+      # unit tests cannot be checked by the host's tsconfig.
+      - name: Typecheck (unit tests)
+        working-directory: extension
+        run: npx tsc -p tsconfig.test.json
+
+      # The webview sources went unchecked by anything for a long time. They are
+      # clean as of this workflow landing, so this gates rather than warns.
+      - name: Typecheck (webview)
+        working-directory: extension/webview-ui
+        run: npx tsc -p ./ --noEmit
+
+      - name: Unit tests
+        working-directory: extension
+        run: npm run test:unit
+
+      - name: Compile
+        working-directory: extension
+        run: npm run compile
+
+      - name: Build webviews
+        working-directory: extension
+        run: npm run build:webview
+
+      # Integration tests need a real VS Code, which needs a display.
+      - name: Integration tests
+        working-directory: extension
+        run: xvfb-run -a npm run test:integration
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            extension/package-lock.json
+            extension/webview-ui/package-lock.json
+
+      - name: Install (extension)
+        working-directory: extension
+        run: npm ci
+
+      - name: Install (webview-ui)
+        working-directory: extension/webview-ui
+        run: npm ci
+
+      - name: Package VSIX
+        working-directory: extension
+        run: npm run package -- --out /tmp/rqml-vscode.vsix
+
+      # The published 1.1.8 build was 54.8 MB, two thirds of it a build input
+      # that esbuild had already bundled. Nothing noticed, because nothing was
+      # looking. This is what looks.
+      - name: Assert install size
+        run: |
+          LIMIT_MB=20
+          SIZE_B=$(stat -c%s /tmp/rqml-vscode.vsix)
+          SIZE_MB=$(( SIZE_B / 1048576 ))
+          echo "VSIX is ${SIZE_MB} MB (limit ${LIMIT_MB} MB)"
+          if [ "$SIZE_MB" -gt "$LIMIT_MB" ]; then
+            echo "::error::VSIX grew to ${SIZE_MB} MB, over the ${LIMIT_MB} MB limit."
+            echo "Check .vscodeignore before raising the limit — something is probably being packaged that should not be."
+            exit 1
+          fi
+
+      - name: Verify the entry point is packaged
+        working-directory: extension
+        run: |
+          # `main` points at out/, so excluding it would ship a VSIX that
+          # installs and then does nothing.
+          npx vsce ls > /tmp/packaged.txt
+          grep -qx 'out/extension.js' /tmp/packaged.txt || {
+            echo "::error::out/extension.js is not in the package"; exit 1; }
+          grep -q '^dist/' /tmp/packaged.txt || {
+            echo "::error::no webview bundles in the package"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: /tmp/rqml-vscode.vsix
+          retention-days: 14
+
+  docs:
+    name: Docs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install
+        working-directory: docs
+        run: npm ci
+
+      # onBrokenLinks is "throw", so this catches a dangling internal link
+      # before it reaches the published site.
+      - name: Build
+        working-directory: docs
+        run: npm run build

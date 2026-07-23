@@ -1,0 +1,18 @@
+{
+  // Type-checks the vitest unit tests, which the main tsconfig cannot: it emits
+  // CommonJS and vitest is ESM-only, so including them there fails with TS1479.
+  // Checking only — vitest transforms the sources itself and nothing is emitted.
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/test/unit/**/*", "vitest.config.ts"]
+}

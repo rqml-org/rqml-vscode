@@ -38,8 +38,10 @@ interface TraceGraphData {
 
 export function TraceGraph() {
   const theme = useVscodeTheme();
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  // The generic is explicit because an empty initial array otherwise infers
+  // `never[]`, which makes every later setNodes/setEdges call a type error.
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
