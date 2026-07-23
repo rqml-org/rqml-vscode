@@ -1,6 +1,7 @@
 // Shared types for the export pipeline
 // REQ-EXP-005: LLM-driven export functionality
 
+import type { Provenance } from './provenance';
 import type { GeneratedReport } from '../schemas/reportOutput';
 
 export type ExportFormat = 'pptx' | 'docx' | 'xlsx' | 'pdf';
@@ -44,6 +45,12 @@ export interface ExportConfig {
   modelId?: string;
   /** Additional user guidance for the LLM */
   guidance?: string;
+  /**
+   * REQ-EXP-013: render from @rqml/core alone — no model, no network, and a
+   * byte-identical result for an unchanged specification. This is the default;
+   * a language-model narrative is the opt-in.
+   */
+  deterministic?: boolean;
 }
 
 /** Flat export-ready representation of spec data, scoped to selected sections */
@@ -87,7 +94,16 @@ export interface ExportData {
 }
 
 export interface ExportGenerator {
-  generate(report: GeneratedReport, metadata: ExportData): Promise<Buffer>;
+  /**
+   * `provenance` makes the output reproducible (REQ-EXP-013). When omitted the
+   * generator stamps the current date, which is correct for the
+   * language-model path — that output is not reproducible regardless.
+   */
+  generate(
+    report: GeneratedReport,
+    metadata: ExportData,
+    provenance?: Provenance
+  ): Promise<Buffer>;
 }
 
 /** Section tree node sent to the webview for the checkbox selector */

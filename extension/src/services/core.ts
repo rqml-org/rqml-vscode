@@ -56,6 +56,13 @@ export type PrematureImplementation = RqmlCore.PrematureImplementation;
 export type GateVerdict = RqmlCore.GateVerdict;
 export type GateFinding = RqmlCore.GateFinding;
 
+// Export surface (REQ-EXP-013).
+export type MatrixReport = RqmlCore.MatrixReport;
+export type MatrixRow = RqmlCore.MatrixRow;
+export type MatrixSummary = RqmlCore.MatrixSummary;
+export type OutlineField = RqmlCore.OutlineField;
+export type ResolvedEdge = RqmlCore.ResolvedEdge;
+
 /** A schema version with a bundled XSD — currently "2.0.1" | "2.1.0" | "2.2.0". */
 export type SchemaVersion = RqmlSchema.SchemaVersion;
 

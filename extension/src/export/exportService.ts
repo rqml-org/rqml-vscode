@@ -16,6 +16,8 @@ import { XlsxGenerator } from './generators/xlsxGenerator';
 import { getLlmService } from '../services/llmService';
 import { getConfigurationService } from '../services/configurationService';
 import { getModelCatalogService } from '../services/modelCatalogService';
+import * as vscode from 'vscode';
+import { buildDeterministicExport } from './deterministicExport';
 
 type ProgressCallback = (stage: string, percent: number) => void;
 
@@ -30,6 +32,25 @@ export class ExportService {
     // 1. Transform spec data per selection
     onProgress?.('Preparing specification data...', 10);
     const data = transformToExportData(doc, config.selectedSections);
+
+    // REQ-EXP-013: the deterministic path. Nothing below reads a model, the
+    // network or the clock, so the same specification yields the same bytes.
+    if (config.deterministic !== false) {
+      onProgress?.('Rendering from the specification...', 40);
+      const xml = await this.readSpecSource(doc);
+      const built = await buildDeterministicExport(xml, {
+        sections: config.selectedSections.map((s) => s.sectionName),
+      });
+
+      onProgress?.('Rendering document...', 80);
+      const buffer = await this.getGenerator(config.format).generate(built.report, data, {
+        specHash: built.specHash,
+        date: built.date,
+      });
+      onProgress?.('Done', 100);
+      return buffer;
+    }
+
     data.content = await this.buildContent(doc, config);
 
     // 2. Resolve LLM model
@@ -53,6 +74,18 @@ export class ExportService {
 
     onProgress?.('Done', 100);
     return buffer;
+  }
+
+  /**
+   * Read the specification source.
+   *
+   * The deterministic export digests and renders the XML itself rather than the
+   * parsed view model, so the digest identifies exactly the bytes a reviewer
+   * would diff.
+   */
+  private async readSpecSource(doc: RqmlDocument): Promise<string> {
+    const bytes = await vscode.workspace.fs.readFile(doc.uri);
+    return Buffer.from(bytes).toString('utf8');
   }
 
   /**

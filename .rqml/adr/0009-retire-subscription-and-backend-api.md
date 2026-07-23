@@ -54,9 +54,21 @@ edges that reference them remain in the document: `deprecated` is the
 vocabulary's term for intent that was real and is no longer pursued, and
 retaining the edges keeps the graph intact.
 
-The pro-tier gate on export is removed from the implementation. Export is free,
-and `REQ-EXP-013` now requires it to be reproducible offline with no model
-configured — the opposite commitment from a paid, service-backed feature.
+The pro-tier gate on export is removed. Export is free, and `REQ-EXP-013` now
+requires it to be reproducible offline with no model configured — the opposite
+commitment from a paid, service-backed feature.
+
+**Correction, 2026-07-23.** This ADR originally said the gate was "removed from
+the implementation". There was no implementation to remove: a search of the
+extension source found no entitlement, tier or paywall logic anywhere — the gate
+existed only as specification text. What was actually removed, when `REQ-EXP-013`
+was implemented, is that text: the subscription precondition on `REQ-EXP-003`
+(both its note and the `<given>` of `AC-EXP-003-01`), the equivalent note on
+`REQ-UI-007`, and the five `dependsOn` edges asserting that export and detail
+views depend on feature gating (`TR-001`, `TR-005`, `TR-006`, `TR-007`,
+`TR-008`). The `PKG-AUTH` and `PKG-API` requirements remain `deprecated` rather
+than deleted, as decided below, so the record of the abandoned commercial
+architecture survives.
 
 Nothing here forecloses a future commercial offering. It records that if one
 exists, it will not take the form of authentication, tiers and feature gating
