@@ -257,6 +257,10 @@
       {
         "command": "rqml-vscode.gateApproveRequirement",
         "title": "RQML: Approve Requirement"
+      },
+      {
+        "command": "rqml-vscode.resolveAmbiguousSpec",
+        "title": "RQML: Resolve Ambiguous Spec Directory"
       }
     ],
     "viewsContainers": {

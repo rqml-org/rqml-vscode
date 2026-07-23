@@ -17,6 +17,7 @@ import { log } from './logger';
 import { getSpecService } from './specService';
 import { anchorLine, idsInMessage } from './gate/anchor';
 import { evaluate, summarise, type GateStrictness, type GateVerdict } from './gate/verdict';
+import { resolveStrictness } from './strictnessService';
 import type { Diagnostic } from './core';
 
 export const GATE_DIAGNOSTIC_SOURCE = 'rqml-gate';
@@ -68,19 +69,21 @@ export class GateService implements vscode.Disposable {
     void this.run();
   }
 
-  /** Resolve the strictness the gate runs at. */
-  strictness(): GateStrictness {
-    const configured = vscode.workspace
-      .getConfiguration('rqml')
-      .get<string>('agentStrictness', '');
-    return STRICTNESS_VALUES.includes(configured as GateStrictness)
-      ? (configured as GateStrictness)
-      : 'standard';
+  /**
+   * The strictness the gate runs at.
+   *
+   * Shared with the agent. This previously read only the VS Code setting, so a
+   * project declaring `strict` in AGENTS.md with no setting configured got a
+   * strict agent and a standard gate — and strictness is what decides whether
+   * coverage findings fail the verdict.
+   */
+  async strictness(): Promise<GateStrictness> {
+    return resolveStrictness();
   }
 
   /** Recompute the verdict for the active specification. */
   async run(): Promise<GateVerdict | undefined> {
-    if (this.running) return this.latest;
+    if (this.running) {return this.latest;}
     this.running = true;
     try {
       const state = getSpecService().state;
@@ -91,7 +94,7 @@ export class GateService implements vscode.Disposable {
       }
 
       const xml = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
-      const strictness = this.strictness();
+      const strictness = await this.strictness();
       const verdict = await evaluate(xml, { baseDir: path.dirname(uri.fsPath), strictness });
 
       this.latest = verdict;
@@ -183,7 +186,7 @@ export function toVscodeDiagnostics(
 
     const diagnostic = new vscode.Diagnostic(range, d.message ?? '', toSeverity(d.severity));
     diagnostic.source = GATE_DIAGNOSTIC_SOURCE;
-    if (d.rule) diagnostic.code = d.rule;
+    if (d.rule) {diagnostic.code = d.rule;}
     return diagnostic;
   });
 }

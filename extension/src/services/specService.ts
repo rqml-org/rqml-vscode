@@ -1,13 +1,27 @@
 // REQ-UI-011: Offer spec creation if no spec file present
-// This service manages the RQML spec file lifecycle.
-// Supports multiple .rqml files with active spec switching.
+// REQ-UI-012: Report an ambiguous directory rather than silently skipping it
+// REQ-UI-015: Resolve the governing spec by nearest enclosing directory
+// REQ-UI-016: Follow the active editor between project units
+// REQ-UI-018: Never cross a workspace folder boundary
+//
+// Discovery is @rqml/core's (ADR-0007), not this file's. The engine answers
+// "which spec governs this file" for the CLI, the MCP server and the agent
+// plugins; a second implementation here would eventually answer differently,
+// and a gate that disagrees with the build is the one outcome ADR-0006 forbids.
 
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { RqmlDocument, getRqmlParser } from './rqmlParser';
-import { loadSchema } from './core';
+import { loadCore, loadSchema } from './core';
+import { log } from './logger';
 
 export type SpecStatus = 'none' | 'single' | 'invalid';
+
+/** A directory holding several `*.rqml` files and no `requirements.rqml`. */
+export interface AmbiguousSpecDir {
+  dir: string;
+  candidates: string[];
+}
 
 export interface SpecState {
   status: SpecStatus;
@@ -22,6 +36,13 @@ export interface SpecState {
   xsdVersion?: string;
   /** The schema versions this build can validate, oldest first */
   supportedSchemaVersions?: string[];
+  /**
+   * REQ-UI-012: directories the engine could not resolve to a single spec.
+   *
+   * The previous implementation dropped these silently, so a genuine
+   * configuration problem looked like an empty directory.
+   */
+  ambiguous?: AmbiguousSpecDir[];
 }
 
 /**
@@ -35,7 +56,6 @@ export class SpecService {
   private _state: SpecState = { status: 'none', files: [] };
   private watcher?: vscode.FileSystemWatcher;
   private disposables: vscode.Disposable[] = [];
-  private extensionPath: string = '';
   private context?: vscode.ExtensionContext;
 
   constructor() {
@@ -46,10 +66,41 @@ export class SpecService {
     this.disposables.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => this.refresh())
     );
+
+    // REQ-UI-016: follow the active editor between project units.
+    //
+    // Only acts when the governing spec actually differs, because every
+    // refresh re-parses the document and fires an event six subscribers react
+    // to — including the gate, which recomputes its verdict. Resolution itself
+    // is a sub-millisecond filesystem walk, so it can run on every editor
+    // change without a cache (which is why REQ-UI-017 remains unimplemented).
+    this.disposables.push(
+      vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (!editor) {return;}
+        void this.followActiveEditor(editor.document.uri);
+      })
+    );
   }
 
-  initialize(extensionPath: string, context?: vscode.ExtensionContext): void {
-    this.extensionPath = extensionPath;
+  /** Switch the active spec when the editor moves to a file another unit governs. */
+  private async followActiveEditor(uri: vscode.Uri): Promise<void> {
+    const governing = await this.resolveGoverningSpec(uri);
+    if (!governing) {return;}
+    if (governing.fsPath === this._state.activeSpecUri?.fsPath) {return;}
+    if (!this._state.files.some((f) => f.fsPath === governing.fsPath)) {return;}
+
+    log.info('Spec', `active unit changed to ${path.basename(path.dirname(governing.fsPath))}`);
+    await this.persistActiveSpec(governing);
+    await this.refresh();
+  }
+
+  /**
+   * `context` supplies workspaceState, where the active-spec choice persists.
+   *
+   * The former `extensionPath` parameter is gone: it was needed to locate the
+   * XSDs this extension used to ship, which @rqml/schema replaced.
+   */
+  initialize(context?: vscode.ExtensionContext): void {
     this.context = context;
   }
 
@@ -83,88 +134,135 @@ export class SpecService {
   }
 
   /**
-   * Search parent directories above the workspace root for .rqml files.
-   * Useful in monorepo setups where the editor opens a subdirectory.
+   * REQ-UI-012 AC-02: the user's choice of primary spec for a directory the
+   * engine reports as ambiguous, keyed by directory.
+   *
+   * Kept here rather than pushed into the engine: `requirements.rqml` is the
+   * convention, and a per-workspace override is an editor affordance for
+   * getting un-stuck, not a change to what the convention means. The CLI must
+   * still report the directory as ambiguous, because it is.
    */
-  private async searchParentDirectories(workspaceUri: vscode.Uri): Promise<vscode.Uri[]> {
-    const found: vscode.Uri[] = [];
-    let current = workspaceUri;
-
-    for (let i = 0; i < 5; i++) {
-      const parent = vscode.Uri.joinPath(current, '..');
-      // Stop if we've reached the filesystem root
-      if (parent.fsPath === current.fsPath) break;
-      current = parent;
-
-      try {
-        const entries = await vscode.workspace.fs.readDirectory(current);
-        for (const [name, type] of entries) {
-          if (type === vscode.FileType.File && name.endsWith('.rqml')) {
-            found.push(vscode.Uri.joinPath(current, name));
-          }
-        }
-      } catch {
-        // Cannot read directory (permissions, etc.) — stop walking
-        break;
-      }
-    }
-
-    return found;
+  private getSpecOverrides(): Record<string, string> {
+    return this.context?.workspaceState.get<Record<string, string>>('rqml.specOverrides') ?? {};
   }
 
-  /**
-   * Deduplicate URIs by fsPath.
-   */
-  private deduplicateUris(uris: vscode.Uri[]): vscode.Uri[] {
-    const seen = new Set<string>();
-    return uris.filter(uri => {
-      if (seen.has(uri.fsPath)) return false;
-      seen.add(uri.fsPath);
-      return true;
+  private async setSpecOverride(dir: string, specPath: string): Promise<void> {
+    await this.context?.workspaceState.update('rqml.specOverrides', {
+      ...this.getSpecOverrides(),
+      [dir]: specPath,
     });
   }
 
   /**
-   * Reduce a flat list of discovered .rqml files to the set of "unit specs"
-   * worth offering in the switcher, applying the REQ-UI-015 naming convention
-   * per directory: a directory's spec is `requirements.rqml` if present, else
-   * the sole `*.rqml` in that directory. Directories with multiple .rqml files
-   * and no `requirements.rqml` contribute nothing — this excludes example
-   * folders and test fixtures that bundle many .rqml files in one directory.
+   * Enumerate the project units in every workspace folder.
+   *
+   * REQ-UI-018: each folder is scanned independently and is its own boundary,
+   * so a multi-root workspace cannot leak one folder's spec into another. The
+   * previous implementation scanned all folders with one glob but searched only
+   * `workspaceFolders[0]`'s parents, so folder 2's ancestors were never
+   * considered while folder 1's were — and, having no boundary at all, that
+   * search escaped the workspace entirely.
+   *
+   * No `ignore` is passed: the engine never descends `node_modules` or any
+   * dot-directory, which is both faster than a glob with excludes and immune to
+   * a user's `search.exclude` being configured away.
    */
-  private filterUnitSpecs(files: vscode.Uri[]): vscode.Uri[] {
-    const byDir = new Map<string, vscode.Uri[]>();
-    for (const uri of files) {
-      const dir = path.dirname(uri.fsPath);
-      const list = byDir.get(dir) || [];
-      list.push(uri);
-      byDir.set(dir, list);
+  private async discoverUnits(): Promise<{
+    files: vscode.Uri[];
+    ambiguous: AmbiguousSpecDir[];
+  }> {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const core = await loadCore();
+
+    const files: vscode.Uri[] = [];
+    const ambiguous: AmbiguousSpecDir[] = [];
+    const seen = new Set<string>();
+
+    for (const folder of folders) {
+      if (folder.uri.scheme !== 'file') {
+        // ADR-0007 records the extension as node-only; the engine reads the
+        // filesystem directly and cannot see a virtual workspace.
+        log.info('Spec', `skipping non-file workspace folder: ${folder.uri.toString()}`);
+        continue;
+      }
+      try {
+        const report = core.discoverSpecs(folder.uri.fsPath);
+        for (const spec of report.specs) {
+          if (seen.has(spec.specPath)) {continue;}
+          seen.add(spec.specPath);
+          files.push(vscode.Uri.file(spec.specPath));
+        }
+        // REQ-UI-012 AC-02: a directory the user has already chosen a primary
+        // spec for is no longer ambiguous *to the editor*. If the chosen file
+        // has since gone, the directory goes back to being ambiguous rather
+        // than silently disappearing.
+        const overrides = this.getSpecOverrides();
+        for (const dir of report.ambiguous) {
+          const chosen = overrides[dir.dir];
+          if (chosen && dir.candidates.includes(path.basename(chosen)) && !seen.has(chosen)) {
+            seen.add(chosen);
+            files.push(vscode.Uri.file(chosen));
+            continue;
+          }
+          ambiguous.push({ dir: dir.dir, candidates: [...dir.candidates] });
+        }
+      } catch (err) {
+        // Previously swallowed with an empty catch, which reported "no spec"
+        // for what was actually a filesystem failure.
+        log.error('Spec', `discovery failed in ${folder.uri.fsPath}`, err);
+      }
     }
 
-    const result: vscode.Uri[] = [];
-    for (const list of byDir.values()) {
-      const requirements = list.find(u => path.basename(u.fsPath) === 'requirements.rqml');
-      if (requirements) {
-        result.push(requirements);
-      } else if (list.length === 1) {
-        result.push(list[0]);
-      }
-      // Multiple .rqml in a directory with no requirements.rqml → skip the directory.
-    }
-    return result;
+    return { files, ambiguous };
   }
 
   /**
-   * Resolve which spec file should be active from the list of discovered files.
-   * Priority: persisted path → sole file → first file.
+   * Resolve which discovered spec should be active.
+   *
+   * Priority: the spec governing the active editor (REQ-UI-015, REQ-UI-016) →
+   * the persisted choice → the first discovered unit. Governing-spec resolution
+   * comes first so that moving between units in a monorepo follows the file you
+   * are actually editing, which is the behaviour the rest of the portfolio has.
    */
-  private resolveActiveSpec(files: vscode.Uri[]): vscode.Uri {
+  private async resolveActiveSpec(files: vscode.Uri[]): Promise<vscode.Uri> {
+    const governing = await this.resolveGoverningSpec();
+    if (governing && files.some((f) => f.fsPath === governing.fsPath)) {return governing;}
+
     const persisted = this.getPersistedActiveSpec();
     if (persisted) {
-      const match = files.find(f => f.fsPath === persisted);
-      if (match) return match;
+      const match = files.find((f) => f.fsPath === persisted);
+      if (match) {return match;}
     }
     return files[0];
+  }
+
+  /**
+   * The spec governing the active editor's file, if any.
+   *
+   * `root` is always the containing workspace folder. Without it the engine
+   * falls back to a `.git`/`.hg` marker, which is a reasonable default for a
+   * CLI but wrong for an editor: a workspace folder that is not itself a
+   * repository would resolve to a spec outside the workspace. That is exactly
+   * the defect this replaces.
+   */
+  async resolveGoverningSpec(target?: vscode.Uri): Promise<vscode.Uri | undefined> {
+    const uri = target ?? vscode.window.activeTextEditor?.document.uri;
+    if (!uri || uri.scheme !== 'file') {return undefined;}
+
+    const folder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!folder || folder.uri.scheme !== 'file') {return undefined;}
+
+    try {
+      const core = await loadCore();
+      const resolution = core.resolveGoverningSpec(uri.fsPath, { root: folder.uri.fsPath });
+      if (resolution.kind === 'resolved') {return vscode.Uri.file(resolution.specPath);}
+      // 'ambiguous' and 'none' both mean "no single governing spec"; ambiguity
+      // is surfaced from the discovery report rather than guessed at here.
+      return undefined;
+    } catch (err) {
+      log.error('Spec', `could not resolve the governing spec for ${uri.fsPath}`, err);
+      return undefined;
+    }
   }
 
   /**
@@ -180,32 +278,17 @@ export class SpecService {
       return this._state;
     }
 
-    // Find all .rqml files within the workspace (recursive)
-    let workspaceFiles: vscode.Uri[] = [];
-    try {
-      workspaceFiles = await vscode.workspace.findFiles('**/*.rqml');
-    } catch {
-      // findFiles can fail in some remote workspace scenarios
-    }
-
-    // Search parent directories for monorepo setups
-    const parentFiles = await this.searchParentDirectories(workspaceFolders[0].uri);
-
-    // Merge, deduplicate, then reduce to one spec per project unit so the
-    // switcher lists real specs only (not example/fixture .rqml bundles).
-    const allFiles = this.filterUnitSpecs(
-      this.deduplicateUris([...workspaceFiles, ...parentFiles])
-    );
+    const { files: allFiles, ambiguous } = await this.discoverUnits();
 
     // REQ-UI-011: No spec file found
     if (allFiles.length === 0) {
-      this._state = { status: 'none', files: [] };
+      this._state = { status: 'none', files: [], ambiguous };
       this._onDidChangeSpec.fire(this._state);
       return this._state;
     }
 
     // Select the active spec
-    const activeUri = this.resolveActiveSpec(allFiles);
+    const activeUri = await this.resolveActiveSpec(allFiles);
 
     // Parse the active spec file
     try {
@@ -225,18 +308,95 @@ export class SpecService {
         xsdAvailable: schema.isSchemaVersion(document.version),
         xsdVersion: document.version,
         supportedSchemaVersions: supported,
+        ambiguous,
       };
     } catch (err) {
       this._state = {
         status: 'invalid',
         files: allFiles,
         activeSpecUri: activeUri,
-        error: err instanceof Error ? err.message : 'Failed to parse RQML file'
+        error: err instanceof Error ? err.message : 'Failed to parse RQML file',
+        ambiguous,
       };
     }
 
     this._onDidChangeSpec.fire(this._state);
     return this._state;
+  }
+
+  /**
+   * REQ-UI-012 AC-02/AC-03: resolve an ambiguous directory.
+   *
+   * Offers the two remedies the requirement names. Renaming is offered first
+   * because it fixes the directory for everyone — the CLI, CI and every
+   * teammate — whereas choosing a primary spec only quiets this workspace.
+   */
+  async resolveAmbiguity(dir?: AmbiguousSpecDir): Promise<void> {
+    const ambiguous = this._state.ambiguous ?? [];
+    if (ambiguous.length === 0) {
+      vscode.window.showInformationMessage('RQML: no ambiguous specification directories.');
+      return;
+    }
+
+    let target = dir;
+    if (!target) {
+      const picked = await vscode.window.showQuickPick(
+        ambiguous.map((a) => ({
+          label: vscode.workspace.asRelativePath(a.dir),
+          description: `${a.candidates.length} candidates`,
+          detail: a.candidates.join(', '),
+          entry: a,
+        })),
+        { title: 'Which directory should be resolved?' }
+      );
+      if (!picked) {return;}
+      target = picked.entry;
+    }
+
+    const action = await vscode.window.showQuickPick(
+      [
+        {
+          label: '$(edit) Rename to requirements.rqml',
+          detail: 'Fixes the directory for the CLI, CI and everyone else. Recommended.',
+          id: 'rename' as const,
+        },
+        {
+          label: '$(check) Choose primary spec',
+          detail: 'Records a choice for this workspace only; the directory stays ambiguous elsewhere.',
+          id: 'choose' as const,
+        },
+      ],
+      { title: `${target.candidates.length} specifications in ${vscode.workspace.asRelativePath(target.dir)}` }
+    );
+    if (!action) {return;}
+
+    const file = await vscode.window.showQuickPick(target.candidates, {
+      title: action.id === 'rename' ? 'Rename which file?' : 'Which file governs this directory?',
+    });
+    if (!file) {return;}
+
+    const from = vscode.Uri.file(path.join(target.dir, file));
+
+    if (action.id === 'rename') {
+      const to = vscode.Uri.file(path.join(target.dir, 'requirements.rqml'));
+      try {
+        await vscode.workspace.fs.rename(from, to, { overwrite: false });
+        log.info('Spec', `renamed ${file} to requirements.rqml in ${target.dir}`);
+        vscode.window.showInformationMessage(`RQML: renamed ${file} to requirements.rqml.`);
+      } catch (err) {
+        log.error('Spec', `could not rename ${from.fsPath}`, err);
+        vscode.window.showErrorMessage(
+          `RQML: could not rename ${file}. A requirements.rqml may already exist there.`
+        );
+        return;
+      }
+    } else {
+      await this.setSpecOverride(target.dir, from.fsPath);
+      await this.persistActiveSpec(from);
+      vscode.window.showInformationMessage(`RQML: ${file} now governs that directory in this workspace.`);
+    }
+
+    await this.refresh();
   }
 
   /**
@@ -270,7 +430,7 @@ export class SpecService {
     const picked = await vscode.window.showQuickPick(items, {
       placeHolder: 'Select an RQML spec file',
     });
-    if (!picked) return;
+    if (!picked) {return;}
 
     await this.persistActiveSpec(picked.uri);
     await this.refresh();
@@ -297,12 +457,12 @@ export class SpecService {
       value: 'requirements',
       ignoreFocusOut: true,
       validateInput: (value) => {
-        if (!value.trim()) return 'Filename is required';
-        if (/[/\\:*?"<>|]/.test(value)) return 'Filename contains invalid characters';
+        if (!value.trim()) {return 'Filename is required';}
+        if (/[/\\:*?"<>|]/.test(value)) {return 'Filename contains invalid characters';}
         return null;
       }
     });
-    if (baseName === undefined) return undefined;
+    if (baseName === undefined) {return undefined;}
 
     const fileName = baseName.endsWith('.rqml') ? baseName : `${baseName}.rqml`;
     const fileUri = vscode.Uri.joinPath(rootUri, fileName);
@@ -324,11 +484,11 @@ export class SpecService {
       value: defaultDocId,
       ignoreFocusOut: true,
       validateInput: (value) => {
-        if (!value.trim()) return 'Document ID is required';
+        if (!value.trim()) {return 'Document ID is required';}
         return null;
       }
     });
-    if (docId === undefined) return undefined;
+    if (docId === undefined) {return undefined;}
 
     // Step 3: Title
     const defaultTitle = `${projectName} — Requirements Specification`;
@@ -338,11 +498,11 @@ export class SpecService {
       value: defaultTitle,
       ignoreFocusOut: true,
       validateInput: (value) => {
-        if (!value.trim()) return 'Title is required';
+        if (!value.trim()) {return 'Title is required';}
         return null;
       }
     });
-    if (title === undefined) return undefined;
+    if (title === undefined) {return undefined;}
 
     // REQ-UI-011 AC-UI-011-02: create at the newest schema version this build
     // supports. The namespace and schemaLocation URLs come from @rqml/schema
