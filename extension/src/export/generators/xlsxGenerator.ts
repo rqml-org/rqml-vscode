@@ -4,6 +4,8 @@
 import ExcelJS from 'exceljs';
 import type { ExportGenerator, ExportData } from './types';
 import type { GeneratedReport, GeneratedContent } from '../schemas/reportOutput';
+import { provenanceDate, provenanceLine, type Provenance } from './provenance';
+import { normalizeOoxml } from './normalizeOoxml';
 
 const BRAND = {
   primary: '2B579A',
@@ -12,11 +14,16 @@ const BRAND = {
 };
 
 export class XlsxGenerator implements ExportGenerator {
-  async generate(report: GeneratedReport, metadata: ExportData): Promise<Buffer> {
+  async generate(
+    report: GeneratedReport,
+    metadata: ExportData,
+    provenance?: Provenance
+  ): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'RQML Export';
     workbook.title = report.title;
-    workbook.created = new Date();
+    workbook.created = provenanceDate(provenance);
+    workbook.modified = provenanceDate(provenance);
 
     for (const section of report.sections) {
       // Sanitize sheet name (max 31 chars, no special chars)
@@ -56,12 +63,14 @@ export class XlsxGenerator implements ExportGenerator {
     metaWs.getRow(4).values = ['Version', metadata.version];
     metaWs.getRow(5).values = ['Status', metadata.status];
     metaWs.getRow(6).values = ['Sections', String(metadata.sections.length)];
-    metaWs.getRow(7).values = ['Generated', new Date().toLocaleDateString()];
+    metaWs.getRow(7).values = ['Generated', provenanceLine(provenance)];
     metaWs.getColumn(1).width = 20;
     metaWs.getColumn(2).width = 40;
 
-    const buffer = await workbook.xlsx.writeBuffer();
-    return Buffer.from(buffer);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    // Only when a provenance is supplied — the language-model path is not
+    // reproducible anyway, and normalising it would just cost time.
+    return provenance ? normalizeOoxml(buffer, provenance.date) : buffer;
   }
 
   private renderContent(ws: ExcelJS.Worksheet, block: GeneratedContent, startRow: number): number {

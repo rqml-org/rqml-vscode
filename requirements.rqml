@@ -204,7 +204,7 @@
       </req>
       <req id="REQ-UI-007" type="FR" title="Open detail views" status="draft" priority="should">
         <statement>Double-clicking an item in the Sidebar overview SHOULD open a detailed view for that item in the editor.</statement>
-        <notes>This behavior may be restricted to a pro tier.</notes>
+        <notes>Amended 2026-07-23 per ADR-0009: the pro-tier restriction this contemplated is withdrawn.</notes>
         <acceptance>
           <criterion id="AC-UI-007-01">
             <when>The user double-clicks an item in the Sidebar overview.</when>
@@ -758,10 +758,15 @@
       </req>
       <req id="REQ-EXP-003" type="FR" title="Export to Markdown" status="draft" priority="must">
         <statement>The extension SHALL allow users to export the RQML specification as a Markdown document.</statement>
-        <notes>Requires pro tier subscription.</notes>
+        <notes>
+          Amended 2026-07-23. The subscription precondition was removed per
+          ADR-0009: export is free by principle, and the pro-tier gate this
+          described was never implemented in code — it existed only here. See
+          also REQ-EXP-013, which requires every format to render offline with
+          no model configured.
+        </notes>
         <acceptance>
           <criterion id="AC-EXP-003-01">
-            <given>The user has a pro or enterprise subscription.</given>
             <when>The user selects the Markdown export option.</when>
             <then>A readable Markdown document representing the full specification is generated and saved.</then>
           </criterion>
@@ -857,7 +862,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-EXP-013" type="FR" title="Deterministic offline export" status="draft" priority="must">
+      <req id="REQ-EXP-013" type="FR" title="Deterministic offline export" status="approved" priority="must">
         <statement>For every supported format, the extension SHALL produce an export containing the requirements and the requirement-to-verification matrix with coverage status, rendered from @rqml/core alone, without network access and without a configured language model. Language-model-authored narrative MAY be offered as an addition, and SHALL be a distinct choice from the deterministic export rather than a precondition for it.</statement>
         <rationale>An exported specification is an audit artifact. Its value depends on being reproducible: the same specification must render the same document for any reviewer, at any later date, without depending on a model that may have changed or a service that may be unreachable. Today every format is generated through a language model, so no reproducible export exists at all — which disqualifies the artifact for exactly the regulated audience the matrix and export views are meant to serve. This requirement mirrors the constraint the portfolio holds the command-line exporter to.</rationale>
         <acceptance>
@@ -2177,9 +2182,6 @@
     </reqPackage>
   </requirements>
   <trace>
-    <edge id="TR-001" type="dependsOn" from="REQ-UI-007" to="REQ-SUB-002">
-      <notes>Detail view access (REQ-UI-007) depends on subscription tier feature gating (REQ-SUB-002) as it may be restricted to pro tier.</notes>
-    </edge>
     <edge id="TR-002" type="dependsOn" from="REQ-API-002" to="REQ-SUB-001">
       <notes>API-dependent features (REQ-API-002) depend on subscription tier definitions (REQ-SUB-001) to determine which features require backend access.</notes>
     </edge>
@@ -2188,18 +2190,6 @@
     </edge>
     <edge id="TR-004" type="dependsOn" from="REQ-API-005" to="REQ-SUB-002">
       <notes>Offline mode for free features (REQ-API-005) depends on feature gating (REQ-SUB-002) to distinguish free vs. paid features.</notes>
-    </edge>
-    <edge id="TR-005" type="dependsOn" from="REQ-EXP-002" to="REQ-SUB-002">
-      <notes>PDF export (REQ-EXP-002) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
-    </edge>
-    <edge id="TR-006" type="dependsOn" from="REQ-EXP-003" to="REQ-SUB-002">
-      <notes>Markdown export (REQ-EXP-003) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
-    </edge>
-    <edge id="TR-007" type="dependsOn" from="REQ-EXP-004" to="REQ-SUB-002">
-      <notes>Word export (REQ-EXP-004) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
-    </edge>
-    <edge id="TR-008" type="dependsOn" from="REQ-EXP-006" to="REQ-SUB-001">
-      <notes>Export format selection UI (REQ-EXP-006) depends on subscription tier definitions (REQ-SUB-001) to display available formats.</notes>
     </edge>
     <edge id="TR-009" type="dependsOn" from="REQ-EXP-005" to="REQ-UI-006G">
       <notes>Export UI access (REQ-EXP-005) depends on the tree root node (REQ-UI-006G) as the context menu is attached to it.</notes>
@@ -2672,5 +2662,7 @@
     <edge id="E-VER-CMD-007" type="verifiedBy" from="REQ-CMD-007" to="extension/src/test/unit/specReports.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-VER-CMD-008" type="verifiedBy" from="REQ-CMD-008" to="extension/src/test/unit/specReports.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-VER-UI-006E" type="verifiedBy" from="REQ-UI-006E" to="extension/src/test/unit/textEdit.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-EXP-013" type="implements" from="extension/src/export/deterministicExport.ts" fromKind="code" to="REQ-EXP-013" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-EXP-013" type="verifiedBy" from="REQ-EXP-013" to="extension/src/test/unit/deterministicExport.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>
