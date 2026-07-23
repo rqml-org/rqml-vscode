@@ -615,7 +615,7 @@
     "exceljs": "^4.4.0",
     "pdfkit": "^0.19.1",
     "pptxgenjs": "^4.0.1",
-    "zod": "^3.22.0"
+    "zod": "^4.4.3"
   },
   "scripts": {
     "vscode:prepublish": "npm run compile && npm run build:webview",
