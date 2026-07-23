@@ -1,7 +1,7 @@
 {
   "name": "rqml-vscode",
   "displayName": "RQML for VS Code",
-  "description": "Spec-first development for the LLM era, built on the Requirements Markup Language (RQML). Write, browse, trace, and implement requirements alongside your code with an integrated AI agent.",
+  "description": "Requirements that live in your repository. Browse, trace, and validate RQML specifications, see coverage and traceability at a glance, and keep intent under version control alongside the code your agents write.",
   "version": "1.1.8",
   "publisher": "rqml",
   "license": "MIT",
@@ -19,26 +19,25 @@
     "vscode": "^1.108.1"
   },
   "categories": [
-    "AI",
     "Programming Languages",
     "Linters",
     "Visualization",
-    "Other"
+    "AI"
   ],
   "keywords": [
     "rqml",
     "requirements",
-    "specification",
-    "spec-first",
-    "llm",
-    "ai agent",
-    "coding agent",
-    "claude",
-    "openai",
     "traceability",
+    "requirements engineering",
+    "specification",
+    "spec drift",
+    "traceability matrix",
+    "coverage",
+    "verification",
     "adr",
     "architecture decision record",
-    "requirements engineering"
+    "coding agent",
+    "compliance"
   ],
   "galleryBanner": {
     "color": "#8568ab",
@@ -47,14 +46,14 @@
   "activationEvents": [
     "onView:rqmlTree",
     "onView:rqmlDetails",
-    "onView:rqmlAgent",
-    "onStartupFinished",
+    "onView:rqmlTraces",
+    "onView:rqmlAgentView",
+    "workspaceContains:**/*.rqml",
     "onLanguage:rqml",
     "onCommand:rqml-vscode.initSpec",
     "onCommand:rqml-vscode.openDocumentView",
     "onCommand:rqml-vscode.openTraceView",
-    "onCommand:rqml-vscode.openGridView",
-    "onCommand:rqml-vscode.openIdeasView"
+    "onCommand:rqml-vscode.openGridView"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -124,11 +123,6 @@
         "command": "rqml-vscode.openGridView",
         "title": "Open Requirements Grid",
         "icon": "$(table)"
-      },
-      {
-        "command": "rqml-vscode.openIdeasView",
-        "title": "Open RQML Ideas",
-        "icon": "$(lightbulb)"
       },
       {
         "command": "rqml-vscode.addItem",
@@ -587,8 +581,13 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.38",
     "@ai-sdk/azure": "^3.0.27",
+    "@ai-sdk/deepseek": "^2.0.29",
     "@ai-sdk/google": "^3.0.22",
+    "@ai-sdk/groq": "^3.0.35",
+    "@ai-sdk/mistral": "^3.0.30",
     "@ai-sdk/openai": "^3.0.26",
+    "@ai-sdk/perplexity": "^3.0.29",
+    "@ai-sdk/xai": "^3.0.83",
     "ai": "^6.0.77",
     "diff": "^7.0.0",
     "docx": "^9.6.1",
@@ -600,7 +599,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile && npm run build:webview",
-    "compile": "tsc -p ./",
+    "clean": "node -e \"require('fs').rmSync('out',{recursive:true,force:true})\"",
+    "compile": "npm run clean && tsc -p ./",
     "watch": "tsc -watch -p ./",
     "build:webview": "node esbuild.js",
     "watch:webview": "node esbuild.js --watch",
@@ -620,6 +620,7 @@
     "@types/vscode": "^1.108.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.19.0",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3",

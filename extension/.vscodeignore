@@ -1,11 +1,46 @@
-.vscode/**
-.vscode-test/**
+# What NOT to ship in the VSIX.
+#
+# Keep in mind what IS required at runtime, and must never be excluded:
+#   out/**      the extension host entry (package.json "main")
+#   dist/**     the esbuild-bundled webview scripts + css
+#   resources/  the activity-bar icon, the marketplace icon, and the agent's
+#               status icons (loaded at runtime via asWebviewUri)
+#   syntaxes/, language-configuration.json  the .rqml language contribution
+
+# ── Sources and build inputs ───────────────────────────────────────────
 src/**
-.gitignore
-.yarnrc
-vsc-extension-quickstart.md
+**/*.ts
+**/*.tsx
+**/*.map
 **/tsconfig.json
 **/eslint.config.mjs
-**/*.map
-**/*.ts
+esbuild.js
+
+# webview-ui is a build INPUT only: esbuild bundles it into dist/. Shipping the
+# directory shipped its entire node_modules (mermaid, react, cytoscape demo
+# GIFs) — 4,201 files and ~57 MB, the single largest thing in the package.
+webview-ui/**
+
+# README images are rewritten to raw.githubusercontent.com by the
+# --baseImagesUrl flag in the package/publish scripts, so the marketplace page
+# never reads these from inside the VSIX.
+images/**
+
+# ── Dead weight inside production dependencies ─────────────────────────
+# None of these are reachable at runtime; they are build artifacts, test
+# fixtures and documentation that the upstream packages happen to publish.
+# ~5 MB, dominated by pdfkit shipping a full Yarn release binary.
+node_modules/**/.yarn/**
+node_modules/**/test/__snapshots__/**
+node_modules/ai/docs/**
+
+# ── Tooling and local config ───────────────────────────────────────────
+.vscode/**
+.vscode-test/**
 **/.vscode-test.*
+.gitignore
+.yarnrc
+.npmrc
+vsc-extension-quickstart.md
+AGENTS.md
+README-AGENT.md

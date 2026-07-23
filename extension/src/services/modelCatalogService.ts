@@ -14,6 +14,7 @@ import {
   type ModelCatalogEntry,
   type ProviderEntry,
 } from '../models/catalog';
+import { loadProviderModule } from '../models/providerModules';
 import { getConfigurationService } from './configurationService';
 import type { ProviderId } from '../types/configuration';
 
@@ -83,11 +84,16 @@ export class ModelCatalogService {
       throw new Error(`Unknown provider "${providerId}".`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod: any = await import(provider.sdkModule);
+    // Loaded through the static, exhaustive map in models/providerModules.ts
+    // rather than `import(provider.sdkModule)`: a computed specifier is
+    // invisible to packaging tools, which is how five providers shipped broken.
+    const mod = await loadProviderModule(providerId, provider.displayName, provider.sdkModule);
     const factory = mod[provider.sdkFactory];
     if (typeof factory !== 'function') {
-      throw new Error(`Factory "${provider.sdkFactory}" not found in "${provider.sdkModule}".`);
+      throw new Error(
+        `Factory "${provider.sdkFactory}" not found in "${provider.sdkModule}". ` +
+        `The provider SDK may have changed its export surface.`,
+      );
     }
 
     // Build the factory options. Azure requires additional config.

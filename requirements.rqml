@@ -155,7 +155,8 @@
         </acceptance>
       </req>
       <req id="REQ-UI-006I" type="FR" title="Root actions behavior" status="approved" priority="must">
-        <statement>The four root action icons SHALL open the following editor views: Document opens a WYSIWYG full-spec view with chapters for each RQML section; Arrow opens a traceability map; Grid opens a requirements-to-test-cases matrix with status coloring; Lightbulb opens an LLM-assisted ideas view for improvements or new features in the spec.</statement>
+        <statement>The three root action icons SHALL open the following editor views: Document opens a WYSIWYG full-spec view with chapters for each RQML section; Arrow opens a traceability map; Grid opens a requirements-to-test-cases matrix with status coloring.</statement>
+        <notes>Amended 2026-07-23. A fourth icon (Lightbulb) previously specified an LLM-assisted ideas view, with acceptance criterion AC-UI-006I-04. It was never implemented beyond a "coming soon" message. ADR-0005 freezes the extension's model-dependent features, and an ideas view is useful only with a configured model, so the criterion was withdrawn rather than left as a standing must-obligation the product had decided not to meet.</notes>
         <acceptance>
           <criterion id="AC-UI-006I-01">
             <when>The user selects the Document icon.</when>
@@ -168,10 +169,6 @@
           <criterion id="AC-UI-006I-03">
             <when>The user selects the Grid icon.</when>
             <then>A requirements-to-test-cases grid opens with red/amber/green status indicators.</then>
-          </criterion>
-          <criterion id="AC-UI-006I-04">
-            <when>The user selects the Lightbulb icon.</when>
-            <then>An LLM-assisted ideas view opens for improvements or new spec features.</then>
           </criterion>
         </acceptance>
       </req>
