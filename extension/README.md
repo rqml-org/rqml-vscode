@@ -64,6 +64,25 @@ So this extension tells you the truth about your repository rather than
 pretending to police it. Put `npx @rqml/cli check` in CI — that is the gate that
 actually holds.
 
+### 🤝 Works with the agent you already use
+
+The extension registers the RQML MCP server for you, so GitHub Copilot's agent
+mode — or any agent that speaks MCP — gets the whole toolchain: `rqml_check`,
+`rqml_show`, `rqml_impact`, `rqml_link` and nine more. No configuration; the
+server is scoped automatically to the specification governing what you are
+working on, so in a monorepo it follows you between units.
+
+Two further tools cover what a separate process cannot see: which specification
+governs the file you have open, and the gate verdict for **unsaved** changes —
+`rqml_check` reads from disk, so while an agent is editing a specification it
+would otherwise be answering about a stale file.
+
+VS Code asks you to trust the server the first time it starts. That prompt is
+the platform's, and this extension cannot pre-approve it on your behalf.
+
+None of this blocks anything. It gives your agent the same answers the editor
+has; enforcement remains as described above.
+
 ### 🧭 Structured specification browser
 
 Navigate large specifications without losing your place. The sidebar shows every RQML section — goals, requirements, scenarios, verification, traceability — with inline details and trace links for any selected item.

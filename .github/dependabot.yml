@@ -31,11 +31,18 @@ updates:
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
       # @types/vscode declares which API surface the code may use, and vsce
-      # refuses to package when it exceeds engines.vscode. Raising it therefore
-      # is not a dependency update at all — it is a decision to drop support for
-      # older VS Code versions, which ADR-0006 records as a hard compatibility
-      # break. Move engines.vscode first, deliberately, then the types follow.
+      # refuses to package when it exceeds engines.vscode. Raising it is
+      # therefore not a dependency update but a decision to drop support for
+      # older VS Code versions. Move engines.vscode first, deliberately, and the
+      # types follow. (An earlier version of this comment credited that policy
+      # to ADR-0006; ADR-0006 makes no such finding — it only asks that the API
+      # surface be re-checked when the floor moves. The policy is this file's.)
+      #
+      # Patch updates are safe — they cannot raise the declared API surface — so
+      # only major and minor are held.
       - dependency-name: '@types/vscode'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
     groups:
       ai-sdk:
         # The `ai` package and its providers move in lockstep — a provider major

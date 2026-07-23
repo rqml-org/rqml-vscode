@@ -599,7 +599,47 @@
           "markdownDescription": "Refuse writes by the built-in RQML agent to files that a trace edge links to a requirement which is not yet approved.\n\n**This governs the built-in agent only.** Edits you make yourself, edits by another extension, and edits by an agent running outside this extension are reported in the Problems panel but are not blocked — no editor API can prevent them. The authoritative gate is `rqml check` in continuous integration."
         }
       }
-    }
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "rqml",
+        "label": "RQML"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "rqml_editor_context",
+        "displayName": "RQML: editor context",
+        "modelDescription": "Which RQML specification governs the workspace and the file currently open, the resolved strictness, whether several specifications or ambiguous directories exist, the cursor position, and the last gate verdict. Use this before reasoning about requirements so you know which specification applies — the RQML MCP server cannot see the editor.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "rqmlContext",
+        "icon": "$(shield)",
+        "tags": [
+          "rqml",
+          "requirements"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "rqml_check_unsaved",
+        "displayName": "RQML: check unsaved changes",
+        "modelDescription": "Run the RQML gate against the UNSAVED editor buffer of the active specification, returning the same verdict rqml check produces. Use this while editing a specification: the MCP tool rqml_check reads the file from disk and therefore cannot see unsaved work.",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "rqmlCheckUnsaved",
+        "icon": "$(shield)",
+        "tags": [
+          "rqml",
+          "requirements"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ]
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.100",
