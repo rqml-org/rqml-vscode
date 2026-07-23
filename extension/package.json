@@ -640,7 +640,7 @@
     "publish:pre": "vsce publish --pre-release --baseImagesUrl https://raw.githubusercontent.com/rqml-org/rqml-vscode/main/extension/ --baseContentUrl https://github.com/rqml-org/rqml-vscode/blob/main/extension/"
   },
   "devDependencies": {
-    "@types/diff": "^7.0.2",
+    "@types/diff": "^8.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "26.x",
     "@types/pdfkit": "^0.17.6",
