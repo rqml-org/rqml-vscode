@@ -39,16 +39,18 @@ There is no repo-root "umbrella spec". Each unit is independent.
 When you open or switch to a file, the extension resolves which RQML project it belongs to:
 
 1. Start at the active file's directory.
-2. Walk **upward** toward the workspace root.
+2. Then examine each successive **parent directory**, stopping at the workspace folder boundary.
 3. In each directory, check (in order):
    - `requirements.rqml` — if found, this directory is the project root.
    - Any single `*.rqml` file — if exactly one exists, this directory is the project root.
 4. The **first directory that matches** wins.
-5. If no match is found by the time the workspace root is reached, the project is **undefined** ("No RQML project detected").
+5. If no match is found before the workspace folder boundary, the project is **undefined** ("No RQML project detected").
 
-### Nearest wins
+### The nearest enclosing spec governs
 
-If specs exist at multiple levels (e.g., both `/repo/packages/api/requirements.rqml` and `/repo/requirements.rqml`), the **nearest** spec to the active file takes precedence.
+A specification governs its own directory and every **subdirectory** of it, but never a **parent directory**. Where one specification's directory is itself a subdirectory of another's — say both `/repo/packages/api/requirements.rqml` and `/repo/requirements.rqml` exist — the **nearest enclosing** specification governs files under `packages/api`.
+
+Scope is the only thing directory placement decides. It never makes one specification inherit from another: information flows between specifications exclusively through trace edges carrying document locators.
 
 ## Automatic context switching
 
@@ -61,7 +63,7 @@ When you switch between files in different monorepo units, the extension **autom
 
 ## Multi-root workspaces
 
-In VS Code multi-root workspaces, each workspace folder is treated as an independent root boundary. The upward directory walk **never crosses** workspace folder boundaries.
+In VS Code multi-root workspaces, each workspace folder is treated as an independent boundary. The parent-directory search **never crosses** workspace folder boundaries.
 
 ```
 Multi-root workspace:

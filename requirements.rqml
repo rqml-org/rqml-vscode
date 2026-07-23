@@ -342,7 +342,7 @@
         </acceptance>
       </req>
       <req id="REQ-UI-015" type="FR" title="Project resolution algorithm" status="approved" priority="must">
-        <statement>The extension SHALL resolve the active RQML project for any open file using the following algorithm: (1) take the active file's directory, (2) walk upward toward the workspace root(s), (3) in each directory check for requirements.rqml first, else any single *.rqml file, (4) the first matching directory becomes the project root. If walking reaches the workspace root without a match, the project is undefined. When both a nearer and a higher-level spec exist, the nearest directory wins.</statement>
+        <statement>The extension SHALL resolve the governing RQML specification for any open file using the following algorithm: (1) take the active file's directory, (2) then examine each successive parent directory, stopping at the workspace folder boundary, (3) in each directory check for requirements.rqml first, else any single *.rqml file, (4) the first matching directory becomes the project root. If no match is found before the workspace folder boundary, the project is undefined. A specification governs its own directory and every subdirectory of it, but never a parent directory; where one specification's directory is itself a subdirectory of another's, the nearest enclosing specification governs.</statement>
         <notes>
           The algorithm enforces exactly one RQML spec per project unit, where a project unit is a package/app/service directory. The spec lives at the root of that unit, not necessarily at the git repo root. There is no repo-root "umbrella spec"—each unit is independent.
           Naming convention: requirements.rqml is preferred. A single *.rqml fallback is accepted. Multiple *.rqml without requirements.rqml triggers the ambiguity rules (REQ-UI-012).
@@ -396,12 +396,12 @@
         </acceptance>
       </req>
       <req id="REQ-UI-018" type="FR" title="Multi-root workspace support" status="draft" priority="must">
-        <statement>In VS Code multi-root workspaces, the extension SHALL treat each workspace folder as an independent workspace root boundary for the upward directory search in the project resolution algorithm. The upward walk SHALL NOT cross workspace folder boundaries.</statement>
+        <statement>In VS Code multi-root workspaces, the extension SHALL treat each workspace folder as an independent boundary for the parent-directory search in the project resolution algorithm. The search SHALL NOT cross workspace folder boundaries.</statement>
         <acceptance>
           <criterion id="AC-UI-018-01">
             <given>A multi-root workspace contains folder A and folder B, each with their own .rqml specs.</given>
             <when>The user edits a file in folder A.</when>
-            <then>The project resolution walks upward only within folder A and does not consider folder B.</then>
+            <then>The project resolution examines parent directories only within folder A and does not consider folder B.</then>
           </criterion>
           <criterion id="AC-UI-018-02">
             <given>A multi-root workspace contains folder A (with a spec) and folder B (without a spec).</given>
@@ -424,7 +424,7 @@
     </reqPackage>
     <reqPackage id="PKG-AUTH" title="Authentication and Subscription">
       <description>Requirements for user authentication, login providers, and subscription tiers that gate access to certain features.</description>
-      <req id="REQ-AUTH-001" type="FR" title="GitHub login" status="draft" priority="must">
+      <req id="REQ-AUTH-001" type="FR" title="GitHub login" status="deprecated" priority="must">
         <statement>The extension SHALL allow users to log in using their GitHub account.</statement>
         <acceptance>
           <criterion id="AC-AUTH-001-01">
@@ -437,7 +437,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-002" type="FR" title="Extensible authentication" status="draft" priority="should">
+      <req id="REQ-AUTH-002" type="FR" title="Extensible authentication" status="deprecated" priority="should">
         <statement>The authentication system SHOULD be designed to support additional login providers in the future.</statement>
         <notes>Potential future providers may include Google, Microsoft, email/password, or SSO. The architecture should not be tightly coupled to GitHub.</notes>
         <acceptance>
@@ -446,7 +446,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-003" type="FR" title="Login state persistence" status="draft" priority="must">
+      <req id="REQ-AUTH-003" type="FR" title="Login state persistence" status="deprecated" priority="must">
         <statement>The extension SHALL persist the user's login state across VS Code sessions.</statement>
         <acceptance>
           <criterion id="AC-AUTH-003-01">
@@ -456,7 +456,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-004" type="FR" title="Logout" status="draft" priority="must">
+      <req id="REQ-AUTH-004" type="FR" title="Logout" status="deprecated" priority="must">
         <statement>The extension SHALL allow users to log out of their account.</statement>
         <acceptance>
           <criterion id="AC-AUTH-004-01">
@@ -465,7 +465,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-005" type="UXR" title="Login UI entry point" status="draft" priority="must">
+      <req id="REQ-AUTH-005" type="UXR" title="Login UI entry point" status="deprecated" priority="must">
         <statement>The extension SHALL provide a visible entry point for login in the RQML sidebar when the user is not logged in.</statement>
         <acceptance>
           <criterion id="AC-AUTH-005-01">
@@ -474,7 +474,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-006" type="UXR" title="Logged-in user indicator" status="draft" priority="must">
+      <req id="REQ-AUTH-006" type="UXR" title="Logged-in user indicator" status="deprecated" priority="must">
         <statement>The extension SHALL display an indicator showing the logged-in user's identity when authenticated.</statement>
         <acceptance>
           <criterion id="AC-AUTH-006-01">
@@ -483,7 +483,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-001" type="FR" title="Subscription tiers" status="draft" priority="must">
+      <req id="REQ-SUB-001" type="FR" title="Subscription tiers" status="deprecated" priority="must">
         <statement>The extension SHALL support three subscription tiers: free, pro, and enterprise.</statement>
         <acceptance>
           <criterion id="AC-SUB-001-01">
@@ -491,7 +491,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-002" type="FR" title="Feature gating" status="draft" priority="must">
+      <req id="REQ-SUB-002" type="FR" title="Feature gating" status="deprecated" priority="must">
         <statement>The extension SHALL restrict access to certain features based on the user's subscription tier.</statement>
         <notes>Features requiring login or subscription should gracefully indicate the required tier and offer upgrade paths.</notes>
         <acceptance>
@@ -502,7 +502,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-003" type="UXR" title="Subscription status display" status="draft" priority="must">
+      <req id="REQ-SUB-003" type="UXR" title="Subscription status display" status="deprecated" priority="must">
         <statement>The extension SHALL display the user's current subscription tier when logged in.</statement>
         <acceptance>
           <criterion id="AC-SUB-003-01">
@@ -511,7 +511,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-004" type="FR" title="Subscription management link" status="draft" priority="should">
+      <req id="REQ-SUB-004" type="FR" title="Subscription management link" status="deprecated" priority="should">
         <statement>The extension SHOULD provide a link or action to manage subscription (upgrade, billing) via an external portal.</statement>
         <acceptance>
           <criterion id="AC-SUB-004-01">
@@ -674,7 +674,7 @@
     </reqPackage>
     <reqPackage id="PKG-API" title="External API Integration">
       <description>Requirements for integration with the external RQML.ai backend API. Implementation deferred to a later phase.</description>
-      <req id="REQ-API-001" type="IR" title="Backend API base URL" status="draft" priority="must">
+      <req id="REQ-API-001" type="IR" title="Backend API base URL" status="deprecated" priority="must">
         <statement>The extension SHALL use https://rqml.ai/api as the base URL for external API calls.</statement>
         <notes>Implementation deferred. This requirement establishes the API endpoint for future backend integration.</notes>
         <acceptance>
@@ -683,7 +683,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-002" type="FR" title="Pro/enterprise feature API dependency" status="draft" priority="must">
+      <req id="REQ-API-002" type="FR" title="Pro/enterprise feature API dependency" status="deprecated" priority="must">
         <statement>Certain pro-tier and enterprise-tier features SHALL require communication with the external RQML.ai API.</statement>
         <notes>Implementation deferred. Specific features requiring API access to be defined as they are developed.</notes>
         <acceptance>
@@ -694,7 +694,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-003" type="SR" title="Authenticated API requests" status="draft" priority="must">
+      <req id="REQ-API-003" type="SR" title="Authenticated API requests" status="deprecated" priority="must">
         <statement>API requests to RQML.ai SHALL be authenticated using the user's login credentials or session token.</statement>
         <notes>Implementation deferred. Authentication mechanism to align with REQ-AUTH requirements.</notes>
         <acceptance>
@@ -705,7 +705,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-004" type="FR" title="API error handling" status="draft" priority="must">
+      <req id="REQ-API-004" type="FR" title="API error handling" status="deprecated" priority="must">
         <statement>The extension SHALL gracefully handle API errors including network failures, timeouts, and server errors.</statement>
         <notes>Implementation deferred.</notes>
         <acceptance>
@@ -715,7 +715,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-005" type="FR" title="Offline mode for free features" status="draft" priority="must">
+      <req id="REQ-API-005" type="FR" title="Offline mode for free features" status="deprecated" priority="must">
         <statement>Features available in the free tier SHALL remain functional without API connectivity.</statement>
         <acceptance>
           <criterion id="AC-API-005-01">
@@ -844,6 +844,22 @@
           <criterion id="AC-EXP-012-01">
             <when>The user clicks the export icon in the Overview view title bar.</when>
             <then>The export wizard webview opens.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-013" type="FR" title="Deterministic offline export" status="draft" priority="must">
+        <statement>For every supported format, the extension SHALL produce an export containing the requirements and the requirement-to-verification matrix with coverage status, rendered from @rqml/core alone, without network access and without a configured language model. Language-model-authored narrative MAY be offered as an addition, and SHALL be a distinct choice from the deterministic export rather than a precondition for it.</statement>
+        <rationale>An exported specification is an audit artifact. Its value depends on being reproducible: the same specification must render the same document for any reviewer, at any later date, without depending on a model that may have changed or a service that may be unreachable. Today every format is generated through a language model, so no reproducible export exists at all — which disqualifies the artifact for exactly the regulated audience the matrix and export views are meant to serve. This requirement mirrors the constraint the portfolio holds the command-line exporter to.</rationale>
+        <acceptance>
+          <criterion id="AC-EXP-013-01">
+            <given>A valid specification with trace edges, an installation with no language-model provider configured, and no network access</given>
+            <when>The user exports in any supported format</when>
+            <then>A document is produced containing the requirements and the requirement-to-verification matrix with coverage status.</then>
+          </criterion>
+          <criterion id="AC-EXP-013-02">
+            <given>The same specification and format</given>
+            <when>The deterministic export is produced twice</when>
+            <then>The two documents' content is identical.</then>
           </criterion>
         </acceptance>
       </req>
@@ -2054,6 +2070,101 @@
         </acceptance>
       </req>
     </reqPackage>
+    <reqPackage id="PKG-GATE" title="Enforcement and verdict surface">
+      <description>
+        Requirements for rendering the toolchain's deterministic verdict inside
+        the editor, and for the limited enforcement the extension can honestly
+        perform. Specified per ADR-0005 (the extension is an oversight surface)
+        and ADR-0006 (the enforcement boundary).
+      </description>
+      <req id="REQ-GATE-001" type="FR" title="Deterministic verdict" status="draft" priority="must">
+        <statement>The extension SHALL compute the specification's verdict using @rqml/core alone, composed identically to the `rqml check` command — schema validation and referential integrity, coverage, and drift against the recorded baseline — so that the editor and the command-line tool never disagree about whether a repository passes.</statement>
+        <rationale>The product exists to make specification and code disagree visibly. An editor that reports a different verdict than the build would defeat that. Composing the verdict from the same engine, in the same order, with the same blocking policy, makes agreement structural rather than something that has to be maintained.</rationale>
+        <notes>
+          The blocking policy must be read from the command's own composition
+          rather than reimplemented. In particular, coverage reports an
+          unimplemented-requirements set that the gate does not count toward a
+          failing verdict; counting it would make the editor stricter than the
+          gate of record.
+        </notes>
+        <acceptance>
+          <criterion id="AC-GATE-001-01">
+            <given>A repository whose specification the `rqml check` command reports as passing at a given strictness</given>
+            <when>The extension computes its verdict for the same repository at the same strictness</when>
+            <then>The extension reports the repository as passing.</then>
+          </criterion>
+          <criterion id="AC-GATE-001-02">
+            <given>A repository whose specification the `rqml check` command reports as failing</given>
+            <when>The extension computes its verdict</when>
+            <then>The extension reports it as failing, and the findings correspond one-to-one with the findings the command reports.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-002" type="CR" title="No language model in the verdict path" status="draft" priority="must">
+        <statement>The extension SHALL NOT use a language model to produce, alter, or summarise any part of the verdict defined by REQ-GATE-001. Narration of a verdict by a language model MAY be offered, but only as an explicitly requested addition to a verdict already computed deterministically.</statement>
+        <rationale>A verdict is only useful if it is reproducible. The same inputs must yield the same answer for every user, on every machine, with no model configured and no network available. This mirrors the constraint the command-line tool holds itself to.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-002-01">
+            <given>An installation with no language-model provider configured and no network access</given>
+            <when>The extension computes its verdict</when>
+            <then>A complete verdict is produced.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-003" type="UXR" title="Verdict surfacing" status="draft" priority="must">
+        <statement>The extension SHALL surface the verdict as editor diagnostics in a dedicated collection, and as a status-bar indicator summarising the current state. Each finding SHALL be anchored to the most specific source location that can be determined for it.</statement>
+        <acceptance>
+          <criterion id="AC-GATE-003-01">
+            <given>A specification with a coverage or drift finding</given>
+            <when>The verdict is computed</when>
+            <then>The finding appears in the Problems panel, attributed to RQML, and the status-bar indicator reflects a failing verdict.</then>
+          </criterion>
+          <criterion id="AC-GATE-003-02">
+            <given>A finding that carries no line or column of its own, such as a drift finding about a trace edge</given>
+            <when>The finding is surfaced</when>
+            <then>It is anchored to the declaration of the element it concerns rather than to the start of the document.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-004" type="UXR" title="Drift re-pin affordance" status="draft" priority="should">
+        <statement>Where a finding reports that an implementation has changed since its trace edge was recorded, the extension SHOULD offer an action that re-records the baseline for that edge. Where several edges have drifted, the extension SHALL require an explicit per-edge selection rather than re-recording them together in one action.</statement>
+        <rationale>Re-recording a baseline asserts that the implementation still satisfies the requirement — a judgement only a person can make. An action that blesses many edges at once invites blessing drift that was never reviewed.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-004-01">
+            <given>A drift finding for a single trace edge</given>
+            <when>The user invokes the offered action</when>
+            <then>The baseline for that edge alone is re-recorded, and the finding clears on the next verdict.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-005" type="FR" title="Approval gate on agent writes" status="draft" priority="should">
+        <statement>When the extension's own agent attempts to write to a file that a trace edge links to a requirement whose status is not approved, the extension SHALL refuse the write and report which requirement is not approved. This behaviour SHALL be governed by the resolved strictness level, and SHALL be disabled by default.</statement>
+        <rationale>Approval before implementation is the one enforcement the extension can perform reliably, because it governs a write the extension itself is about to make. It is disabled by default because it changes the behaviour of a tool users already rely on.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-005-01">
+            <given>The gate is enabled, and a file is linked by an implements edge to a requirement with status "draft"</given>
+            <when>The extension's agent attempts to write that file</when>
+            <then>The write is refused and the response names the requirement and its status.</then>
+          </criterion>
+          <criterion id="AC-GATE-005-02">
+            <given>The gate is enabled and a path resolves outside the workspace through relative traversal</given>
+            <when>The path is checked against the permitted set</when>
+            <then>The write is refused.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-006" type="CR" title="Enforcement boundary is stated, not implied" status="draft" priority="must">
+        <statement>The extension SHALL NOT present itself as preventing changes it cannot prevent. Its user-facing documentation and settings SHALL state that edits made by the user directly, by another extension, or by an agent running outside the extension are reported but not blocked, and that the authoritative gate is the `rqml check` command in continuous integration.</statement>
+        <rationale>No stable editor API allows an extension to veto a file save, a file-system operation, or another agent's tool call. A product that implied otherwise would give the user a false assurance about the one thing they rely on it for, which is worse than offering no gate at all.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-006-01">
+            <given>The extension's user-facing documentation</given>
+            <when>It describes enforcement</when>
+            <then>It names which edits are blocked, which are only reported, and identifies continuous integration as the unconditional gate.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
   </requirements>
   <trace>
     <edge id="TR-001" type="dependsOn" from="REQ-UI-007" to="REQ-SUB-002">
@@ -2387,7 +2498,7 @@
       <notes>Project resolution caching (REQ-UI-017) refines project resolution algorithm (REQ-UI-015) by adding a performance optimization layer.</notes>
     </edge>
     <edge id="TR-110" type="dependsOn" from="REQ-UI-015" to="REQ-UI-018">
-      <notes>Multi-root workspace support (REQ-UI-018) constrains project resolution algorithm (REQ-UI-015) by defining workspace folder boundaries for the upward walk.</notes>
+      <notes>Multi-root workspace support (REQ-UI-018) constrains project resolution algorithm (REQ-UI-015) by defining workspace folder boundaries for the parent-directory search.</notes>
     </edge>
     <edge id="TR-111" type="dependsOn" from="REQ-UI-019" to="REQ-UI-015">
       <notes>Trace scope per project unit (REQ-UI-019) depends on project resolution algorithm (REQ-UI-015) to determine the active unit boundary.</notes>
