@@ -13,6 +13,7 @@ import {
   firstQuoted,
   requirementIn,
 } from '../../services/gate/rules';
+import { parseOrThrow } from './support';
 
 const FIXTURES = join(__dirname, '..', 'fixtures');
 const ARTIFACT = join(FIXTURES, 'src', 'thing.ts');
@@ -33,7 +34,7 @@ afterEach(() => {
 describe('drift rule identifiers', () => {
   it('emits changed-implementation, which the re-pin action keys on', async () => {
     const core = await import('@rqml/core');
-    const doc = core.parse(spec()).document;
+    const doc = parseOrThrow(core, spec());
 
     core.saveBaseline(FIXTURES, core.computeBaseline(doc, { baseDir: FIXTURES }));
     writeFileSync(ARTIFACT, 'export const thing = 999;\n');
@@ -50,7 +51,7 @@ describe('drift rule identifiers', () => {
 
   it('emits missing-implementation, which deliberately has no re-pin action', async () => {
     const core = await import('@rqml/core');
-    const doc = core.parse(spec()).document;
+    const doc = parseOrThrow(core, spec());
     rmSync(ARTIFACT);
 
     const drift = core.detectDrift(doc, { baseDir: FIXTURES });
@@ -69,7 +70,7 @@ describe('coverage rule identifiers', () => {
       'id="REQ-F-001" type="FR" title="First" status="approved"',
       'id="REQ-F-001" type="FR" title="First" status="draft"'
     );
-    const coverage = core.computeCoverage(core.parse(xml).document);
+    const coverage = core.computeCoverage(parseOrThrow(core, xml));
 
     expect(coverage.prematureImplementations).toHaveLength(1);
     const rules = coverage.diagnostics.map((d) => d.rule);

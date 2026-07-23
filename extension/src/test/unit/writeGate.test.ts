@@ -12,6 +12,7 @@ import {
   isSpecModeAllowedWritePath,
   blockedWrite,
 } from '../../services/gate/writeGate';
+import { parseOrThrow } from './support';
 
 const ROOT = '/tmp/ws';
 const FIXTURES = join(__dirname, '..', 'fixtures');
@@ -76,7 +77,7 @@ describe('blockedWrite', () => {
       'id="REQ-F-001" type="FR" title="First" status="approved"',
       'id="REQ-F-001" type="FR" title="First" status="draft"'
     );
-    return { core, document: core.parse(xml).document };
+    return { core, document: parseOrThrow(core, xml) };
   };
 
   it('blocks a write to code implementing a non-approved requirement', async () => {
@@ -104,7 +105,7 @@ describe('blockedWrite', () => {
   it('allows the write once the requirement is approved', async () => {
     const core = await import('@rqml/core');
     const xml = readFileSync(join(FIXTURES, 'spec-2.2.0.rqml'), 'utf8');
-    const document = core.parse(xml).document;
+    const document = parseOrThrow(core, xml);
     expect(blockedWrite(core.approvalGate, document, 'src/thing.ts')).toBeUndefined();
   });
 });
