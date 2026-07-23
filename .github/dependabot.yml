@@ -29,12 +29,27 @@ updates:
 
   # Bundled into dist/ by esbuild rather than shipped as node_modules, but still
   # shipped — the mermaid/DOMPurify advisory reached users this way.
+  #
+  # The groups below exist because ungrouped updates broke this package three
+  # times over: react was bumped to 19 while react-dom stayed on 18, @types/react
+  # to 19 while @types/react-dom stayed on 18, and @xterm/xterm to 6 while its
+  # addons still peered on 5. Each half is valid alone and the pair does not
+  # install, so `npm ci` fails and every job that needs it fails with it.
   - package-ecosystem: npm
     directory: /extension/webview-ui
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
     groups:
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+      xterm:
+        patterns:
+          - '@xterm/*'
       dev:
         dependency-type: development
 
@@ -44,6 +59,9 @@ updates:
       interval: monthly
     open-pull-requests-limit: 3
     groups:
+      # Grouping is necessary but not sufficient here: upgrading core to 3.10
+      # required @docusaurus/faster as a NEW dependency, which no group can add.
+      # A major Docusaurus bump needs the release notes read, not just merging.
       docusaurus:
         patterns:
           - '@docusaurus/*'
