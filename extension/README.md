@@ -97,7 +97,7 @@ Supported providers: Anthropic, OpenAI, Azure OpenAI, Google, xAI, Mistral, Groq
 A minimal specification looks like this:
 
 ```xml
-<rqml xmlns="https://rqml.org/schema/2.1.0" version="2.1.0" docId="DOC-001" status="draft">
+<rqml xmlns="https://rqml.org/schema/2.2.0" version="2.2.0" docId="DOC-001" status="draft">
   <meta>
     <title>My System</title>
     <system>my-system</system>
@@ -107,8 +107,14 @@ A minimal specification looks like this:
       <statement>The system SHALL do the thing.</statement>
     </req>
   </requirements>
+  <trace>
+    <edge id="E-001" type="implements" from="src/thing.ts" to="REQ-001"/>
+  </trace>
 </rqml>
 ```
+
+Schema versions 2.0.1, 2.1.0 and 2.2.0 are all readable; new specifications are
+created at 2.2.0, and `npx @rqml/cli migrate` upgrades an older one in place.
 
 To enforce the same rules in CI, add the command-line tool:
 

@@ -160,8 +160,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }
         });
       } else if (state.document && state.xsdAvailable === false) {
+        const supported = state.supportedSchemaVersions?.join(', ') ?? 'none';
         vscode.window.showWarningMessage(
-          `RQML Spec loaded (v${state.document.version}), but schema rqml-${state.xsdVersion}.xsd not found. XSD validation is disabled.`
+          `RQML spec loaded, but this build does not know schema version ${state.document.version}, ` +
+          `so schema validation is off. Supported versions: ${supported}. Updating the extension may add it.`
         );
       } else if (state.document) {
         vscode.window.showInformationMessage(
@@ -236,7 +238,9 @@ function updateStatusBar(state: SpecState): void {
       const fileName = state.activeSpecUri?.fsPath.split('/').pop();
       if (state.xsdAvailable === false) {
         statusBarItem.text = hasMultiple ? `$(warning) RQML: ${fileName}` : '$(warning) RQML Spec';
-        statusBarItem.tooltip = `Schema rqml-${state.xsdVersion}.xsd not available. XSD validation disabled.`;
+        statusBarItem.tooltip =
+          `Unknown schema version ${state.xsdVersion}; schema validation is off. ` +
+          `This build supports ${state.supportedSchemaVersions?.join(', ') ?? 'none'}.`;
         statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
       } else {
         statusBarItem.text = hasMultiple ? `$(check) RQML: ${fileName}` : '$(check) RQML Spec';

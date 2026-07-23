@@ -97,7 +97,7 @@
       ]
     },
     "rqml-items": {
-      "begin": "(<)(req|reqPackage|goal|qgoal|obstacle|goalLink|term|actor|stakeholder|constraint|policy|decision|risk|entity|attr|rule|scenario|misuseCase|edgeCase|stateMachine|state|transition|api|endpoint|event|testSuite|testCase|traceEdge|issue|approval|criterion)(?=\\s|>|/>)",
+      "begin": "(<)(req|reqPackage|goal|qgoal|obstacle|goalLink|term|actor|stakeholder|constraint|policy|decision|risk|entity|attr|rule|scenario|misuseCase|edgeCase|stateMachine|state|transition|api|endpoint|event|testSuite|testCase|edge|traceEdge|locator|local|doc|external|issue|approval|criterion)(?=\\s|>|/>)",
       "end": "(</)(\\2)(>)|(/>)",
       "name": "meta.tag.rqml.item",
       "beginCaptures": {
@@ -144,6 +144,25 @@
           "captures": {
             "1": { "name": "entity.other.attribute-name.rqml.priority" },
             "2": { "name": "punctuation.separator.key-value.xml.rqml" }
+          }
+        },
+        {
+          "comment": "2.2.0 compact trace endpoints and their per-side hints.",
+          "match": "\\b(from|to|fromKind|toKind|fromTitle|toTitle|confidence)(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.rqml.trace" },
+            "2": { "name": "punctuation.separator.key-value.xml.rqml" }
+          }
+        },
+        {
+          "comment": "Endpoint micro-syntax: a doc reference into another RQML document.",
+          "match": "\"(rqml:)([^\"#]*)(#)([^\";]*)((?:;[^\"]*)?)\"",
+          "captures": {
+            "1": { "name": "keyword.control.rqml.locator.scheme" },
+            "2": { "name": "string.quoted.double.xml.rqml" },
+            "3": { "name": "punctuation.separator.rqml.locator" },
+            "4": { "name": "entity.name.tag.rqml.item" },
+            "5": { "name": "comment.rqml.locator.pins" }
           }
         }
       ]

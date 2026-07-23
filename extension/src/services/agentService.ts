@@ -3,7 +3,6 @@
 // Core service managing conversations, LLM calls, monitoring, and change proposals.
 
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import { streamText, stepCountIs, type ModelMessage, type ToolSet } from 'ai';
 import { getLlmService } from './llmService';
 import { getSpecService } from './specService';
@@ -11,7 +10,8 @@ import { getConfigurationService } from './configurationService';
 import { getDiagnosticsService } from './diagnosticsService';
 import type { StrictnessLevel } from '../types/configuration';
 import { createCommandRegistry, type CommandRegistry, type CommandContext } from '../commands/slashCommands';
-import { getXsdPath, isXsdAvailable } from './xsdVersions';
+import { loadSchema as loadSchemaCatalogue } from './core';
+import { log } from './logger';
 import { getSkillService } from './skillService';
 import { computeLineDiff, type DiffRow } from './diffUtil';
 import { getModelCatalogService } from './modelCatalogService';
@@ -94,13 +94,13 @@ export class AgentService {
   initialize(extensionPath: string): void {
     this.extensionPath = extensionPath;
     this._commandRegistry = createCommandRegistry();
-    this.loadSchema();
+    void this.loadSchema();
     this.setupFileWatchers();
 
     // Reload schema when spec changes (version may differ)
     const specService = getSpecService();
     this.disposables.push(
-      specService.onDidChangeSpec(() => this.loadSchema())
+      specService.onDidChangeSpec(() => void this.loadSchema())
     );
   }
 
@@ -116,25 +116,24 @@ export class AgentService {
    * REQ-AGT-012 AC-AGT-012-02: Load XSD schema for agent's system prompt.
    * REQ-UI-011A: Version-aware — reads version from the loaded spec document.
    */
-  private loadSchema(): void {
-    if (!this.extensionPath) return;
-
-    const specService = getSpecService();
-    const version = specService.state.document?.version;
+  private async loadSchema(): Promise<void> {
+    const version = getSpecService().state.document?.version;
     if (!version) return;
 
-    if (!isXsdAvailable(this.extensionPath, version)) {
-      console.warn(`AgentService: XSD schema for version ${version} not found`);
+    // The XSD text is inlined in @rqml/schema, so there is no file to read and
+    // nothing to resolve against the extension's install path.
+    const schema = await loadSchemaCatalogue();
+    const xsd = schema.resolveSchema(version);
+    if (!xsd) {
+      log.info(
+        'Agent',
+        `No bundled schema for RQML ${version}; the agent prompt will omit it. ` +
+        `This build supports ${schema.supportedSchemaVersions().join(', ')}.`,
+      );
       this.schemaContent = undefined;
       return;
     }
-
-    try {
-      const schemaPath = getXsdPath(this.extensionPath, version);
-      this.schemaContent = fs.readFileSync(schemaPath, 'utf-8');
-    } catch {
-      console.warn('AgentService: Failed to load XSD schema');
-    }
+    this.schemaContent = xsd;
   }
 
   /**

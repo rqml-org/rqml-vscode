@@ -273,7 +273,7 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
       if (this.specState?.status === 'single' && this.specState.xsdAvailable === false) {
         children.push({
           type: 'message',
-          label: `Schema rqml-${this.specState.xsdVersion}.xsd not available`,
+          label: `Unknown schema version ${this.specState.xsdVersion} — validation off`,
           id: 'xsd-warning',
         });
       }
