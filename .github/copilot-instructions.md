@@ -1,106 +1,70 @@
-<!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
-- [x] Verify that the copilot-instructions.md file in the .github directory is created.
+# Copilot instructions — rqml-vscode
 
-- [x] Clarify Project Requirements
-	<!-- Ask for project type, language, and frameworks if not specified. Skip if already provided. -->
+This repository is governed by an RQML specification. **Read [`AGENTS.md`](../AGENTS.md)
+at the repository root first** — it holds the working agreement: the five-stage
+process, the toolchain, the enforcement boundary, and the strictness level. This
+file adds only what is specific to this codebase.
 
-- [x] Scaffold the Project
-	<!--
-	Ensure that the previous step has been marked as completed.
-	Call project setup tool with projectType parameter.
-	Run scaffolding command to create project files and folders.
-	Use '.' as the working directory.
-	If no appropriate projectType is available, search documentation using available tools.
-	Otherwise, create the project structure manually using available file creation tools.
-	-->
+## The short version
 
-- [ ] Customize the Project
-	<!--
-	Verify that all previous steps have been completed successfully and you have marked the step as completed.
-	Develop a plan to modify codebase according to user requirements.
-	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
-	-->
+- `requirements.rqml` is the source of truth for intent. Code follows it, not
+  the reverse.
+- Do not implement behaviour that is not specified. Add the requirement first.
+- `npx @rqml/cli check` must exit 0 before any task is finished.
+- Record significant architectural decisions as ADRs in `.rqml/adr/`. ADRs are
+  immutable once accepted — supersede, never edit.
 
-- [ ] Install Required Extensions
-	<!-- ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed. -->
+## Repository layout
 
-- [ ] Compile the Project
-	<!--
-	Verify that all previous steps have been completed.
-	Install any missing dependencies.
-	Run diagnostics and resolve any issues.
-	Check for markdown files in project folder for relevant instructions on how to do this.
-	-->
+| Path | What it is |
+|---|---|
+| `requirements.rqml` | The governing specification (RQML 2.2.0) |
+| `.rqml/adr/` | Architecture Decision Records, indexed in `README.md` |
+| `.rqml/baseline.json` | Drift baseline. Never edit by hand — `rqml link --refresh` records it |
+| `extension/src/` | Extension host code; CommonJS, runs on Node |
+| `extension/webview-ui/src/` | React sources for the webviews; a build input only |
+| `extension/out/` | `tsc` output — the published entry point (`main`) |
+| `extension/dist/` | esbuild output — the webview bundles |
+| `docs/` | The Docusaurus site published at rqml.dev/vscode |
 
-- [ ] Create and Run Task
-	<!--
-	Verify that all previous steps have been completed.
-	Check https://code.visualstudio.com/docs/debugtest/tasks to determine if the project needs a task. If so, use the create_and_run_task to create and launch a task based on package.json, README.md, and project structure.
-	Skip this step otherwise.
-	 -->
+## Things that will trip you up
 
-- [ ] Launch the Project
-	<!--
-	Verify that all previous steps have been completed.
-	Prompt user for debug mode, launch only if confirmed.
-	 -->
+**There are two builds.** `tsc` produces `extension/out/`; esbuild produces
+`extension/dist/`. A webview change needs `npm run build:webview`; an extension
+host change needs `npm run compile`. `compile` cleans `out/` first, because
+stale output from deleted sources was previously being packaged and shipped.
 
-- [ ] Ensure Documentation is Complete
-	<!--
-	Verify that all previous steps have been completed.
-	Verify that README.md and the copilot-instructions.md file in the .github directory exists and contains current project information.
-	Clean up the copilot-instructions.md file in the .github directory by removing all HTML comments.
-	 -->
+**The ESM/CJS boundary.** `@rqml/core` and `@rqml/schema` are ESM-only while the
+extension host emits CommonJS. All access goes through
+`extension/src/services/core.ts`, which uses dynamic `import()` and
+`resolution-mode` type imports. Do not import either package anywhere else —
+see ADR-0002 and ADR-0008.
 
-<!--
-## Execution Guidelines
-PROGRESS TRACKING:
-- If any tools are available to manage the above todo list, use it to track progress through this checklist.
-- After completing each step, mark it complete and add a summary.
-- Read current todo list status before starting each new step.
+**Provider SDKs load from a static map.** `extension/src/models/providerModules.ts`
+maps each provider id to a literal `import()`. A computed specifier is invisible
+to packaging tools, which is how five providers once shipped broken in every
+real install. Add providers there; never assemble the specifier from a string.
 
-COMMUNICATION RULES:
-- Avoid verbose explanations or printing full command outputs.
-- If a step is skipped, state that briefly (e.g. "No extensions needed").
-- Do not explain project structure unless asked.
-- Keep explanations concise and focused.
+**The scope filter.** ADR-0005 froze the built-in agent: it gets correctness and
+security fixes, not features. Before adding anything, ask whether the capability
+requires a configured model to be useful. If it does, it is out of scope. Editor
+primitives — the tree, deterministic export, code actions — are not agent
+features and remain in scope.
 
-DEVELOPMENT RULES:
-- Use '.' as the working directory unless user specifies otherwise.
-- Avoid adding media or external links unless explicitly requested.
-- Use placeholders only with a note that they should be replaced.
-- Use VS Code API tool only for VS Code extension projects.
-- Once the project is created, it is already opened in Visual Studio Code—do not suggest commands to open this project in Visual Studio again.
-- If the project setup information has additional rules, follow them strictly.
+**Terminology.** When describing specification scope or discovery, write
+"parent directory", "subdirectory", and "nearest enclosing spec". Do not use
+tree metaphors: no walking up or down, no root, no leaves. A specification
+governs its own directory and every subdirectory of it, never a parent
+directory.
 
-FOLDER CREATION RULES:
-- Always use the current directory as the project root.
-- If you are running any terminal commands, use the '.' argument to ensure that the current working directory is used ALWAYS.
-- Do not create a new folder unless the user explicitly requests it besides a .vscode folder for a tasks.json file.
-- If any of the scaffolding commands mention that the folder name is not correct, let the user know to create a new folder with the correct name and then reopen it again in vscode.
+**Do not hand-edit trace XML.** Use `rqml link` to record an edge and
+`rqml link --refresh <edge-id>` to re-record a baseline after an intentional
+change.
 
-EXTENSION INSTALLATION RULES:
-- Only install extension specified by the get_project_setup_info tool. DO NOT INSTALL any other extensions.
+## Before you finish
 
-PROJECT CONTENT RULES:
-- If the user has not specified project details, assume they want a "Hello World" project as a starting point.
-- Avoid adding links of any type (URLs, files, folders, etc.) or integrations that are not explicitly required.
-- Avoid generating images, videos, or any other media files unless explicitly requested.
-- If you need to use any media assets as placeholders, let the user know that these are placeholders and should be replaced with the actual assets later.
-- Ensure all generated components serve a clear purpose within the user's requested workflow.
-- If a feature is assumed but not confirmed, prompt the user for clarification before including it.
-- If you are working on a VS Code extension, use the VS Code API tool with a query to find relevant VS Code API references and samples related to that query.
-
-TASK COMPLETION RULES:
-- Your task is complete when:
-  - Project is successfully scaffolded and compiled without errors
-  - copilot-instructions.md file in the .github directory exists in the project
-  - README.md file exists and is up to date
-  - User is provided with clear instructions to debug/launch the project
-
-Before starting a new task in the above plan, update progress in the plan.
--->
-- Work through each checklist item systematically.
-- Keep communication concise and focused.
-- Follow development best practices.
+```bash
+npx @rqml/cli check
+npm --prefix extension run compile
+npm --prefix extension run lint
+```
