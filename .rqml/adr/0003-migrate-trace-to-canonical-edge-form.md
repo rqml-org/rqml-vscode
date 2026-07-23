@@ -5,7 +5,7 @@
 - **Classification**: `required_by_spec`
 - **Related requirements**: `REQ-UI-006J`, `REQ-UI-013`
 - **Related ADRs**: `ADR-0001` (delegate to rqml-core), rqml-core `ADR-0003` (typed model is `2.1.0`-shaped), rqml-core `ADR-0004` (referential integrity)
-- **Affected components**: `rqml-vscode.rqml`, `src/services/rqmlParser.ts`, `src/transformers/rqmlToMatrix.ts`, `src/transformers/rqmlToReactFlow.ts`
+- **Affected components**: `requirements.rqml`, `src/services/rqmlParser.ts`, `src/transformers/rqmlToMatrix.ts`, `src/transformers/rqmlToReactFlow.ts`
 
 ## Context
 
@@ -39,7 +39,8 @@ so the flat form does not populate the typed `trace` model.
 
 ## Decision
 
-The extension's RQML document (`rqml-vscode.rqml`) and trace-handling code use
+The extension's RQML document (`requirements.rqml`, named `rqml-vscode.rqml`
+when this ADR was accepted) and trace-handling code use
 the canonical nested `<edge>` form exclusively. `rqmlParser.extractTraceEdges`
 reads `trace/edge` and resolves each endpoint through
 `edge/from|to/locator/{local|doc|external}`; the matrix and graph transformers

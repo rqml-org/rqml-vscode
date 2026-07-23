@@ -19,11 +19,33 @@ that supersedes it, and mark the older one `Superseded by ADR-NNNN`.
 | [0002](0002-esm-cjs-boundary-in-one-bridge-module.md) | Cross the ESM/CJS boundary in a single bridge module | implementation_detail | Accepted |
 | [0003](0003-migrate-trace-to-canonical-edge-form.md) | Migrate trace links to the canonical nested `<edge>` form | required_by_spec | Accepted |
 | [0004](0004-full-delegation-and-outline-export.md) | Full delegation — drop fast-xml-parser and export from the core outline | discretionary_design_choice | Accepted |
+| [0005](0005-oversight-surface-and-agent-freeze.md) | The extension is an oversight surface; the bespoke agent is frozen | discretionary_design_choice | Accepted |
+
+## A note on "rqml-core"
+
+ADRs 0001, 0002 and 0003 were written when the engine was a standalone project
+called **`rqml-core`**, and they name it that throughout — including ADR-0002,
+which quotes the import specifier `"rqml-core"` in its decision text.
+
+**That project no longer exists as a shipping dependency.** It was superseded by
+the workspace packages in the [`rqml`](https://github.com/rqml-org/rqml)
+monorepo, which are what the extension actually depends on:
+
+| Then | Now |
+|---|---|
+| `rqml-core` (standalone repo, never published to npm) | [`@rqml/core`](https://www.npmjs.com/package/@rqml/core) |
+| schemas bundled inside the engine | [`@rqml/schema`](https://www.npmjs.com/package/@rqml/schema), a dependency of `@rqml/core` |
+| — | [`@rqml/cli`](https://www.npmjs.com/package/@rqml/cli), [`@rqml/mcp`](https://www.npmjs.com/package/@rqml/mcp) |
+
+Read every `rqml-core` in ADRs 0001–0003 as `@rqml/core`. The *decisions* those
+records describe — delegate the engine, cross the ESM/CJS boundary in one bridge
+module, use the canonical `<edge>` form — all still stand; only the package name
+and its home changed. The ADR bodies are left as written rather than edited,
+since the decisions were not revisited. Their references to "rqml-core `ADR-000n`"
+point at decision records that now live in the `rqml` monorepo.
 
 ## Cross-reference
 
-These ADRs frequently reference `rqml-core`'s own decision records (in
-`rqml-core/.rqml/adr/`), since the extension delegates its engine to rqml-core.
-The `rqml-vscode.rqml` requirements document holds the agent-readable
-requirements these decisions serve (e.g. `REQ-UI-013` semantic diagnostics);
-this directory holds the long-form decision context.
+The `requirements.rqml` document holds the agent-readable requirements these
+decisions serve (e.g. `REQ-UI-013` semantic diagnostics); this directory holds
+the long-form decision context.
