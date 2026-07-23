@@ -2137,7 +2137,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-GATE-005" type="FR" title="Approval gate on agent writes" status="draft" priority="should">
+      <req id="REQ-GATE-005" type="FR" title="Approval gate on agent writes" status="approved" priority="should">
         <statement>When the extension's own agent attempts to write to a file that a trace edge links to a requirement whose status is not approved, the extension SHALL refuse the write and report which requirement is not approved. This behaviour SHALL be governed by the resolved strictness level, and SHALL be disabled by default.</statement>
         <rationale>Approval before implementation is the one enforcement the extension can perform reliably, because it governs a write the extension itself is about to make. It is disabled by default because it changes the behaviour of a tool users already rely on.</rationale>
         <acceptance>
@@ -2644,5 +2644,7 @@
     <edge id="E-VER-GATE-001" type="verifiedBy" from="REQ-GATE-001" to="extension/src/test/unit/gateVerdict.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-VER-GATE-002" type="verifiedBy" from="REQ-GATE-002" to="extension/src/test/unit/gateVerdict.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-VER-GATE-004" type="verifiedBy" from="REQ-GATE-004" to="extension/src/test/unit/gateRules.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-005" type="implements" from="extension/src/services/gate/writeGate.ts" fromKind="code" to="REQ-GATE-005" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-005" type="verifiedBy" from="REQ-GATE-005" to="extension/src/test/unit/writeGate.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>
