@@ -232,13 +232,6 @@ export function registerCommands(
     })
   );
 
-  // REQ-UI-006I: Open ideas view (placeholder)
-  context.subscriptions.push(
-    vscode.commands.registerCommand('rqml-vscode.openIdeasView', () => {
-      vscode.window.showInformationMessage('LLM-assisted ideas view coming soon.');
-    })
-  );
-
   // REQ-EXP-005: Export functionality via wizard
   context.subscriptions.push(
     vscode.commands.registerCommand('rqml-vscode.export', async () => {

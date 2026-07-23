@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { RqmlDocument, getRqmlParser } from './rqmlParser';
-import { isXsdAvailable, getLatestXsdVersion } from './xsdVersions';
+import { loadSchema } from './core';
 
 export type SpecStatus = 'none' | 'single' | 'invalid';
 
@@ -16,10 +16,12 @@ export interface SpecState {
   /** The currently active spec file URI (when multiple exist) */
   activeSpecUri?: vscode.Uri;
   error?: string;
-  /** Whether the matching XSD schema file is available for the document's version */
+  /** Whether a bundled XSD is available for the document's declared version */
   xsdAvailable?: boolean;
   /** The RQML version from the document's root element */
   xsdVersion?: string;
+  /** The schema versions this build can validate, oldest first */
+  supportedSchemaVersions?: string[];
 }
 
 /**
@@ -210,17 +212,19 @@ export class SpecService {
       const parser = getRqmlParser();
       const document = await parser.parseFile(activeUri);
 
-      const xsdAvail = this.extensionPath
-        ? isXsdAvailable(this.extensionPath, document.version)
-        : true;
+      // Schema availability comes from @rqml/schema, the same catalogue the
+      // engine validates against, rather than from files we ship ourselves.
+      const schema = await loadSchema();
+      const supported = schema.supportedSchemaVersions();
 
       this._state = {
         status: 'single',
         files: allFiles,
         activeSpecUri: activeUri,
         document,
-        xsdAvailable: xsdAvail,
+        xsdAvailable: schema.isSchemaVersion(document.version),
         xsdVersion: document.version,
+        supportedSchemaVersions: supported,
       };
     } catch (err) {
       this._state = {
@@ -340,13 +344,17 @@ export class SpecService {
     });
     if (title === undefined) return undefined;
 
-    // REQ-UI-011 AC-UI-011-02: Use the most recent available XSD version
-    const version = (this.extensionPath && getLatestXsdVersion(this.extensionPath)) || '2.1.0';
+    // REQ-UI-011 AC-UI-011-02: create at the newest schema version this build
+    // supports. The namespace and schemaLocation URLs come from @rqml/schema
+    // rather than being assembled here, so a new schema version needs no change
+    // in this file and the two URLs can never drift apart.
+    const schema = await loadSchema();
+    const version = schema.DEFAULT_SCHEMA_VERSION;
 
     const template = `<?xml version="1.0" encoding="UTF-8"?>
-<rqml xmlns="https://rqml.org/schema/${version}"
+<rqml xmlns="${schema.schemaNamespace(version)}"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:schemaLocation="https://rqml.org/schema/${version} https://rqml.org/schema/rqml-${version}.xsd"
+      xsi:schemaLocation="${schema.schemaNamespace(version)} ${schema.schemaUrl(version)}"
       version="${version}" docId="${docId}" status="draft">
   <meta>
     <title>${title}</title>

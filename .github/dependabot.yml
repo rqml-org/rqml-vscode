@@ -1,0 +1,54 @@
+version: 2
+
+updates:
+  # The extension's runtime and build dependencies. These ship inside the VSIX,
+  # so a vulnerable transitive package here is a vulnerable package on every
+  # user's machine.
+  - package-ecosystem: npm
+    directory: /extension
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      ai-sdk:
+        # The `ai` package and its providers move in lockstep — a provider major
+        # tracks a LanguageModel version. Updating them separately produces a
+        # tree that does not typecheck, so group them into one pull request.
+        patterns:
+          - 'ai'
+          - '@ai-sdk/*'
+      rqml:
+        # @rqml/core and @rqml/schema come from one monorepo and are released
+        # together. They are also the pair whose ranges must be watched: a range
+        # that cannot advance is how the editor silently lost the ability to read
+        # a current document.
+        patterns:
+          - '@rqml/*'
+      dev:
+        dependency-type: development
+
+  # Bundled into dist/ by esbuild rather than shipped as node_modules, but still
+  # shipped — the mermaid/DOMPurify advisory reached users this way.
+  - package-ecosystem: npm
+    directory: /extension/webview-ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      dev:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      docusaurus:
+        patterns:
+          - '@docusaurus/*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

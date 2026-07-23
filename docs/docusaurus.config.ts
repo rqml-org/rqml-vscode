@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'RQML for VS Code',
-  tagline: 'Your requirements are the product. The code is derived.',
+  tagline: 'Keep requirements and code in sync, in version control.',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -31,20 +31,11 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/stakkar/rqml-vscode/tree/main/docs/',
+            'https://github.com/rqml-org/rqml-vscode/tree/main/docs/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          editUrl:
-            'https://github.com/stakkar/rqml-vscode/tree/main/docs/',
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        // No blog. The only posts this site ever had were the Docusaurus
+        // starter's sample entries, which were live on rqml.dev.
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -70,9 +61,8 @@ const config: Config = {
           position: 'left',
           label: 'Docs',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/stakkar/rqml-vscode',
+          href: 'https://github.com/rqml-org/rqml-vscode',
           label: 'GitHub',
           position: 'right',
         },
@@ -99,7 +89,7 @@ const config: Config = {
             },
             {
               label: 'VS Code Marketplace',
-              href: 'https://marketplace.visualstudio.com/items?itemName=Stakkar.rqml-vscode',
+              href: 'https://marketplace.visualstudio.com/items?itemName=rqml.rqml-vscode',
             },
           ],
         },
@@ -107,12 +97,8 @@ const config: Config = {
           title: 'More',
           items: [
             {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
               label: 'GitHub',
-              href: 'https://github.com/stakkar/rqml-vscode',
+              href: 'https://github.com/rqml-org/rqml-vscode',
             },
           ],
         },

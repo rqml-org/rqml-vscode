@@ -1,7 +1,7 @@
-<rqml xmlns="https://rqml.org/schema/2.1.0"
+<rqml xmlns="https://rqml.org/schema/2.2.0"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-      xsi:schemaLocation="https://rqml.org/schema/2.1.0 https://rqml.org/schema/rqml-2.1.0.xsd"
-      version="2.1.0" docId="DOC-RQML-VSCODE-001" status="draft">
+      xsi:schemaLocation="https://rqml.org/schema/2.2.0 https://rqml.org/schema/rqml-2.2.0.xsd"
+      version="2.2.0" docId="DOC-RQML-VSCODE-001" status="draft">
   <meta>
     <title>RQML extension for VSCode - Requirements specification</title>
     <system>RQML extension for Visual Studio Code</system>
@@ -155,7 +155,8 @@
         </acceptance>
       </req>
       <req id="REQ-UI-006I" type="FR" title="Root actions behavior" status="approved" priority="must">
-        <statement>The four root action icons SHALL open the following editor views: Document opens a WYSIWYG full-spec view with chapters for each RQML section; Arrow opens a traceability map; Grid opens a requirements-to-test-cases matrix with status coloring; Lightbulb opens an LLM-assisted ideas view for improvements or new features in the spec.</statement>
+        <statement>The three root action icons SHALL open the following editor views: Document opens a WYSIWYG full-spec view with chapters for each RQML section; Arrow opens a traceability map; Grid opens a requirements-to-test-cases matrix with status coloring.</statement>
+        <notes>Amended 2026-07-23. A fourth icon (Lightbulb) previously specified an LLM-assisted ideas view, with acceptance criterion AC-UI-006I-04. It was never implemented beyond a "coming soon" message. ADR-0005 freezes the extension's model-dependent features, and an ideas view is useful only with a configured model, so the criterion was withdrawn rather than left as a standing must-obligation the product had decided not to meet.</notes>
         <acceptance>
           <criterion id="AC-UI-006I-01">
             <when>The user selects the Document icon.</when>
@@ -168,10 +169,6 @@
           <criterion id="AC-UI-006I-03">
             <when>The user selects the Grid icon.</when>
             <then>A requirements-to-test-cases grid opens with red/amber/green status indicators.</then>
-          </criterion>
-          <criterion id="AC-UI-006I-04">
-            <when>The user selects the Lightbulb icon.</when>
-            <then>An LLM-assisted ideas view opens for improvements or new spec features.</then>
           </criterion>
         </acceptance>
       </req>
@@ -345,7 +342,7 @@
         </acceptance>
       </req>
       <req id="REQ-UI-015" type="FR" title="Project resolution algorithm" status="approved" priority="must">
-        <statement>The extension SHALL resolve the active RQML project for any open file using the following algorithm: (1) take the active file's directory, (2) walk upward toward the workspace root(s), (3) in each directory check for requirements.rqml first, else any single *.rqml file, (4) the first matching directory becomes the project root. If walking reaches the workspace root without a match, the project is undefined. When both a nearer and a higher-level spec exist, the nearest directory wins.</statement>
+        <statement>The extension SHALL resolve the governing RQML specification for any open file using the following algorithm: (1) take the active file's directory, (2) then examine each successive parent directory, stopping at the workspace folder boundary, (3) in each directory check for requirements.rqml first, else any single *.rqml file, (4) the first matching directory becomes the project root. If no match is found before the workspace folder boundary, the project is undefined. A specification governs its own directory and every subdirectory of it, but never a parent directory; where one specification's directory is itself a subdirectory of another's, the nearest enclosing specification governs.</statement>
         <notes>
           The algorithm enforces exactly one RQML spec per project unit, where a project unit is a package/app/service directory. The spec lives at the root of that unit, not necessarily at the git repo root. There is no repo-root "umbrella spec"—each unit is independent.
           Naming convention: requirements.rqml is preferred. A single *.rqml fallback is accepted. Multiple *.rqml without requirements.rqml triggers the ambiguity rules (REQ-UI-012).
@@ -399,12 +396,12 @@
         </acceptance>
       </req>
       <req id="REQ-UI-018" type="FR" title="Multi-root workspace support" status="draft" priority="must">
-        <statement>In VS Code multi-root workspaces, the extension SHALL treat each workspace folder as an independent workspace root boundary for the upward directory search in the project resolution algorithm. The upward walk SHALL NOT cross workspace folder boundaries.</statement>
+        <statement>In VS Code multi-root workspaces, the extension SHALL treat each workspace folder as an independent boundary for the parent-directory search in the project resolution algorithm. The search SHALL NOT cross workspace folder boundaries.</statement>
         <acceptance>
           <criterion id="AC-UI-018-01">
             <given>A multi-root workspace contains folder A and folder B, each with their own .rqml specs.</given>
             <when>The user edits a file in folder A.</when>
-            <then>The project resolution walks upward only within folder A and does not consider folder B.</then>
+            <then>The project resolution examines parent directories only within folder A and does not consider folder B.</then>
           </criterion>
           <criterion id="AC-UI-018-02">
             <given>A multi-root workspace contains folder A (with a spec) and folder B (without a spec).</given>
@@ -427,7 +424,7 @@
     </reqPackage>
     <reqPackage id="PKG-AUTH" title="Authentication and Subscription">
       <description>Requirements for user authentication, login providers, and subscription tiers that gate access to certain features.</description>
-      <req id="REQ-AUTH-001" type="FR" title="GitHub login" status="draft" priority="must">
+      <req id="REQ-AUTH-001" type="FR" title="GitHub login" status="deprecated" priority="must">
         <statement>The extension SHALL allow users to log in using their GitHub account.</statement>
         <acceptance>
           <criterion id="AC-AUTH-001-01">
@@ -440,7 +437,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-002" type="FR" title="Extensible authentication" status="draft" priority="should">
+      <req id="REQ-AUTH-002" type="FR" title="Extensible authentication" status="deprecated" priority="should">
         <statement>The authentication system SHOULD be designed to support additional login providers in the future.</statement>
         <notes>Potential future providers may include Google, Microsoft, email/password, or SSO. The architecture should not be tightly coupled to GitHub.</notes>
         <acceptance>
@@ -449,7 +446,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-003" type="FR" title="Login state persistence" status="draft" priority="must">
+      <req id="REQ-AUTH-003" type="FR" title="Login state persistence" status="deprecated" priority="must">
         <statement>The extension SHALL persist the user's login state across VS Code sessions.</statement>
         <acceptance>
           <criterion id="AC-AUTH-003-01">
@@ -459,7 +456,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-004" type="FR" title="Logout" status="draft" priority="must">
+      <req id="REQ-AUTH-004" type="FR" title="Logout" status="deprecated" priority="must">
         <statement>The extension SHALL allow users to log out of their account.</statement>
         <acceptance>
           <criterion id="AC-AUTH-004-01">
@@ -468,7 +465,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-005" type="UXR" title="Login UI entry point" status="draft" priority="must">
+      <req id="REQ-AUTH-005" type="UXR" title="Login UI entry point" status="deprecated" priority="must">
         <statement>The extension SHALL provide a visible entry point for login in the RQML sidebar when the user is not logged in.</statement>
         <acceptance>
           <criterion id="AC-AUTH-005-01">
@@ -477,7 +474,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AUTH-006" type="UXR" title="Logged-in user indicator" status="draft" priority="must">
+      <req id="REQ-AUTH-006" type="UXR" title="Logged-in user indicator" status="deprecated" priority="must">
         <statement>The extension SHALL display an indicator showing the logged-in user's identity when authenticated.</statement>
         <acceptance>
           <criterion id="AC-AUTH-006-01">
@@ -486,7 +483,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-001" type="FR" title="Subscription tiers" status="draft" priority="must">
+      <req id="REQ-SUB-001" type="FR" title="Subscription tiers" status="deprecated" priority="must">
         <statement>The extension SHALL support three subscription tiers: free, pro, and enterprise.</statement>
         <acceptance>
           <criterion id="AC-SUB-001-01">
@@ -494,7 +491,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-002" type="FR" title="Feature gating" status="draft" priority="must">
+      <req id="REQ-SUB-002" type="FR" title="Feature gating" status="deprecated" priority="must">
         <statement>The extension SHALL restrict access to certain features based on the user's subscription tier.</statement>
         <notes>Features requiring login or subscription should gracefully indicate the required tier and offer upgrade paths.</notes>
         <acceptance>
@@ -505,7 +502,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-003" type="UXR" title="Subscription status display" status="draft" priority="must">
+      <req id="REQ-SUB-003" type="UXR" title="Subscription status display" status="deprecated" priority="must">
         <statement>The extension SHALL display the user's current subscription tier when logged in.</statement>
         <acceptance>
           <criterion id="AC-SUB-003-01">
@@ -514,7 +511,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-SUB-004" type="FR" title="Subscription management link" status="draft" priority="should">
+      <req id="REQ-SUB-004" type="FR" title="Subscription management link" status="deprecated" priority="should">
         <statement>The extension SHOULD provide a link or action to manage subscription (upgrade, billing) via an external portal.</statement>
         <acceptance>
           <criterion id="AC-SUB-004-01">
@@ -677,7 +674,7 @@
     </reqPackage>
     <reqPackage id="PKG-API" title="External API Integration">
       <description>Requirements for integration with the external RQML.ai backend API. Implementation deferred to a later phase.</description>
-      <req id="REQ-API-001" type="IR" title="Backend API base URL" status="draft" priority="must">
+      <req id="REQ-API-001" type="IR" title="Backend API base URL" status="deprecated" priority="must">
         <statement>The extension SHALL use https://rqml.ai/api as the base URL for external API calls.</statement>
         <notes>Implementation deferred. This requirement establishes the API endpoint for future backend integration.</notes>
         <acceptance>
@@ -686,7 +683,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-002" type="FR" title="Pro/enterprise feature API dependency" status="draft" priority="must">
+      <req id="REQ-API-002" type="FR" title="Pro/enterprise feature API dependency" status="deprecated" priority="must">
         <statement>Certain pro-tier and enterprise-tier features SHALL require communication with the external RQML.ai API.</statement>
         <notes>Implementation deferred. Specific features requiring API access to be defined as they are developed.</notes>
         <acceptance>
@@ -697,7 +694,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-003" type="SR" title="Authenticated API requests" status="draft" priority="must">
+      <req id="REQ-API-003" type="SR" title="Authenticated API requests" status="deprecated" priority="must">
         <statement>API requests to RQML.ai SHALL be authenticated using the user's login credentials or session token.</statement>
         <notes>Implementation deferred. Authentication mechanism to align with REQ-AUTH requirements.</notes>
         <acceptance>
@@ -708,7 +705,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-004" type="FR" title="API error handling" status="draft" priority="must">
+      <req id="REQ-API-004" type="FR" title="API error handling" status="deprecated" priority="must">
         <statement>The extension SHALL gracefully handle API errors including network failures, timeouts, and server errors.</statement>
         <notes>Implementation deferred.</notes>
         <acceptance>
@@ -718,7 +715,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-API-005" type="FR" title="Offline mode for free features" status="draft" priority="must">
+      <req id="REQ-API-005" type="FR" title="Offline mode for free features" status="deprecated" priority="must">
         <statement>Features available in the free tier SHALL remain functional without API connectivity.</statement>
         <acceptance>
           <criterion id="AC-API-005-01">
@@ -847,6 +844,22 @@
           <criterion id="AC-EXP-012-01">
             <when>The user clicks the export icon in the Overview view title bar.</when>
             <then>The export wizard webview opens.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-EXP-013" type="FR" title="Deterministic offline export" status="draft" priority="must">
+        <statement>For every supported format, the extension SHALL produce an export containing the requirements and the requirement-to-verification matrix with coverage status, rendered from @rqml/core alone, without network access and without a configured language model. Language-model-authored narrative MAY be offered as an addition, and SHALL be a distinct choice from the deterministic export rather than a precondition for it.</statement>
+        <rationale>An exported specification is an audit artifact. Its value depends on being reproducible: the same specification must render the same document for any reviewer, at any later date, without depending on a model that may have changed or a service that may be unreachable. Today every format is generated through a language model, so no reproducible export exists at all — which disqualifies the artifact for exactly the regulated audience the matrix and export views are meant to serve. This requirement mirrors the constraint the portfolio holds the command-line exporter to.</rationale>
+        <acceptance>
+          <criterion id="AC-EXP-013-01">
+            <given>A valid specification with trace edges, an installation with no language-model provider configured, and no network access</given>
+            <when>The user exports in any supported format</when>
+            <then>A document is produced containing the requirements and the requirement-to-verification matrix with coverage status.</then>
+          </criterion>
+          <criterion id="AC-EXP-013-02">
+            <given>The same specification and format</given>
+            <when>The deterministic export is produced twice</when>
+            <then>The two documents' content is identical.</then>
           </criterion>
         </acceptance>
       </req>
@@ -1342,7 +1355,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AGT-032" type="UXR" title="Actionable LLM error surfacing" status="draft" priority="must">
+      <req id="REQ-AGT-032" type="UXR" title="Actionable LLM error surfacing" status="approved" priority="must">
         <statement>When an LLM call fails (provider error, stream error, missing or invalid API key, rate limit, or refusal), the extension SHALL surface a concise, actionable message to the user — including the HTTP status or error code, the provider's own error message, an actionable hint, and the active provider and model — and SHALL log the full error detail (stack and response body) to the RQML Output channel. Error parts emitted on the AI SDK fullStream SHALL be captured and reported in preference to the generic downstream "no output generated" failure that would otherwise mask them.</statement>
         <notes>Centralised in a single formatting service so the agent, implement, background-agent, and export paths produce consistent messages. Hints map common statuses: 401/403 to key configuration, 429 to rate limits, 404 to model id, 400 to unsupported parameters, 5xx to provider outage.</notes>
         <acceptance>
@@ -2057,785 +2070,581 @@
         </acceptance>
       </req>
     </reqPackage>
+    <reqPackage id="PKG-GATE" title="Enforcement and verdict surface">
+      <description>
+        Requirements for rendering the toolchain's deterministic verdict inside
+        the editor, and for the limited enforcement the extension can honestly
+        perform. Specified per ADR-0005 (the extension is an oversight surface)
+        and ADR-0006 (the enforcement boundary).
+      </description>
+      <req id="REQ-GATE-001" type="FR" title="Deterministic verdict" status="approved" priority="must">
+        <statement>The extension SHALL compute the specification's verdict using @rqml/core alone, composed identically to the `rqml check` command — schema validation and referential integrity, coverage, and drift against the recorded baseline — so that the editor and the command-line tool never disagree about whether a repository passes.</statement>
+        <rationale>The product exists to make specification and code disagree visibly. An editor that reports a different verdict than the build would defeat that. Composing the verdict from the same engine, in the same order, with the same blocking policy, makes agreement structural rather than something that has to be maintained.</rationale>
+        <notes>
+          The blocking policy must be read from the command's own composition
+          rather than reimplemented. In particular, coverage reports an
+          unimplemented-requirements set that the gate does not count toward a
+          failing verdict; counting it would make the editor stricter than the
+          gate of record.
+        </notes>
+        <acceptance>
+          <criterion id="AC-GATE-001-01">
+            <given>A repository whose specification the `rqml check` command reports as passing at a given strictness</given>
+            <when>The extension computes its verdict for the same repository at the same strictness</when>
+            <then>The extension reports the repository as passing.</then>
+          </criterion>
+          <criterion id="AC-GATE-001-02">
+            <given>A repository whose specification the `rqml check` command reports as failing</given>
+            <when>The extension computes its verdict</when>
+            <then>The extension reports it as failing, and the findings correspond one-to-one with the findings the command reports.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-002" type="CR" title="No language model in the verdict path" status="approved" priority="must">
+        <statement>The extension SHALL NOT use a language model to produce, alter, or summarise any part of the verdict defined by REQ-GATE-001. Narration of a verdict by a language model MAY be offered, but only as an explicitly requested addition to a verdict already computed deterministically.</statement>
+        <rationale>A verdict is only useful if it is reproducible. The same inputs must yield the same answer for every user, on every machine, with no model configured and no network available. This mirrors the constraint the command-line tool holds itself to.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-002-01">
+            <given>An installation with no language-model provider configured and no network access</given>
+            <when>The extension computes its verdict</when>
+            <then>A complete verdict is produced.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-003" type="UXR" title="Verdict surfacing" status="approved" priority="must">
+        <statement>The extension SHALL surface the verdict as editor diagnostics in a dedicated collection, and as a status-bar indicator summarising the current state. Each finding SHALL be anchored to the most specific source location that can be determined for it.</statement>
+        <acceptance>
+          <criterion id="AC-GATE-003-01">
+            <given>A specification with a coverage or drift finding</given>
+            <when>The verdict is computed</when>
+            <then>The finding appears in the Problems panel, attributed to RQML, and the status-bar indicator reflects a failing verdict.</then>
+          </criterion>
+          <criterion id="AC-GATE-003-02">
+            <given>A finding that carries no line or column of its own, such as a drift finding about a trace edge</given>
+            <when>The finding is surfaced</when>
+            <then>It is anchored to the declaration of the element it concerns rather than to the start of the document.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-004" type="UXR" title="Drift re-pin affordance" status="approved" priority="should">
+        <statement>Where a finding reports that an implementation has changed since its trace edge was recorded, the extension SHOULD offer an action that re-records the baseline for that edge. Where several edges have drifted, the extension SHALL require an explicit per-edge selection rather than re-recording them together in one action.</statement>
+        <rationale>Re-recording a baseline asserts that the implementation still satisfies the requirement — a judgement only a person can make. An action that blesses many edges at once invites blessing drift that was never reviewed.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-004-01">
+            <given>A drift finding for a single trace edge</given>
+            <when>The user invokes the offered action</when>
+            <then>The baseline for that edge alone is re-recorded, and the finding clears on the next verdict.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-005" type="FR" title="Approval gate on agent writes" status="approved" priority="should">
+        <statement>When the extension's own agent attempts to write to a file that a trace edge links to a requirement whose status is not approved, the extension SHALL refuse the write and report which requirement is not approved. This behaviour SHALL be governed by the resolved strictness level, and SHALL be disabled by default.</statement>
+        <rationale>Approval before implementation is the one enforcement the extension can perform reliably, because it governs a write the extension itself is about to make. It is disabled by default because it changes the behaviour of a tool users already rely on.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-005-01">
+            <given>The gate is enabled, and a file is linked by an implements edge to a requirement with status "draft"</given>
+            <when>The extension's agent attempts to write that file</when>
+            <then>The write is refused and the response names the requirement and its status.</then>
+          </criterion>
+          <criterion id="AC-GATE-005-02">
+            <given>The gate is enabled and a path resolves outside the workspace through relative traversal</given>
+            <when>The path is checked against the permitted set</when>
+            <then>The write is refused.</then>
+          </criterion>
+        </acceptance>
+      </req>
+      <req id="REQ-GATE-006" type="CR" title="Enforcement boundary is stated, not implied" status="approved" priority="must">
+        <statement>The extension SHALL NOT present itself as preventing changes it cannot prevent. Its user-facing documentation and settings SHALL state that edits made by the user directly, by another extension, or by an agent running outside the extension are reported but not blocked, and that the authoritative gate is the `rqml check` command in continuous integration.</statement>
+        <rationale>No stable editor API allows an extension to veto a file save, a file-system operation, or another agent's tool call. A product that implied otherwise would give the user a false assurance about the one thing they rely on it for, which is worse than offering no gate at all.</rationale>
+        <acceptance>
+          <criterion id="AC-GATE-006-01">
+            <given>The extension's user-facing documentation</given>
+            <when>It describes enforcement</when>
+            <then>It names which edits are blocked, which are only reported, and identifies continuous integration as the unconditional gate.</then>
+          </criterion>
+        </acceptance>
+      </req>
+    </reqPackage>
   </requirements>
   <trace>
-    <edge id="TR-001" type="dependsOn">
-      <from><locator><local id="REQ-UI-007"/></locator></from>
-      <to><locator><local id="REQ-SUB-002"/></locator></to>
+    <edge id="TR-001" type="dependsOn" from="REQ-UI-007" to="REQ-SUB-002">
       <notes>Detail view access (REQ-UI-007) depends on subscription tier feature gating (REQ-SUB-002) as it may be restricted to pro tier.</notes>
     </edge>
-    <edge id="TR-002" type="dependsOn">
-      <from><locator><local id="REQ-API-002"/></locator></from>
-      <to><locator><local id="REQ-SUB-001"/></locator></to>
+    <edge id="TR-002" type="dependsOn" from="REQ-API-002" to="REQ-SUB-001">
       <notes>API-dependent features (REQ-API-002) depend on subscription tier definitions (REQ-SUB-001) to determine which features require backend access.</notes>
     </edge>
-    <edge id="TR-003" type="dependsOn">
-      <from><locator><local id="REQ-API-003"/></locator></from>
-      <to><locator><local id="REQ-AUTH-001"/></locator></to>
+    <edge id="TR-003" type="dependsOn" from="REQ-API-003" to="REQ-AUTH-001">
       <notes>Authenticated API requests (REQ-API-003) depend on GitHub login (REQ-AUTH-001) for user credentials.</notes>
     </edge>
-    <edge id="TR-004" type="dependsOn">
-      <from><locator><local id="REQ-API-005"/></locator></from>
-      <to><locator><local id="REQ-SUB-002"/></locator></to>
+    <edge id="TR-004" type="dependsOn" from="REQ-API-005" to="REQ-SUB-002">
       <notes>Offline mode for free features (REQ-API-005) depends on feature gating (REQ-SUB-002) to distinguish free vs. paid features.</notes>
     </edge>
-    <edge id="TR-005" type="dependsOn">
-      <from><locator><local id="REQ-EXP-002"/></locator></from>
-      <to><locator><local id="REQ-SUB-002"/></locator></to>
+    <edge id="TR-005" type="dependsOn" from="REQ-EXP-002" to="REQ-SUB-002">
       <notes>PDF export (REQ-EXP-002) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
     </edge>
-    <edge id="TR-006" type="dependsOn">
-      <from><locator><local id="REQ-EXP-003"/></locator></from>
-      <to><locator><local id="REQ-SUB-002"/></locator></to>
+    <edge id="TR-006" type="dependsOn" from="REQ-EXP-003" to="REQ-SUB-002">
       <notes>Markdown export (REQ-EXP-003) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
     </edge>
-    <edge id="TR-007" type="dependsOn">
-      <from><locator><local id="REQ-EXP-004"/></locator></from>
-      <to><locator><local id="REQ-SUB-002"/></locator></to>
+    <edge id="TR-007" type="dependsOn" from="REQ-EXP-004" to="REQ-SUB-002">
       <notes>Word export (REQ-EXP-004) requires pro tier and depends on feature gating (REQ-SUB-002).</notes>
     </edge>
-    <edge id="TR-008" type="dependsOn">
-      <from><locator><local id="REQ-EXP-006"/></locator></from>
-      <to><locator><local id="REQ-SUB-001"/></locator></to>
+    <edge id="TR-008" type="dependsOn" from="REQ-EXP-006" to="REQ-SUB-001">
       <notes>Export format selection UI (REQ-EXP-006) depends on subscription tier definitions (REQ-SUB-001) to display available formats.</notes>
     </edge>
-    <edge id="TR-009" type="dependsOn">
-      <from><locator><local id="REQ-EXP-005"/></locator></from>
-      <to><locator><local id="REQ-UI-006G"/></locator></to>
+    <edge id="TR-009" type="dependsOn" from="REQ-EXP-005" to="REQ-UI-006G">
       <notes>Export UI access (REQ-EXP-005) depends on the tree root node (REQ-UI-006G) as the context menu is attached to it.</notes>
     </edge>
-    <edge id="TR-010" type="refines">
-      <from><locator><local id="REQ-UI-006J"/></locator></from>
-      <to><locator><local id="REQ-UI-003"/></locator></to>
+    <edge id="TR-010" type="refines" from="REQ-UI-006J" to="REQ-UI-003">
       <notes>Traces view (REQ-UI-006J) refines the sidebar layout (REQ-UI-003) by specifying the third region for traceability information.</notes>
     </edge>
-    <edge id="TR-011" type="dependsOn">
-      <from><locator><local id="REQ-UI-006K"/></locator></from>
-      <to><locator><local id="REQ-UI-006J"/></locator></to>
+    <edge id="TR-011" type="dependsOn" from="REQ-UI-006K" to="REQ-UI-006J">
       <notes>Clickable trace IDs (REQ-UI-006K) depends on the Traces view (REQ-UI-006J) being present in the sidebar.</notes>
     </edge>
-    <edge id="TR-012" type="dependsOn">
-      <from><locator><local id="REQ-UI-006L"/></locator></from>
-      <to><locator><local id="REQ-UI-006K"/></locator></to>
+    <edge id="TR-012" type="dependsOn" from="REQ-UI-006L" to="REQ-UI-006K">
       <notes>Synchronized view updates (REQ-UI-006L) depends on clickable IDs in Traces view (REQ-UI-006K) to trigger navigation.</notes>
     </edge>
-    <edge id="TR-013" type="dependsOn">
-      <from><locator><local id="REQ-UI-006L"/></locator></from>
-      <to><locator><local id="REQ-UI-005"/></locator></to>
+    <edge id="TR-013" type="dependsOn" from="REQ-UI-006L" to="REQ-UI-005">
       <notes>Synchronized view updates (REQ-UI-006L) depends on the Overview tree view (REQ-UI-005) to highlight and reveal the target item.</notes>
     </edge>
-    <edge id="TR-014" type="dependsOn">
-      <from><locator><local id="REQ-UI-006L"/></locator></from>
-      <to><locator><local id="REQ-UI-006"/></locator></to>
+    <edge id="TR-014" type="dependsOn" from="REQ-UI-006L" to="REQ-UI-006">
       <notes>Synchronized view updates (REQ-UI-006L) depends on the Details view (REQ-UI-006) to display the target item's properties.</notes>
     </edge>
-    <edge id="TR-015" type="dependsOn">
-      <from><locator><local id="REQ-UI-006L"/></locator></from>
-      <to><locator><local id="REQ-UI-006J"/></locator></to>
+    <edge id="TR-015" type="dependsOn" from="REQ-UI-006L" to="REQ-UI-006J">
       <notes>Synchronized view updates (REQ-UI-006L) depends on the Traces view (REQ-UI-006J) to display the target item's trace edges.</notes>
     </edge>
-    <edge id="TR-016" type="dependsOn">
-      <from><locator><local id="REQ-AGT-002"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-016" type="dependsOn" from="REQ-AGT-002" to="REQ-AGT-001">
       <notes>Prompt input (REQ-AGT-002) depends on the agent panel tab (REQ-AGT-001) existing to host the input field.</notes>
     </edge>
-    <edge id="TR-017" type="dependsOn">
-      <from><locator><local id="REQ-AGT-003"/></locator></from>
-      <to><locator><local id="REQ-CFG-010"/></locator></to>
+    <edge id="TR-017" type="dependsOn" from="REQ-AGT-003" to="REQ-CFG-010">
       <notes>Vercel AI SDK integration (REQ-AGT-003) depends on an active endpoint being selected (REQ-CFG-010) to know which provider and key to use.</notes>
     </edge>
-    <edge id="TR-018" type="dependsOn">
-      <from><locator><local id="REQ-AGT-006"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-018" type="dependsOn" from="REQ-AGT-006" to="REQ-AGT-003">
       <notes>Quality assessment (REQ-AGT-006) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM communication.</notes>
     </edge>
-    <edge id="TR-019" type="dependsOn">
-      <from><locator><local id="REQ-AGT-007"/></locator></from>
-      <to><locator><local id="REQ-AGT-006"/></locator></to>
+    <edge id="TR-019" type="dependsOn" from="REQ-AGT-007" to="REQ-AGT-006">
       <notes>Change suggestions (REQ-AGT-007) depend on quality assessment (REQ-AGT-006) to identify what needs improving.</notes>
     </edge>
-    <edge id="TR-020" type="dependsOn">
-      <from><locator><local id="REQ-AGT-008"/></locator></from>
-      <to><locator><local id="REQ-AGT-007"/></locator></to>
+    <edge id="TR-020" type="dependsOn" from="REQ-AGT-008" to="REQ-AGT-007">
       <notes>User-confirmed modifications (REQ-AGT-008) depend on change suggestions (REQ-AGT-007) to have proposals to confirm.</notes>
     </edge>
-    <edge id="TR-021" type="dependsOn">
-      <from><locator><local id="REQ-AGT-010"/></locator></from>
-      <to><locator><local id="REQ-AGT-004"/></locator></to>
+    <edge id="TR-021" type="dependsOn" from="REQ-AGT-010" to="REQ-AGT-004">
       <notes>Spec-code sync commentary (REQ-AGT-010) depends on RQML file change monitoring (REQ-AGT-004) to track spec changes.</notes>
     </edge>
-    <edge id="TR-022" type="dependsOn">
-      <from><locator><local id="REQ-AGT-010"/></locator></from>
-      <to><locator><local id="REQ-AGT-005"/></locator></to>
+    <edge id="TR-022" type="dependsOn" from="REQ-AGT-010" to="REQ-AGT-005">
       <notes>Spec-code sync commentary (REQ-AGT-010) depends on codebase change monitoring (REQ-AGT-005) to track code changes.</notes>
     </edge>
-    <edge id="TR-023" type="dependsOn">
-      <from><locator><local id="REQ-CFG-010"/></locator></from>
-      <to><locator><local id="REQ-CFG-008"/></locator></to>
+    <edge id="TR-023" type="dependsOn" from="REQ-CFG-010" to="REQ-CFG-008">
       <notes>Active endpoint selection (REQ-CFG-010) depends on the endpoint list view (REQ-CFG-008) to present the selection UI.</notes>
     </edge>
-    <edge id="TR-024" type="dependsOn">
-      <from><locator><local id="REQ-CFG-011"/></locator></from>
-      <to><locator><local id="REQ-CFG-008"/></locator></to>
+    <edge id="TR-024" type="dependsOn" from="REQ-CFG-011" to="REQ-CFG-008">
       <notes>Remove endpoint (REQ-CFG-011) depends on the endpoint list view (REQ-CFG-008) to present the removal UI.</notes>
     </edge>
-    <edge id="TR-025" type="dependsOn">
-      <from><locator><local id="REQ-CFG-012"/></locator></from>
-      <to><locator><local id="REQ-CFG-008"/></locator></to>
+    <edge id="TR-025" type="dependsOn" from="REQ-CFG-012" to="REQ-CFG-008">
       <notes>Add LLM endpoint dialog (REQ-CFG-012) depends on the endpoint list view (REQ-CFG-008) as the destination for new entries.</notes>
     </edge>
-    <edge id="TR-026" type="refines">
-      <from><locator><local id="REQ-CFG-009"/></locator></from>
-      <to><locator><local id="REQ-CFG-003"/></locator></to>
+    <edge id="TR-026" type="refines" from="REQ-CFG-009" to="REQ-CFG-003">
       <notes>Hidden API keys in list (REQ-CFG-009) refines secure API key storage (REQ-CFG-003) for the display context.</notes>
     </edge>
-    <edge id="TR-027" type="satisfies">
-      <from><locator><local id="REQ-AGT-006"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="TR-027" type="satisfies" from="REQ-AGT-006" to="GOAL-SE-PRINCIPLES">
       <notes>Quality assessment (REQ-AGT-006) directly satisfies the goal of preserving software engineering rigor (GOAL-SE-PRINCIPLES).</notes>
     </edge>
-    <edge id="TR-028" type="satisfies">
-      <from><locator><local id="REQ-AGT-010"/></locator></from>
-      <to><locator><local id="GOAL-LLM-CONTEXT"/></locator></to>
+    <edge id="TR-028" type="satisfies" from="REQ-AGT-010" to="GOAL-LLM-CONTEXT">
       <notes>Spec-code sync commentary (REQ-AGT-010) satisfies the goal of maintaining LLM coding context (GOAL-LLM-CONTEXT) by keeping the spec aligned with implementation.</notes>
     </edge>
-    <edge id="TR-029" type="satisfies">
-      <from><locator><local id="REQ-AGT-011"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="TR-029" type="satisfies" from="REQ-AGT-011" to="GOAL-SE-PRINCIPLES">
       <notes>Software engineering principles constraint (REQ-AGT-011) directly satisfies the goal of preserving software engineering rigor (GOAL-SE-PRINCIPLES).</notes>
     </edge>
-    <edge id="TR-030" type="dependsOn">
-      <from><locator><local id="REQ-AGT-012"/></locator></from>
-      <to><locator><local id="REQ-UI-013B"/></locator></to>
+    <edge id="TR-030" type="dependsOn" from="REQ-AGT-012" to="REQ-UI-013B">
       <notes>XSD schema conformance (REQ-AGT-012) depends on XSD schema validation (REQ-UI-013B) as the schema must be loaded and available for the agent to reference.</notes>
     </edge>
-    <edge id="TR-031" type="dependsOn">
-      <from><locator><local id="REQ-AGT-008"/></locator></from>
-      <to><locator><local id="REQ-AGT-012"/></locator></to>
+    <edge id="TR-031" type="dependsOn" from="REQ-AGT-008" to="REQ-AGT-012">
       <notes>XSD schema conformance (REQ-AGT-012) constrains user-confirmed modifications (REQ-AGT-008)—any agent-proposed change must be schema-valid before it can be applied.</notes>
     </edge>
-    <edge id="TR-032" type="dependsOn">
-      <from><locator><local id="REQ-AGT-007"/></locator></from>
-      <to><locator><local id="REQ-AGT-011"/></locator></to>
+    <edge id="TR-032" type="dependsOn" from="REQ-AGT-007" to="REQ-AGT-011">
       <notes>Software engineering principles (REQ-AGT-011) constrain change suggestions (REQ-AGT-007)—all suggestions must adhere to SE best practices.</notes>
     </edge>
-    <edge id="TR-033" type="dependsOn">
-      <from><locator><local id="REQ-AGT-006"/></locator></from>
-      <to><locator><local id="REQ-AGT-013"/></locator></to>
+    <edge id="TR-033" type="dependsOn" from="REQ-AGT-006" to="REQ-AGT-013">
       <notes>Strictness level (REQ-AGT-013) constrains quality assessment (REQ-AGT-006)—the depth and rigour of assessment varies by level.</notes>
     </edge>
-    <edge id="TR-034" type="dependsOn">
-      <from><locator><local id="REQ-AGT-010"/></locator></from>
-      <to><locator><local id="REQ-AGT-013"/></locator></to>
+    <edge id="TR-034" type="dependsOn" from="REQ-AGT-010" to="REQ-AGT-013">
       <notes>Strictness level (REQ-AGT-013) constrains spec-code sync commentary (REQ-AGT-010)—ghost feature tolerance varies by level.</notes>
     </edge>
-    <edge id="TR-035" type="refines">
-      <from><locator><local id="REQ-AGT-014"/></locator></from>
-      <to><locator><local id="REQ-AGT-013"/></locator></to>
+    <edge id="TR-035" type="refines" from="REQ-AGT-014" to="REQ-AGT-013">
       <notes>AGENTS.md fallback (REQ-AGT-014) refines strictness level setting (REQ-AGT-013) by defining the resolution order when multiple sources declare a level.</notes>
     </edge>
-    <edge id="TR-036" type="dependsOn">
-      <from><locator><local id="REQ-AGT-013"/></locator></from>
-      <to><locator><local id="REQ-CFG-001"/></locator></to>
+    <edge id="TR-036" type="dependsOn" from="REQ-AGT-013" to="REQ-CFG-001">
       <notes>Strictness level setting (REQ-AGT-013) depends on the settings UI (REQ-CFG-001) to present the selector.</notes>
     </edge>
-    <edge id="TR-037" type="dependsOn">
-      <from><locator><local id="REQ-CMD-001"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-037" type="dependsOn" from="REQ-CMD-001" to="REQ-AGT-001">
       <notes>Slash command interface (REQ-CMD-001) depends on the agent panel tab (REQ-AGT-001) to host the prompt input where commands are entered.</notes>
     </edge>
-    <edge id="TR-038" type="dependsOn">
-      <from><locator><local id="REQ-CMD-001"/></locator></from>
-      <to><locator><local id="REQ-AGT-002"/></locator></to>
+    <edge id="TR-038" type="dependsOn" from="REQ-CMD-001" to="REQ-AGT-002">
       <notes>Slash command interface (REQ-CMD-001) depends on prompt input (REQ-AGT-002) as the mechanism through which commands are submitted.</notes>
     </edge>
-    <edge id="TR-039" type="dependsOn">
-      <from><locator><local id="REQ-CMD-006"/></locator></from>
-      <to><locator><local id="REQ-CFG-008"/></locator></to>
+    <edge id="TR-039" type="dependsOn" from="REQ-CMD-006" to="REQ-CFG-008">
       <notes>Provider and model management commands (REQ-CMD-006) depend on the LLM endpoint list (REQ-CFG-008) for the underlying endpoint configuration.</notes>
     </edge>
-    <edge id="TR-040" type="dependsOn">
-      <from><locator><local id="REQ-CMD-006"/></locator></from>
-      <to><locator><local id="REQ-CFG-003"/></locator></to>
+    <edge id="TR-040" type="dependsOn" from="REQ-CMD-006" to="REQ-CFG-003">
       <notes>Provider and model management commands (REQ-CMD-006) depend on secure API key storage (REQ-CFG-003) for /key set and /key unset operations.</notes>
     </edge>
-    <edge id="TR-041" type="dependsOn">
-      <from><locator><local id="REQ-CMD-007"/></locator></from>
-      <to><locator><local id="REQ-AGT-006"/></locator></to>
+    <edge id="TR-041" type="dependsOn" from="REQ-CMD-007" to="REQ-AGT-006">
       <notes>Spec quality commands (REQ-CMD-007) depend on quality assessment (REQ-AGT-006) for the underlying analysis capability.</notes>
     </edge>
-    <edge id="TR-042" type="dependsOn">
-      <from><locator><local id="REQ-CMD-007"/></locator></from>
-      <to><locator><local id="REQ-UI-013B"/></locator></to>
+    <edge id="TR-042" type="dependsOn" from="REQ-CMD-007" to="REQ-UI-013B">
       <notes>Spec quality commands (REQ-CMD-007) depend on XSD schema validation (REQ-UI-013B) for the /validate command.</notes>
     </edge>
-    <edge id="TR-043" type="dependsOn">
-      <from><locator><local id="REQ-CMD-008"/></locator></from>
-      <to><locator><local id="REQ-AGT-010"/></locator></to>
+    <edge id="TR-043" type="dependsOn" from="REQ-CMD-008" to="REQ-AGT-010">
       <notes>Sync and traceability commands (REQ-CMD-008) depend on spec-code sync commentary (REQ-AGT-010) for the underlying drift analysis.</notes>
     </edge>
-    <edge id="TR-044" type="dependsOn">
-      <from><locator><local id="REQ-CMD-008"/></locator></from>
-      <to><locator><local id="REQ-AGT-004"/></locator></to>
+    <edge id="TR-044" type="dependsOn" from="REQ-CMD-008" to="REQ-AGT-004">
       <notes>Sync and traceability commands (REQ-CMD-008) depend on RQML file change monitoring (REQ-AGT-004) for tracking spec changes.</notes>
     </edge>
-    <edge id="TR-045" type="dependsOn">
-      <from><locator><local id="REQ-CMD-008"/></locator></from>
-      <to><locator><local id="REQ-AGT-005"/></locator></to>
+    <edge id="TR-045" type="dependsOn" from="REQ-CMD-008" to="REQ-AGT-005">
       <notes>Sync and traceability commands (REQ-CMD-008) depend on codebase change monitoring (REQ-AGT-005) for tracking code changes.</notes>
     </edge>
-    <edge id="TR-046" type="dependsOn">
-      <from><locator><local id="REQ-CMD-009"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-046" type="dependsOn" from="REQ-CMD-009" to="REQ-AGT-003">
       <notes>Implementation planning command (REQ-CMD-009) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM analysis of the spec.</notes>
     </edge>
-    <edge id="TR-047" type="dependsOn">
-      <from><locator><local id="REQ-CMD-010"/></locator></from>
-      <to><locator><local id="REQ-CMD-009"/></locator></to>
+    <edge id="TR-047" type="dependsOn" from="REQ-CMD-010" to="REQ-CMD-009">
       <notes>Coding agent command generation (REQ-CMD-010) depends on implementation planning (REQ-CMD-009) as /cmd generates instructions from the latest /plan output.</notes>
     </edge>
-    <edge id="TR-048" type="satisfies">
-      <from><locator><local id="REQ-CMD-009"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="TR-048" type="satisfies" from="REQ-CMD-009" to="GOAL-SE-PRINCIPLES">
       <notes>Implementation planning (REQ-CMD-009) satisfies the goal of preserving software engineering rigor by enforcing spec-first planning before code generation.</notes>
     </edge>
-    <edge id="TR-049" type="satisfies">
-      <from><locator><local id="REQ-CMD-010"/></locator></from>
-      <to><locator><local id="GOAL-LLM-CONTEXT"/></locator></to>
+    <edge id="TR-049" type="satisfies" from="REQ-CMD-010" to="GOAL-LLM-CONTEXT">
       <notes>Coding agent command generation (REQ-CMD-010) satisfies the goal of maintaining LLM coding context by providing structured, spec-derived prompts to coding agents.</notes>
     </edge>
-    <edge id="TR-050" type="satisfies">
-      <from><locator><local id="REQ-CMD-007"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="TR-050" type="satisfies" from="REQ-CMD-007" to="GOAL-SE-PRINCIPLES">
       <notes>Spec quality commands (REQ-CMD-007) satisfy the goal of preserving software engineering rigor by providing quality assessment and linting of the specification.</notes>
     </edge>
-    <edge id="TR-051" type="dependsOn">
-      <from><locator><local id="REQ-CMD-012"/></locator></from>
-      <to><locator><local id="REQ-CMD-001"/></locator></to>
+    <edge id="TR-051" type="dependsOn" from="REQ-CMD-012" to="REQ-CMD-001">
       <notes>Command Palette access (REQ-CMD-012) depends on the slash command interface (REQ-CMD-001) as palette commands delegate to the same handlers.</notes>
     </edge>
-    <edge id="TR-052" type="dependsOn">
-      <from><locator><local id="REQ-CMD-012"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-052" type="dependsOn" from="REQ-CMD-012" to="REQ-AGT-001">
       <notes>Command Palette access (REQ-CMD-012) depends on the agent panel tab (REQ-AGT-001) as the output destination for palette-invoked commands.</notes>
     </edge>
     <!-- PKG-MODEL trace edges -->
-    <edge id="TR-053" type="refines">
-      <from><locator><local id="REQ-MDL-001"/></locator></from>
-      <to><locator><local id="REQ-CFG-004"/></locator></to>
+    <edge id="TR-053" type="refines" from="REQ-MDL-001" to="REQ-CFG-004">
       <notes>The default model catalog (REQ-MDL-001) refines LLM provider selection (REQ-CFG-004) by adding model-level granularity within each provider.</notes>
     </edge>
-    <edge id="TR-054" type="dependsOn">
-      <from><locator><local id="REQ-MDL-002"/></locator></from>
-      <to><locator><local id="REQ-MDL-001"/></locator></to>
+    <edge id="TR-054" type="dependsOn" from="REQ-MDL-002" to="REQ-MDL-001">
       <notes>User model customisations (REQ-MDL-002) depend on the default model catalog (REQ-MDL-001) as the base to merge against.</notes>
     </edge>
-    <edge id="TR-055" type="dependsOn">
-      <from><locator><local id="REQ-MDL-002"/></locator></from>
-      <to><locator><local id="REQ-CFG-007"/></locator></to>
+    <edge id="TR-055" type="dependsOn" from="REQ-MDL-002" to="REQ-CFG-007">
       <notes>User model customisations (REQ-MDL-002) depend on settings persistence (REQ-CFG-007) to survive across sessions.</notes>
     </edge>
-    <edge id="TR-056" type="dependsOn">
-      <from><locator><local id="REQ-MDL-003"/></locator></from>
-      <to><locator><local id="REQ-MDL-001"/></locator></to>
+    <edge id="TR-056" type="dependsOn" from="REQ-MDL-003" to="REQ-MDL-001">
       <notes>The QuickPick model picker (REQ-MDL-003) depends on the default model catalog (REQ-MDL-001) for the list of models to display.</notes>
     </edge>
-    <edge id="TR-057" type="dependsOn">
-      <from><locator><local id="REQ-MDL-003"/></locator></from>
-      <to><locator><local id="REQ-MDL-002"/></locator></to>
+    <edge id="TR-057" type="dependsOn" from="REQ-MDL-003" to="REQ-MDL-002">
       <notes>The QuickPick model picker (REQ-MDL-003) depends on user customisations (REQ-MDL-002) for the effective catalog (merged defaults + overrides).</notes>
     </edge>
-    <edge id="TR-058" type="dependsOn">
-      <from><locator><local id="REQ-MDL-003"/></locator></from>
-      <to><locator><local id="REQ-CFG-010"/></locator></to>
+    <edge id="TR-058" type="dependsOn" from="REQ-MDL-003" to="REQ-CFG-010">
       <notes>The QuickPick model picker (REQ-MDL-003) depends on active endpoint selection (REQ-CFG-010) to scope displayed models by provider and highlight the active model.</notes>
     </edge>
-    <edge id="TR-059" type="dependsOn">
-      <from><locator><local id="REQ-MDL-004"/></locator></from>
-      <to><locator><local id="REQ-CFG-007"/></locator></to>
+    <edge id="TR-059" type="dependsOn" from="REQ-MDL-004" to="REQ-CFG-007">
       <notes>Model selection persistence (REQ-MDL-004) depends on settings persistence (REQ-CFG-007) for the underlying storage mechanism.</notes>
     </edge>
-    <edge id="TR-060" type="dependsOn">
-      <from><locator><local id="REQ-MDL-004"/></locator></from>
-      <to><locator><local id="REQ-CFG-010"/></locator></to>
+    <edge id="TR-060" type="dependsOn" from="REQ-MDL-004" to="REQ-CFG-010">
       <notes>Model selection persistence (REQ-MDL-004) depends on active endpoint selection (REQ-CFG-010) because model selection is scoped per endpoint.</notes>
     </edge>
-    <edge id="TR-061" type="dependsOn">
-      <from><locator><local id="REQ-MDL-004"/></locator></from>
-      <to><locator><local id="REQ-MDL-001"/></locator></to>
+    <edge id="TR-061" type="dependsOn" from="REQ-MDL-004" to="REQ-MDL-001">
       <notes>Model selection persistence (REQ-MDL-004) depends on the default catalog (REQ-MDL-001) for recommended-model fallback when no explicit selection exists.</notes>
     </edge>
-    <edge id="TR-062" type="refines">
-      <from><locator><local id="REQ-MDL-005"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-062" type="refines" from="REQ-MDL-005" to="REQ-AGT-003">
       <notes>Vercel AI SDK model routing (REQ-MDL-005) refines the existing Vercel AI SDK integration (REQ-AGT-003) by making model resolution catalog-driven rather than free-form.</notes>
     </edge>
-    <edge id="TR-063" type="dependsOn">
-      <from><locator><local id="REQ-MDL-005"/></locator></from>
-      <to><locator><local id="REQ-MDL-001"/></locator></to>
+    <edge id="TR-063" type="dependsOn" from="REQ-MDL-005" to="REQ-MDL-001">
       <notes>Vercel AI SDK model routing (REQ-MDL-005) depends on the default model catalog (REQ-MDL-001) for the provider-to-factory mapping and model metadata.</notes>
     </edge>
-    <edge id="TR-064" type="dependsOn">
-      <from><locator><local id="REQ-MDL-005"/></locator></from>
-      <to><locator><local id="REQ-MDL-004"/></locator></to>
+    <edge id="TR-064" type="dependsOn" from="REQ-MDL-005" to="REQ-MDL-004">
       <notes>Vercel AI SDK model routing (REQ-MDL-005) depends on model selection persistence (REQ-MDL-004) to know which model is active.</notes>
     </edge>
-    <edge id="TR-065" type="dependsOn">
-      <from><locator><local id="REQ-MDL-006"/></locator></from>
-      <to><locator><local id="REQ-MDL-005"/></locator></to>
+    <edge id="TR-065" type="dependsOn" from="REQ-MDL-006" to="REQ-MDL-005">
       <notes>Model unavailability error handling (REQ-MDL-006) depends on Vercel AI SDK model routing (REQ-MDL-005) as the point where failures are detected.</notes>
     </edge>
-    <edge id="TR-066" type="dependsOn">
-      <from><locator><local id="REQ-MDL-006"/></locator></from>
-      <to><locator><local id="REQ-MDL-001"/></locator></to>
+    <edge id="TR-066" type="dependsOn" from="REQ-MDL-006" to="REQ-MDL-001">
       <notes>Model unavailability error handling (REQ-MDL-006) depends on the default catalog (REQ-MDL-001) to suggest alternative models from the same provider.</notes>
     </edge>
-    <edge id="TR-067" type="refines">
-      <from><locator><local id="REQ-MDL-007"/></locator></from>
-      <to><locator><local id="REQ-MDL-006"/></locator></to>
+    <edge id="TR-067" type="refines" from="REQ-MDL-007" to="REQ-MDL-006">
       <notes>Fallback model (REQ-MDL-007) refines error handling (REQ-MDL-006) by adding automatic retry with a preconfigured alternative before surfacing the error.</notes>
     </edge>
-    <edge id="TR-068" type="dependsOn">
-      <from><locator><local id="REQ-MDL-007"/></locator></from>
-      <to><locator><local id="REQ-MDL-005"/></locator></to>
+    <edge id="TR-068" type="dependsOn" from="REQ-MDL-007" to="REQ-MDL-005">
       <notes>Fallback model (REQ-MDL-007) depends on Vercel AI SDK model routing (REQ-MDL-005) to route the retry request through the correct provider factory.</notes>
     </edge>
-    <edge id="TR-069" type="dependsOn">
-      <from><locator><local id="REQ-MDL-007"/></locator></from>
-      <to><locator><local id="REQ-CFG-007"/></locator></to>
+    <edge id="TR-069" type="dependsOn" from="REQ-MDL-007" to="REQ-CFG-007">
       <notes>Fallback model configuration (REQ-MDL-007) depends on settings persistence (REQ-CFG-007) to store the fallback model selection per endpoint.</notes>
     </edge>
-    <edge id="TR-070" type="refines">
-      <from><locator><local id="REQ-MDL-008"/></locator></from>
-      <to><locator><local id="REQ-CMD-006"/></locator></to>
+    <edge id="TR-070" type="refines" from="REQ-MDL-008" to="REQ-CMD-006">
       <notes>The /models catalog command (REQ-MDL-008) refines the existing /models command in REQ-CMD-006 by upgrading it from single-model display to full catalog listing.</notes>
     </edge>
-    <edge id="TR-071" type="dependsOn">
-      <from><locator><local id="REQ-MDL-008"/></locator></from>
-      <to><locator><local id="REQ-MDL-001"/></locator></to>
+    <edge id="TR-071" type="dependsOn" from="REQ-MDL-008" to="REQ-MDL-001">
       <notes>The /models catalog command (REQ-MDL-008) depends on the default catalog (REQ-MDL-001) for model data to display.</notes>
     </edge>
-    <edge id="TR-072" type="dependsOn">
-      <from><locator><local id="REQ-MDL-008"/></locator></from>
-      <to><locator><local id="REQ-MDL-002"/></locator></to>
+    <edge id="TR-072" type="dependsOn" from="REQ-MDL-008" to="REQ-MDL-002">
       <notes>The /models catalog command (REQ-MDL-008) depends on user customisations (REQ-MDL-002) to show the effective catalog.</notes>
     </edge>
-    <edge id="TR-073" type="refines">
-      <from><locator><local id="REQ-MDL-009"/></locator></from>
-      <to><locator><local id="REQ-CMD-006"/></locator></to>
+    <edge id="TR-073" type="refines" from="REQ-MDL-009" to="REQ-CMD-006">
       <notes>The /model use command (REQ-MDL-009) refines the existing /model use command in REQ-CMD-006 by adding catalog-based matching and QuickPick fallback.</notes>
     </edge>
-    <edge id="TR-074" type="dependsOn">
-      <from><locator><local id="REQ-MDL-009"/></locator></from>
-      <to><locator><local id="REQ-MDL-003"/></locator></to>
+    <edge id="TR-074" type="dependsOn" from="REQ-MDL-009" to="REQ-MDL-003">
       <notes>The /model use command (REQ-MDL-009) depends on the QuickPick model picker (REQ-MDL-003) for the no-argument interactive selection flow.</notes>
     </edge>
-    <edge id="TR-075" type="dependsOn">
-      <from><locator><local id="REQ-MDL-009"/></locator></from>
-      <to><locator><local id="REQ-MDL-004"/></locator></to>
+    <edge id="TR-075" type="dependsOn" from="REQ-MDL-009" to="REQ-MDL-004">
       <notes>The /model use command (REQ-MDL-009) depends on model selection persistence (REQ-MDL-004) to save the user's choice.</notes>
     </edge>
-    <edge id="TR-076" type="dependsOn">
-      <from><locator><local id="REQ-MDL-010"/></locator></from>
-      <to><locator><local id="REQ-MDL-005"/></locator></to>
+    <edge id="TR-076" type="dependsOn" from="REQ-MDL-010" to="REQ-MDL-005">
       <notes>The /model test command (REQ-MDL-010) depends on Vercel AI SDK model routing (REQ-MDL-005) to send the test request through the correct provider.</notes>
     </edge>
-    <edge id="TR-077" type="refines">
-      <from><locator><local id="REQ-MDL-010"/></locator></from>
-      <to><locator><local id="REQ-CMD-006"/></locator></to>
+    <edge id="TR-077" type="refines" from="REQ-MDL-010" to="REQ-CMD-006">
       <notes>The /model test command (REQ-MDL-010) refines the provider and model management command group (REQ-CMD-006) by adding a model-level connectivity test beyond the existing /key test.</notes>
     </edge>
-    <edge id="TR-078" type="dependsOn">
-      <from><locator><local id="REQ-MDL-011"/></locator></from>
-      <to><locator><local id="REQ-CMD-012"/></locator></to>
+    <edge id="TR-078" type="dependsOn" from="REQ-MDL-011" to="REQ-CMD-012">
       <notes>Command Palette model commands (REQ-MDL-011) depend on the Command Palette access framework (REQ-CMD-012) for registration and argument collection.</notes>
     </edge>
-    <edge id="TR-079" type="dependsOn">
-      <from><locator><local id="REQ-MDL-011"/></locator></from>
-      <to><locator><local id="REQ-MDL-003"/></locator></to>
+    <edge id="TR-079" type="dependsOn" from="REQ-MDL-011" to="REQ-MDL-003">
       <notes>The "RQML: Select Model" palette command (REQ-MDL-011) depends on the QuickPick model picker (REQ-MDL-003) for the selection UI.</notes>
     </edge>
-    <edge id="TR-080" type="dependsOn">
-      <from><locator><local id="REQ-MDL-011"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-080" type="dependsOn" from="REQ-MDL-011" to="REQ-AGT-001">
       <notes>Command Palette model commands (REQ-MDL-011) depend on the agent panel tab (REQ-AGT-001) as the output destination for list and test commands.</notes>
     </edge>
-    <edge id="TR-081" type="dependsOn">
-      <from><locator><local id="REQ-MDL-001"/></locator></from>
-      <to><locator><local id="REQ-MDL-012"/></locator></to>
+    <edge id="TR-081" type="dependsOn" from="REQ-MDL-001" to="REQ-MDL-012">
       <notes>Catalog extensibility (REQ-MDL-012) constrains the default model catalog design (REQ-MDL-001) by requiring the data structure and provider key to not be hard-coded to a fixed set.</notes>
     </edge>
-    <edge id="TR-082" type="dependsOn">
-      <from><locator><local id="REQ-MDL-005"/></locator></from>
-      <to><locator><local id="REQ-MDL-012"/></locator></to>
+    <edge id="TR-082" type="dependsOn" from="REQ-MDL-005" to="REQ-MDL-012">
       <notes>Catalog extensibility (REQ-MDL-012) constrains Vercel AI SDK model routing (REQ-MDL-005) by requiring the provider-to-factory mapping to be configuration-driven rather than hard-coded.</notes>
     </edge>
-    <edge id="TR-083" type="dependsOn">
-      <from><locator><local id="REQ-UI-011A"/></locator></from>
-      <to><locator><local id="REQ-UI-013B"/></locator></to>
+    <edge id="TR-083" type="dependsOn" from="REQ-UI-011A" to="REQ-UI-013B">
       <notes>Version-aware XSD loading (REQ-UI-011A) provides the correct schema for XSD schema validation (REQ-UI-013B).</notes>
     </edge>
-    <edge id="TR-084" type="dependsOn">
-      <from><locator><local id="REQ-UI-011A"/></locator></from>
-      <to><locator><local id="REQ-AGT-012"/></locator></to>
+    <edge id="TR-084" type="dependsOn" from="REQ-UI-011A" to="REQ-AGT-012">
       <notes>Version-aware XSD loading (REQ-UI-011A) provides the correct schema for agent XSD conformance (REQ-AGT-012).</notes>
     </edge>
     <!-- New agent UI feature trace edges -->
-    <edge id="TR-085" type="dependsOn">
-      <from><locator><local id="REQ-AGT-015"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-085" type="dependsOn" from="REQ-AGT-015" to="REQ-AGT-003">
       <notes>Streaming response display (REQ-AGT-015) depends on Vercel AI SDK integration (REQ-AGT-003) for the streaming API.</notes>
     </edge>
-    <edge id="TR-086" type="dependsOn">
-      <from><locator><local id="REQ-AGT-015"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-086" type="dependsOn" from="REQ-AGT-015" to="REQ-AGT-001">
       <notes>Streaming response display (REQ-AGT-015) depends on the agent panel tab (REQ-AGT-001) to host the conversation area.</notes>
     </edge>
-    <edge id="TR-087" type="dependsOn">
-      <from><locator><local id="REQ-AGT-016"/></locator></from>
-      <to><locator><local id="REQ-AGT-015"/></locator></to>
+    <edge id="TR-087" type="dependsOn" from="REQ-AGT-016" to="REQ-AGT-015">
       <notes>Markdown rendering (REQ-AGT-016) depends on streaming display (REQ-AGT-015) as rendered content arrives via the stream.</notes>
     </edge>
-    <edge id="TR-088" type="dependsOn">
-      <from><locator><local id="REQ-AGT-017"/></locator></from>
-      <to><locator><local id="REQ-AGT-016"/></locator></to>
+    <edge id="TR-088" type="dependsOn" from="REQ-AGT-017" to="REQ-AGT-016">
       <notes>Code block action buttons (REQ-AGT-017) depend on Markdown rendering (REQ-AGT-016) for the code blocks to attach to.</notes>
     </edge>
-    <edge id="TR-089" type="dependsOn">
-      <from><locator><local id="REQ-AGT-017"/></locator></from>
-      <to><locator><local id="REQ-AGT-008"/></locator></to>
+    <edge id="TR-089" type="dependsOn" from="REQ-AGT-017" to="REQ-AGT-008">
       <notes>The Apply button (REQ-AGT-017) depends on user-confirmed modifications (REQ-AGT-008) for the change proposal flow.</notes>
     </edge>
-    <edge id="TR-090" type="dependsOn">
-      <from><locator><local id="REQ-AGT-018"/></locator></from>
-      <to><locator><local id="REQ-AGT-016"/></locator></to>
+    <edge id="TR-090" type="dependsOn" from="REQ-AGT-018" to="REQ-AGT-016">
       <notes>Mermaid diagram rendering (REQ-AGT-018) depends on Markdown rendering (REQ-AGT-016) for fenced code block detection.</notes>
     </edge>
-    <edge id="TR-091" type="dependsOn">
-      <from><locator><local id="REQ-AGT-018"/></locator></from>
-      <to><locator><local id="REQ-CFG-005"/></locator></to>
+    <edge id="TR-091" type="dependsOn" from="REQ-AGT-018" to="REQ-CFG-005">
       <notes>Mermaid diagram theming (REQ-AGT-018) depends on VS Code theme integration (REQ-CFG-005) for colour adaptation.</notes>
     </edge>
-    <edge id="TR-092" type="dependsOn">
-      <from><locator><local id="REQ-AGT-019"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-092" type="dependsOn" from="REQ-AGT-019" to="REQ-AGT-003">
       <notes>User choice dialog (REQ-AGT-019) depends on Vercel AI SDK integration (REQ-AGT-003) for the askUser tool mechanism.</notes>
     </edge>
-    <edge id="TR-093" type="dependsOn">
-      <from><locator><local id="REQ-AGT-019"/></locator></from>
-      <to><locator><local id="REQ-AGT-015"/></locator></to>
+    <edge id="TR-093" type="dependsOn" from="REQ-AGT-019" to="REQ-AGT-015">
       <notes>User choice dialog (REQ-AGT-019) depends on streaming display (REQ-AGT-015) as it suppresses streaming while the choice is pending.</notes>
     </edge>
-    <edge id="TR-094" type="refines">
-      <from><locator><local id="REQ-AGT-020"/></locator></from>
-      <to><locator><local id="REQ-AGT-008"/></locator></to>
+    <edge id="TR-094" type="refines" from="REQ-AGT-020" to="REQ-AGT-008">
       <notes>Tool call approval (REQ-AGT-020) refines user-confirmed modifications (REQ-AGT-008) by generalising the approval pattern to arbitrary tool calls.</notes>
     </edge>
-    <edge id="TR-095" type="dependsOn">
-      <from><locator><local id="REQ-AGT-021"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-095" type="dependsOn" from="REQ-AGT-021" to="REQ-AGT-001">
       <notes>File and folder attachment (REQ-AGT-021) depends on the agent panel tab (REQ-AGT-001) to host the input area and file browser.</notes>
     </edge>
-    <edge id="TR-096" type="dependsOn">
-      <from><locator><local id="REQ-AGT-022"/></locator></from>
-      <to><locator><local id="REQ-AGT-021"/></locator></to>
+    <edge id="TR-096" type="dependsOn" from="REQ-AGT-022" to="REQ-AGT-021">
       <notes>Attachment context injection (REQ-AGT-022) depends on file/folder attachment (REQ-AGT-021) for the list of attached paths.</notes>
     </edge>
-    <edge id="TR-097" type="dependsOn">
-      <from><locator><local id="REQ-AGT-022"/></locator></from>
-      <to><locator><local id="REQ-AGT-002"/></locator></to>
+    <edge id="TR-097" type="dependsOn" from="REQ-AGT-022" to="REQ-AGT-002">
       <notes>Attachment context injection (REQ-AGT-022) depends on prompt input (REQ-AGT-002) as the mechanism that triggers content reading and injection.</notes>
     </edge>
-    <edge id="TR-098" type="refines">
-      <from><locator><local id="REQ-AGT-023"/></locator></from>
-      <to><locator><local id="REQ-AGT-021"/></locator></to>
+    <edge id="TR-098" type="refines" from="REQ-AGT-023" to="REQ-AGT-021">
       <notes>Attachment persistence (REQ-AGT-023) refines file/folder attachment (REQ-AGT-021) by specifying that tags survive across prompt submissions.</notes>
     </edge>
-    <edge id="TR-099" type="dependsOn">
-      <from><locator><local id="REQ-AGT-024"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-099" type="dependsOn" from="REQ-AGT-024" to="REQ-AGT-001">
       <notes>Image paste attachment (REQ-AGT-024) depends on the agent panel tab (REQ-AGT-001) to host the input area where images are pasted.</notes>
     </edge>
-    <edge id="TR-100" type="dependsOn">
-      <from><locator><local id="REQ-AGT-025"/></locator></from>
-      <to><locator><local id="REQ-AGT-001"/></locator></to>
+    <edge id="TR-100" type="dependsOn" from="REQ-AGT-025" to="REQ-AGT-001">
       <notes>Input box bottom bar (REQ-AGT-025) depends on the agent panel tab (REQ-AGT-001) to host the input area.</notes>
     </edge>
-    <edge id="TR-101" type="dependsOn">
-      <from><locator><local id="REQ-AGT-026"/></locator></from>
-      <to><locator><local id="REQ-MDL-004"/></locator></to>
+    <edge id="TR-101" type="dependsOn" from="REQ-AGT-026" to="REQ-MDL-004">
       <notes>Inline model selector (REQ-AGT-026) depends on model selection persistence (REQ-MDL-004) to read and write the active model.</notes>
     </edge>
-    <edge id="TR-102" type="dependsOn">
-      <from><locator><local id="REQ-AGT-026"/></locator></from>
-      <to><locator><local id="REQ-AGT-025"/></locator></to>
+    <edge id="TR-102" type="dependsOn" from="REQ-AGT-026" to="REQ-AGT-025">
       <notes>Inline model selector (REQ-AGT-026) depends on the input box bottom bar (REQ-AGT-025) as its container.</notes>
     </edge>
-    <edge id="TR-103" type="refines">
-      <from><locator><local id="REQ-AGT-027"/></locator></from>
-      <to><locator><local id="REQ-AGT-002"/></locator></to>
+    <edge id="TR-103" type="refines" from="REQ-AGT-027" to="REQ-AGT-002">
       <notes>Input history navigation (REQ-AGT-027) refines prompt input (REQ-AGT-002) by adding history recall to the text input.</notes>
     </edge>
     <!-- Monorepo / project resolution trace edges -->
-    <edge id="TR-104" type="dependsOn">
-      <from><locator><local id="REQ-UI-015"/></locator></from>
-      <to><locator><local id="REQ-UI-011"/></locator></to>
+    <edge id="TR-104" type="dependsOn" from="REQ-UI-015" to="REQ-UI-011">
       <notes>Project resolution algorithm (REQ-UI-015) depends on spec creation (REQ-UI-011) as spec creation determines where the spec file exists for resolution.</notes>
     </edge>
-    <edge id="TR-105" type="dependsOn">
-      <from><locator><local id="REQ-UI-012"/></locator></from>
-      <to><locator><local id="REQ-UI-015"/></locator></to>
+    <edge id="TR-105" type="dependsOn" from="REQ-UI-012" to="REQ-UI-015">
       <notes>Ambiguous spec resolution (REQ-UI-012) depends on project resolution algorithm (REQ-UI-015) as ambiguity is detected during the resolution walk.</notes>
     </edge>
-    <edge id="TR-106" type="dependsOn">
-      <from><locator><local id="REQ-UI-016"/></locator></from>
-      <to><locator><local id="REQ-UI-015"/></locator></to>
+    <edge id="TR-106" type="dependsOn" from="REQ-UI-016" to="REQ-UI-015">
       <notes>Automatic project context switching (REQ-UI-016) depends on project resolution algorithm (REQ-UI-015) to determine the new project when the active editor changes.</notes>
     </edge>
-    <edge id="TR-107" type="dependsOn">
-      <from><locator><local id="REQ-UI-016"/></locator></from>
-      <to><locator><local id="REQ-UI-003"/></locator></to>
+    <edge id="TR-107" type="dependsOn" from="REQ-UI-016" to="REQ-UI-003">
       <notes>Automatic project context switching (REQ-UI-016) depends on the sidebar layout (REQ-UI-003) as the sidebar views must update on context switch.</notes>
     </edge>
-    <edge id="TR-108" type="dependsOn">
-      <from><locator><local id="REQ-UI-016"/></locator></from>
-      <to><locator><local id="REQ-UI-010"/></locator></to>
+    <edge id="TR-108" type="dependsOn" from="REQ-UI-016" to="REQ-UI-010">
       <notes>Automatic project context switching (REQ-UI-016) depends on the status bar indicator (REQ-UI-010) which must update on context switch.</notes>
     </edge>
-    <edge id="TR-109" type="refines">
-      <from><locator><local id="REQ-UI-017"/></locator></from>
-      <to><locator><local id="REQ-UI-015"/></locator></to>
+    <edge id="TR-109" type="refines" from="REQ-UI-017" to="REQ-UI-015">
       <notes>Project resolution caching (REQ-UI-017) refines project resolution algorithm (REQ-UI-015) by adding a performance optimization layer.</notes>
     </edge>
-    <edge id="TR-110" type="dependsOn">
-      <from><locator><local id="REQ-UI-015"/></locator></from>
-      <to><locator><local id="REQ-UI-018"/></locator></to>
-      <notes>Multi-root workspace support (REQ-UI-018) constrains project resolution algorithm (REQ-UI-015) by defining workspace folder boundaries for the upward walk.</notes>
+    <edge id="TR-110" type="dependsOn" from="REQ-UI-015" to="REQ-UI-018">
+      <notes>Multi-root workspace support (REQ-UI-018) constrains project resolution algorithm (REQ-UI-015) by defining workspace folder boundaries for the parent-directory search.</notes>
     </edge>
-    <edge id="TR-111" type="dependsOn">
-      <from><locator><local id="REQ-UI-019"/></locator></from>
-      <to><locator><local id="REQ-UI-015"/></locator></to>
+    <edge id="TR-111" type="dependsOn" from="REQ-UI-019" to="REQ-UI-015">
       <notes>Trace scope per project unit (REQ-UI-019) depends on project resolution algorithm (REQ-UI-015) to determine the active unit boundary.</notes>
     </edge>
-    <edge id="TR-112" type="dependsOn">
-      <from><locator><local id="REQ-UI-006J"/></locator></from>
-      <to><locator><local id="REQ-UI-019"/></locator></to>
+    <edge id="TR-112" type="dependsOn" from="REQ-UI-006J" to="REQ-UI-019">
       <notes>Trace scope per project unit (REQ-UI-019) constrains the traces view (REQ-UI-006J) to only show trace edges within the resolved unit.</notes>
     </edge>
-    <edge id="TR-113" type="dependsOn">
-      <from><locator><local id="REQ-UI-011A"/></locator></from>
-      <to><locator><local id="REQ-UI-015"/></locator></to>
+    <edge id="TR-113" type="dependsOn" from="REQ-UI-011A" to="REQ-UI-015">
       <notes>Version-aware XSD loading (REQ-UI-011A) depends on project resolution (REQ-UI-015) to know which spec file to read the version from.</notes>
     </edge>
     <!-- Export system trace edges -->
-    <edge id="TR-114" type="dependsOn">
-      <from><locator><local id="REQ-EXP-007"/></locator></from>
-      <to><locator><local id="REQ-EXP-006"/></locator></to>
+    <edge id="TR-114" type="dependsOn" from="REQ-EXP-007" to="REQ-EXP-006">
       <notes>PowerPoint export (REQ-EXP-007) depends on export format selection (REQ-EXP-006) as a selectable format option.</notes>
     </edge>
-    <edge id="TR-115" type="dependsOn">
-      <from><locator><local id="REQ-EXP-008"/></locator></from>
-      <to><locator><local id="REQ-EXP-006"/></locator></to>
+    <edge id="TR-115" type="dependsOn" from="REQ-EXP-008" to="REQ-EXP-006">
       <notes>Excel export (REQ-EXP-008) depends on export format selection (REQ-EXP-006) as a selectable format option.</notes>
     </edge>
-    <edge id="TR-116" type="dependsOn">
-      <from><locator><local id="REQ-EXP-009"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-116" type="dependsOn" from="REQ-EXP-009" to="REQ-AGT-003">
       <notes>LLM-driven report generation (REQ-EXP-009) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM communication.</notes>
     </edge>
-    <edge id="TR-117" type="dependsOn">
-      <from><locator><local id="REQ-EXP-010"/></locator></from>
-      <to><locator><local id="REQ-EXP-009"/></locator></to>
+    <edge id="TR-117" type="dependsOn" from="REQ-EXP-010" to="REQ-EXP-009">
       <notes>Report type catalog (REQ-EXP-010) depends on LLM-driven generation (REQ-EXP-009) to produce content for each report type.</notes>
     </edge>
-    <edge id="TR-118" type="refines">
-      <from><locator><local id="REQ-EXP-011"/></locator></from>
-      <to><locator><local id="REQ-EXP-006"/></locator></to>
+    <edge id="TR-118" type="refines" from="REQ-EXP-011" to="REQ-EXP-006">
       <notes>Export wizard (REQ-EXP-011) refines export format selection (REQ-EXP-006) by providing a multi-step guided flow.</notes>
     </edge>
-    <edge id="TR-119" type="dependsOn">
-      <from><locator><local id="REQ-EXP-011"/></locator></from>
-      <to><locator><local id="REQ-EXP-010"/></locator></to>
+    <edge id="TR-119" type="dependsOn" from="REQ-EXP-011" to="REQ-EXP-010">
       <notes>Export wizard (REQ-EXP-011) depends on report type catalog (REQ-EXP-010) for the report type picker step.</notes>
     </edge>
-    <edge id="TR-120" type="dependsOn">
-      <from><locator><local id="REQ-EXP-012"/></locator></from>
-      <to><locator><local id="REQ-EXP-011"/></locator></to>
+    <edge id="TR-120" type="dependsOn" from="REQ-EXP-012" to="REQ-EXP-011">
       <notes>Export toolbar action (REQ-EXP-012) depends on export wizard (REQ-EXP-011) as the view it opens.</notes>
     </edge>
-    <edge id="TR-121" type="dependsOn">
-      <from><locator><local id="REQ-EXP-012"/></locator></from>
-      <to><locator><local id="REQ-UI-006H"/></locator></to>
+    <edge id="TR-121" type="dependsOn" from="REQ-EXP-012" to="REQ-UI-006H">
       <notes>Export toolbar action (REQ-EXP-012) depends on view title toolbar actions (REQ-UI-006H) as the location for the icon.</notes>
     </edge>
     <!-- New command trace edges -->
-    <edge id="TR-122" type="dependsOn">
-      <from><locator><local id="REQ-CMD-013"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-122" type="dependsOn" from="REQ-CMD-013" to="REQ-AGT-003">
       <notes>Implementation agent command (REQ-CMD-013) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM tool calling.</notes>
     </edge>
-    <edge id="TR-123" type="dependsOn">
-      <from><locator><local id="REQ-CMD-013"/></locator></from>
-      <to><locator><local id="REQ-AGT-020"/></locator></to>
+    <edge id="TR-123" type="dependsOn" from="REQ-CMD-013" to="REQ-AGT-020">
       <notes>Implementation agent command (REQ-CMD-013) depends on tool call approval (REQ-AGT-020) for file write approval gates.</notes>
     </edge>
-    <edge id="TR-124" type="dependsOn">
-      <from><locator><local id="REQ-CMD-013"/></locator></from>
-      <to><locator><local id="REQ-CMD-009"/></locator></to>
+    <edge id="TR-124" type="dependsOn" from="REQ-CMD-013" to="REQ-CMD-009">
       <notes>Implementation agent command (REQ-CMD-013) depends on implementation planning (REQ-CMD-009) for the plan that guides code generation.</notes>
     </edge>
-    <edge id="TR-125" type="dependsOn">
-      <from><locator><local id="REQ-CMD-014"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-125" type="dependsOn" from="REQ-CMD-014" to="REQ-AGT-003">
       <notes>Requirement elicitation command (REQ-CMD-014) depends on Vercel AI SDK integration (REQ-AGT-003) for LLM analysis.</notes>
     </edge>
-    <edge id="TR-126" type="dependsOn">
-      <from><locator><local id="REQ-AGT-012"/></locator></from>
-      <to><locator><local id="REQ-CMD-014"/></locator></to>
+    <edge id="TR-126" type="dependsOn" from="REQ-AGT-012" to="REQ-CMD-014">
       <notes>Requirement elicitation command (REQ-CMD-014) is constrained by XSD schema conformance (REQ-AGT-012) for generated requirements.</notes>
     </edge>
-    <edge id="TR-127" type="satisfies">
-      <from><locator><local id="REQ-CMD-014"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="TR-127" type="satisfies" from="REQ-CMD-014" to="GOAL-SE-PRINCIPLES">
       <notes>Requirement elicitation (REQ-CMD-014) satisfies the goal of preserving software engineering rigor by enabling structured requirements capture from unstructured input.</notes>
     </edge>
-    <edge id="TR-128" type="satisfies">
-      <from><locator><local id="REQ-CMD-013"/></locator></from>
-      <to><locator><local id="GOAL-LLM-CONTEXT"/></locator></to>
+    <edge id="TR-128" type="satisfies" from="REQ-CMD-013" to="GOAL-LLM-CONTEXT">
       <notes>Implementation agent command (REQ-CMD-013) satisfies the goal of maintaining LLM coding context by generating code directly from spec-derived plans.</notes>
     </edge>
     <!-- Design command and ADR trace edges -->
-    <edge id="TR-129" type="dependsOn">
-      <from><locator><local id="REQ-CMD-016"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-129" type="dependsOn" from="REQ-CMD-016" to="REQ-AGT-003">
       <notes>Design command (REQ-CMD-016) depends on LLM streaming (REQ-AGT-003) for interactive design reasoning.</notes>
     </edge>
-    <edge id="TR-130" type="dependsOn">
-      <from><locator><local id="REQ-CMD-016"/></locator></from>
-      <to><locator><local id="REQ-CMD-009"/></locator></to>
+    <edge id="TR-130" type="dependsOn" from="REQ-CMD-016" to="REQ-CMD-009">
       <notes>Design decisions (REQ-CMD-016) feed into implementation planning (REQ-CMD-009); design should precede planning.</notes>
     </edge>
-    <edge id="TR-131" type="satisfies">
-      <from><locator><local id="REQ-CMD-016"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="TR-131" type="satisfies" from="REQ-CMD-016" to="GOAL-SE-PRINCIPLES">
       <notes>Structured design decisions with ADRs (REQ-CMD-016) preserve software engineering rigor by documenting architectural choices and their rationale.</notes>
     </edge>
-    <edge id="TR-132" type="refines">
-      <from><locator><local id="REQ-CMD-017"/></locator></from>
-      <to><locator><local id="REQ-CMD-016"/></locator></to>
+    <edge id="TR-132" type="refines" from="REQ-CMD-017" to="REQ-CMD-016">
       <notes>ADR file management conventions (REQ-CMD-017) refine the design command (REQ-CMD-016) with concrete storage and naming rules.</notes>
     </edge>
-    <edge id="TR-133" type="refines">
-      <from><locator><local id="REQ-CMD-018"/></locator></from>
-      <to><locator><local id="REQ-CMD-016"/></locator></to>
+    <edge id="TR-133" type="refines" from="REQ-CMD-018" to="REQ-CMD-016">
       <notes>ADR lifecycle management (REQ-CMD-018) refines the design command (REQ-CMD-016) with status transitions and history preservation rules.</notes>
     </edge>
     <!-- Provider singleton architecture (0.1.x redesign) -->
-    <edge id="TR-134" type="supersedes">
-      <from><locator><local id="REQ-CFG-013"/></locator></from>
-      <to><locator><local id="REQ-CFG-008"/></locator></to>
+    <edge id="TR-134" type="supersedes" from="REQ-CFG-013" to="REQ-CFG-008">
       <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes the endpoint list view (REQ-CFG-008) — with one singleton per provider there is no multi-instance list to display.</notes>
     </edge>
-    <edge id="TR-135" type="supersedes">
-      <from><locator><local id="REQ-CFG-013"/></locator></from>
-      <to><locator><local id="REQ-CFG-010"/></locator></to>
+    <edge id="TR-135" type="supersedes" from="REQ-CFG-013" to="REQ-CFG-010">
       <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes active endpoint selection (REQ-CFG-010) by replacing "active endpoint" with a single globally active model.</notes>
     </edge>
-    <edge id="TR-136" type="supersedes">
-      <from><locator><local id="REQ-CFG-013"/></locator></from>
-      <to><locator><local id="REQ-CFG-011"/></locator></to>
+    <edge id="TR-136" type="supersedes" from="REQ-CFG-013" to="REQ-CFG-011">
       <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes the remove-endpoint requirement (REQ-CFG-011) with "Remove LLM Provider" semantics.</notes>
     </edge>
-    <edge id="TR-137" type="supersedes">
-      <from><locator><local id="REQ-CFG-013"/></locator></from>
-      <to><locator><local id="REQ-CFG-012"/></locator></to>
+    <edge id="TR-137" type="supersedes" from="REQ-CFG-013" to="REQ-CFG-012">
       <notes>Singleton-per-provider architecture (REQ-CFG-013) supersedes the add-endpoint requirement (REQ-CFG-012) with "Add LLM Provider" semantics.</notes>
     </edge>
-    <edge id="TR-138" type="supersedes">
-      <from><locator><local id="REQ-CFG-013"/></locator></from>
-      <to><locator><local id="REQ-MDL-002"/></locator></to>
+    <edge id="TR-138" type="supersedes" from="REQ-CFG-013" to="REQ-MDL-002">
       <notes>Singleton-per-provider architecture (REQ-CFG-013) removes user customisation of the model catalog — the curated catalog is authoritative.</notes>
     </edge>
-    <edge id="TR-139" type="refines">
-      <from><locator><local id="REQ-CFG-014"/></locator></from>
-      <to><locator><local id="REQ-CFG-013"/></locator></to>
+    <edge id="TR-139" type="refines" from="REQ-CFG-014" to="REQ-CFG-013">
       <notes>Environment variable auto-detection (REQ-CFG-014) refines the singleton-per-provider architecture (REQ-CFG-013) with a key-resolution order (stored → env var).</notes>
     </edge>
-    <edge id="TR-140" type="dependsOn">
-      <from><locator><local id="REQ-CFG-013"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-140" type="dependsOn" from="REQ-CFG-013" to="REQ-AGT-003">
       <notes>The provider singleton architecture (REQ-CFG-013) depends on Vercel AI SDK integration (REQ-AGT-003) for model instantiation via the provider-specific SDK packages.</notes>
     </edge>
     <!-- Traceability matrix view (PKG-MATRIX) -->
-    <edge id="TR-141" type="refines">
-      <from><locator><local id="REQ-MAT-001"/></locator></from>
-      <to><locator><local id="REQ-UI-006I"/></locator></to>
+    <edge id="TR-141" type="refines" from="REQ-MAT-001" to="REQ-UI-006I">
       <notes>The matrix tab (REQ-MAT-001) refines the toolbar action that opens additional views (REQ-UI-006I) by specifying tab placement, title, and refresh behaviour.</notes>
     </edge>
-    <edge id="TR-142" type="dependsOn">
-      <from><locator><local id="REQ-MAT-002"/></locator></from>
-      <to><locator><local id="REQ-MAT-001"/></locator></to>
+    <edge id="TR-142" type="dependsOn" from="REQ-MAT-002" to="REQ-MAT-001">
       <notes>The column layout (REQ-MAT-002) depends on the matrix tab existing (REQ-MAT-001) as its host.</notes>
     </edge>
-    <edge id="TR-143" type="refines">
-      <from><locator><local id="REQ-MAT-007"/></locator></from>
-      <to><locator><local id="REQ-UI-006F"/></locator></to>
+    <edge id="TR-143" type="refines" from="REQ-MAT-007" to="REQ-UI-006F">
       <notes>Source navigation from the matrix (REQ-MAT-007) refines the existing Go to Definition behaviour (REQ-UI-006F) by extending it from the tree view to the matrix and detail panel.</notes>
     </edge>
-    <edge id="TR-144" type="dependsOn">
-      <from><locator><local id="REQ-MAT-008"/></locator></from>
-      <to><locator><local id="REQ-CMD-008"/></locator></to>
+    <edge id="TR-144" type="dependsOn" from="REQ-MAT-008" to="REQ-CMD-008">
       <notes>Matrix warnings (REQ-MAT-008) overlap conceptually with sync/traceability commands (REQ-CMD-008); the matrix surfaces a subset of the same checks at the row level, while the deeper code-vs-spec drift detection remains in /sync scan.</notes>
     </edge>
-    <edge id="TR-145" type="dependsOn">
-      <from><locator><local id="REQ-MAT-009"/></locator></from>
-      <to><locator><local id="REQ-CFG-005"/></locator></to>
+    <edge id="TR-145" type="dependsOn" from="REQ-MAT-009" to="REQ-CFG-005">
       <notes>Theme compatibility (REQ-MAT-009) depends on the VS Code theme integration policy (REQ-CFG-005) — no custom palettes, only theme variables.</notes>
     </edge>
-    <edge id="TR-146" type="satisfies">
-      <from><locator><local id="REQ-MAT-002"/></locator></from>
-      <to><locator><local id="GOAL-STAKEHOLDER-COMM"/></locator></to>
+    <edge id="TR-146" type="satisfies" from="REQ-MAT-002" to="GOAL-STAKEHOLDER-COMM">
       <notes>The richer requirements-centred matrix (REQ-MAT-002) satisfies the stakeholder communication goal (GOAL-STAKEHOLDER-COMM) by giving non-technical reviewers a single navigable view of intent, coverage, and gaps.</notes>
     </edge>
-    <edge id="TR-147" type="satisfies">
-      <from><locator><local id="REQ-MAT-008"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="TR-147" type="satisfies" from="REQ-MAT-008" to="GOAL-SE-PRINCIPLES">
       <notes>Visible traceability warnings (REQ-MAT-008) satisfy the software engineering rigor goal (GOAL-SE-PRINCIPLES) by making missing verification, missing implementation, and broken references discoverable.</notes>
     </edge>
     <!-- Reasoning streaming (agent silence improvement) -->
-    <edge id="TR-148" type="dependsOn">
-      <from><locator><local id="REQ-AGT-028"/></locator></from>
-      <to><locator><local id="REQ-AGT-003"/></locator></to>
+    <edge id="TR-148" type="dependsOn" from="REQ-AGT-028" to="REQ-AGT-003">
       <notes>Reasoning stream capture (REQ-AGT-028) depends on Vercel AI SDK integration (REQ-AGT-003), specifically the reasoning-start/delta/end stream parts and provider-options support.</notes>
     </edge>
-    <edge id="TR-149" type="refines">
-      <from><locator><local id="REQ-AGT-029"/></locator></from>
-      <to><locator><local id="REQ-AGT-028"/></locator></to>
+    <edge id="TR-149" type="refines" from="REQ-AGT-029" to="REQ-AGT-028">
       <notes>The reasoning UI panel (REQ-AGT-029) refines reasoning stream capture (REQ-AGT-028) by specifying how captured reasoning is presented to the user.</notes>
     </edge>
-    <edge id="TR-150" type="refines">
-      <from><locator><local id="REQ-AGT-029"/></locator></from>
-      <to><locator><local id="REQ-AGT-015"/></locator></to>
+    <edge id="TR-150" type="refines" from="REQ-AGT-029" to="REQ-AGT-015">
       <notes>The reasoning panel (REQ-AGT-029) refines streaming response display (REQ-AGT-015) by adding a separate live stream for reasoning content.</notes>
     </edge>
-    <edge id="TR-151" type="satisfies">
-      <from><locator><local id="REQ-AGT-031"/></locator></from>
-      <to><locator><local id="REQ-AGT-030"/></locator></to>
+    <edge id="TR-151" type="satisfies" from="REQ-AGT-031" to="REQ-AGT-030">
       <notes>The mode switcher control (REQ-AGT-031) is the UI affordance that satisfies the operating-modes capability defined in REQ-AGT-030.</notes>
     </edge>
-    <edge id="TR-152" type="dependsOn">
-      <from><locator><local id="REQ-AGT-030"/></locator></from>
-      <to><locator><local id="REQ-AGT-002"/></locator></to>
+    <edge id="TR-152" type="dependsOn" from="REQ-AGT-030" to="REQ-AGT-002">
       <notes>Operating modes (REQ-AGT-030) shape how the agent handles every user message, so they depend on the prompt input (REQ-AGT-002) as the channel through which mode-aware behaviour applies.</notes>
     </edge>
-    <edge id="E-IMPL-AGT-032" type="implements">
-      <from><locator><external uri="extension/src/services/llmErrors.ts" kind="code"/></locator></from>
-      <to><locator><local id="REQ-AGT-032"/></locator></to>
-    </edge>
-    <edge id="E-MAT-DELEGATE-SE" type="satisfies" confidence="0.85">
-      <from><locator><local id="REQ-MAT-DELEGATE"/></locator></from>
-      <to><locator><local id="GOAL-SE-PRINCIPLES"/></locator></to>
+    <edge id="E-IMPL-AGT-032" type="implements" from="extension/src/services/llmErrors.ts" fromKind="code" to="REQ-AGT-032"/>
+    <edge id="E-MAT-DELEGATE-SE" type="satisfies" from="REQ-MAT-DELEGATE" to="GOAL-SE-PRINCIPLES" confidence="0.85">
       <notes>Deriving the matrix from one engine keeps the editor's spec-health view consistent with the CLI and MCP verdicts, preserving software-engineering rigor.</notes>
     </edge>
+    <edge id="E-IMPL-GATE-001" type="implements" from="extension/src/services/gate/verdict.ts" fromKind="code" to="REQ-GATE-001" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-002" type="implements" from="extension/src/services/gate/verdict.ts" fromKind="code" to="REQ-GATE-002" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-003" type="implements" from="extension/src/services/gateService.ts" fromKind="code" to="REQ-GATE-003" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-004" type="implements" from="extension/src/services/gate/codeActions.ts" fromKind="code" to="REQ-GATE-004" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-006" type="implements" from="extension/README.md" fromKind="code" to="REQ-GATE-006" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-001" type="verifiedBy" from="REQ-GATE-001" to="extension/src/test/unit/gateVerdict.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-002" type="verifiedBy" from="REQ-GATE-002" to="extension/src/test/unit/gateVerdict.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-004" type="verifiedBy" from="REQ-GATE-004" to="extension/src/test/unit/gateRules.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-005" type="implements" from="extension/src/services/gate/writeGate.ts" fromKind="code" to="REQ-GATE-005" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-005" type="verifiedBy" from="REQ-GATE-005" to="extension/src/test/unit/writeGate.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>

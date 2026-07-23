@@ -3,16 +3,25 @@
 // REQ-UI-013B: XSD schema validation
 // Validates RQML files and reports errors to the Problems panel.
 //
-// Validation is delegated to rqml-core: parse() reports XML well-formedness and
-// structural problems, validate() runs the bundled canonical XSD (covering
+// Validation is delegated to @rqml/core: parse() reports XML well-formedness
+// and structural problems, validate() runs the canonical XSD (covering
 // use="required" and value constraints), and checkIntegrity() covers duplicate
-// ids and dangling trace references. The latter are handled in code rather than
-// by the schema's xs:key / xs:keyref because libxml2 does not enforce those
-// identity constraints against the bundled XSD (its selectors use unprefixed
-// names against a namespaced, qualified schema, so they match nothing).
+// ids and dangling trace references.
+//
+// The 2.1.0 schema's xs:unique selectors used unprefixed names against a
+// namespaced, qualified schema, so libxml2 matched nothing and the identity
+// constraints were inert — checkIntegrity() was the only thing reporting a
+// duplicate id. In 2.2.0 those selectors are namespace-qualified and now fire,
+// so a duplicate id is reported twice: once by libxml2 in its own phrasing
+// ("Duplicate key-sequence ['X'] in unique identity-constraint...") and once by
+// checkIntegrity() in a readable one. mergeDiagnostics() drops the former when
+// the latter covers the same defect. Dangling trace references and enum
+// violations do not overlap — the schema has no keyref for endpoints, and
+// checkIntegrity() does not check facets.
 
 import * as vscode from 'vscode';
 import { loadCore, loadValidate, type Diagnostic } from './core';
+import { mergeDiagnostics } from './diagnosticsMerge';
 
 /**
  * DiagnosticsService - Validates RQML files and reports to Problems panel.
@@ -113,7 +122,9 @@ export class DiagnosticsService {
 
     this.diagnosticCollection.set(
       document.uri,
-      [...report.diagnostics, ...integrity].map((d) => this.toVscodeDiagnostic(d, document))
+      mergeDiagnostics(report.diagnostics, integrity).map((d) =>
+        this.toVscodeDiagnostic(d, document)
+      )
     );
   }
 

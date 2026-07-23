@@ -8,7 +8,7 @@ The RQML Agent helps you:
 - Validate and lint RQML (schema + quality rules)
 - Assess **spec ↔ code sync** and maintain traceability
 - Manage LLM providers/models/API keys via the **Vercel AI SDK**
-- Plan spec implamentation and generate commands for coding agents.
+- Plan spec implementation and generate commands for coding agents.
 
 ---
 

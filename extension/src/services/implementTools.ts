@@ -8,20 +8,17 @@ import type { AgentService } from './agentService';
 import { getSpecService } from './specService';
 import { getConfigurationService } from './configurationService';
 import { computeLineDiff } from './diffUtil';
+import { loadCore } from './core';
+import { log } from './logger';
+import {
+  blockedWrite,
+  isSpecModeAllowedWritePath,
+  resolveWorkspacePath,
+} from './gate/writeGate';
 
-/**
- * REQ-AGT-030: In Spec mode the agent must not write project source code.
- * ADR and plan files under `.rqml/` are exempt because they are design/planning
- * artifacts the spec-mode agent legitimately maintains.
- */
-function isSpecModeAllowedWritePath(path: string): boolean {
-  const normalized = path.replace(/\\/g, '/').replace(/^\.\//, '');
-  return (
-    normalized.startsWith('.rqml/adr/') ||
-    normalized === '.rqml/plan.md' ||
-    normalized.startsWith('.rqml/plans/')
-  );
-}
+// REQ-AGT-030 and REQ-GATE-005 both decide whether a write may proceed. Their
+// logic lives in gate/writeGate.ts, which imports no vscode API so the path
+// handling — where the defect was — is unit-testable.
 
 /**
  * Create the tool set for the /implement agentic loop.
@@ -57,17 +54,61 @@ export function createImplementTools(
         content: z.string().describe('Full file content to write'),
       }),
       execute: async ({ path, content }) => {
-        // REQ-AGT-030: Hard-gate writeFile in Spec mode. Allow ADR/plan files
-        // under `.rqml/` but refuse all other paths with a helpful message.
+        // Resolve before deciding anything. Every check below is about where the
+        // write lands, and the raw tool input does not tell you that: a path may
+        // begin ".rqml/adr/" and still resolve to project source, or out of the
+        // workspace entirely.
+        const relativePath = resolveWorkspacePath(workspaceRoot, path);
+        if (relativePath === undefined) {
+          log.info('Gate', `refused a write outside the workspace: ${path}`);
+          return (
+            `Refused to write "${path}": it resolves outside the workspace. ` +
+            `Provide a path relative to the workspace root.`
+          );
+        }
+
+        // REQ-AGT-030: Spec mode maintains design and planning artifacts, not
+        // project source.
         if (
           getConfigurationService().getAgentMode() === 'spec' &&
-          !isSpecModeAllowedWritePath(path)
+          !isSpecModeAllowedWritePath(relativePath)
         ) {
           return (
-            `writeFile to "${path}" is unavailable in Spec mode. ` +
+            `writeFile to "${relativePath}" is unavailable in Spec mode. ` +
             `Switch to Build mode for direct edits, or use /cmd to generate an implementation prompt for an external coding agent. ` +
             `In Spec mode you may still write ADRs under .rqml/adr/ and the plan file .rqml/plan.md.`
           );
+        }
+
+        // REQ-GATE-005: approval before implementation. Off by default — it
+        // changes the behaviour of a tool people already rely on — and it
+        // governs this agent's writes only. See ADR-0006 for why nothing else
+        // can be blocked from here.
+        if (vscode.workspace.getConfiguration('rqml').get<boolean>('gate.blockAgentEdits', false)) {
+          const specState = getSpecService().state;
+          const specUri = specState.activeSpecUri;
+          if (specUri) {
+            try {
+              const core = await loadCore();
+              const xml = Buffer.from(await vscode.workspace.fs.readFile(specUri)).toString('utf8');
+              const parsed = core.parse(xml);
+              if (parsed.ok) {
+                const blocked = blockedWrite(core.approvalGate, parsed.document, relativePath);
+                if (blocked) {
+                  log.info('Gate', `refused a write to ${relativePath}`, {
+                    requirement: blocked.requirementId,
+                    edge: blocked.edgeId,
+                  });
+                  return blocked.reason;
+                }
+              }
+            } catch (err) {
+              // A gate that cannot run must not silently become permission.
+              // Say so, and let the write proceed to its normal approval prompt
+              // rather than failing the task outright.
+              log.error('Gate', 'approval check could not run; write not gated', err);
+            }
+          }
         }
 
         const approvalId = crypto.randomUUID();

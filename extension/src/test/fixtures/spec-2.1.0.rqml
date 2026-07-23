@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rqml xmlns="https://rqml.org/schema/2.1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="https://rqml.org/schema/2.1.0 https://rqml.org/schema/rqml-2.1.0.xsd"
+      version="2.1.0" docId="DOC-FIXTURE-001" status="draft">
+  <meta>
+    <title>Serialization parity fixture</title>
+    <system>fixture</system>
+  </meta>
+  <goals>
+    <goal id="GOAL-ONE" title="A goal" priority="must" status="approved">
+      <statement>The system shall be useful.</statement>
+    </goal>
+  </goals>
+  <requirements>
+    <reqPackage id="PKG-F" title="Fixture package">
+      <req id="REQ-F-001" type="FR" title="First" status="approved" priority="must">
+        <statement>The system SHALL do the first thing.</statement>
+      </req>
+      <req id="REQ-F-002" type="FR" title="Second" status="draft" priority="should">
+        <statement>The system SHALL do the second thing.</statement>
+      </req>
+    </reqPackage>
+  </requirements>
+  <trace>
+    <edge id="E-LOCAL" type="satisfies">
+      <from><locator><local id="REQ-F-001"/></locator></from>
+      <to><locator><local id="GOAL-ONE"/></locator></to>
+    </edge>
+    <edge id="E-EXTERNAL" type="implements">
+      <from><locator><external uri="src/thing.ts" kind="code"/></locator></from>
+      <to><locator><local id="REQ-F-001"/></locator></to>
+    </edge>
+    <edge id="E-DEP" type="dependsOn">
+      <from><locator><local id="REQ-F-002"/></locator></from>
+      <to><locator><local id="REQ-F-001"/></locator></to>
+    </edge>
+  </trace>
+</rqml>

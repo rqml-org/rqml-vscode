@@ -4,17 +4,42 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			// The default build task F5 runs. Compound, because the extension
+			// host and the webview bundles are built by two different tools:
+			// `tsc` emits out/, esbuild emits dist/. Watching only `tsc` left a
+			// fresh clone with no dist/*.js, so every webview rendered blank.
+			"label": "watch:all",
+			"dependsOn": ["watch:extension", "watch:webview"],
+			"dependsOrder": "parallel",
+			"isBackground": true,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "watch:extension",
 			"type": "npm",
 			"script": "watch",
 			"path": "extension",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
-				"reveal": "never"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
+				"reveal": "never",
+				"group": "watch"
+			}
+		},
+		{
+			"label": "watch:webview",
+			"type": "npm",
+			"script": "watch:webview",
+			"path": "extension",
+			"problemMatcher": [],
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never",
+				"group": "watch"
 			}
 		}
 	]
