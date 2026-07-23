@@ -9,6 +9,33 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # ADR-0005 defers the AI SDK v6 → v7 upgrade: it needs code changes — ten
+    # import sites, four of them real refactors — and it targets the agent the
+    # ADR froze. Dependabot offered the whole group as one correctly-formed
+    # major bump, it was merged, and main stopped compiling with exactly the ten
+    # errors the ADR's compile spike had recorded in advance.
+    #
+    # Majors are therefore ignored here. Minor and patch updates still flow, so
+    # security fixes are not blocked. Taking v7 is a deliberate act: do the
+    # refactor, then supersede ADR-0005 — do not merge a bot's pull request.
+    ignore:
+      - dependency-name: 'ai'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@ai-sdk/*'
+        update-types: ['version-update:semver-major']
+      # TypeScript is capped by the linter, not by us: typescript-eslint peers
+      # on `>=4.8.4 <6.1.0` and no release supports 7 yet. A TS 7 bump therefore
+      # makes `npm ci` fail outright, and the trade — dropping linting to gain a
+      # compiler major — is not one to make by merging a bot's pull request.
+      # Lift this once typescript-eslint declares support.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # @types/vscode declares which API surface the code may use, and vsce
+      # refuses to package when it exceeds engines.vscode. Raising it therefore
+      # is not a dependency update at all — it is a decision to drop support for
+      # older VS Code versions, which ADR-0006 records as a hard compatibility
+      # break. Move engines.vscode first, deliberately, then the types follow.
+      - dependency-name: '@types/vscode'
     groups:
       ai-sdk:
         # The `ai` package and its providers move in lockstep — a provider major
@@ -29,12 +56,27 @@ updates:
 
   # Bundled into dist/ by esbuild rather than shipped as node_modules, but still
   # shipped — the mermaid/DOMPurify advisory reached users this way.
+  #
+  # The groups below exist because ungrouped updates broke this package three
+  # times over: react was bumped to 19 while react-dom stayed on 18, @types/react
+  # to 19 while @types/react-dom stayed on 18, and @xterm/xterm to 6 while its
+  # addons still peered on 5. Each half is valid alone and the pair does not
+  # install, so `npm ci` fails and every job that needs it fails with it.
   - package-ecosystem: npm
     directory: /extension/webview-ui
     schedule:
       interval: weekly
     open-pull-requests-limit: 3
     groups:
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+      xterm:
+        patterns:
+          - '@xterm/*'
       dev:
         dependency-type: development
 
@@ -44,6 +86,9 @@ updates:
       interval: monthly
     open-pull-requests-limit: 3
     groups:
+      # Grouping is necessary but not sufficient here: upgrading core to 3.10
+      # required @docusaurus/faster as a NEW dependency, which no group can add.
+      # A major Docusaurus bump needs the release notes read, not just merging.
       docusaurus:
         patterns:
           - '@docusaurus/*'

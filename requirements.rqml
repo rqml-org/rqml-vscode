@@ -2664,5 +2664,13 @@
     <edge id="E-IMPL-AGT-014" type="implements" from="extension/src/services/strictnessService.ts" fromKind="code" to="REQ-AGT-014" status="draft" createdBy="rqml"/>
     <edge id="E-VER-AGT-013" type="verifiedBy" from="REQ-AGT-013" to="extension/src/test/unit/strictness.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-VER-AGT-014" type="verifiedBy" from="REQ-AGT-014" to="extension/src/test/unit/strictness.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-AGT-008" type="implements" from="extension/src/services/specWrite.ts" fromKind="code" to="REQ-AGT-008" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-CMD-007" type="implements" from="extension/src/commands/slashCommands/handlers/quality.ts" fromKind="code" to="REQ-CMD-007" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-CMD-008" type="implements" from="extension/src/commands/slashCommands/handlers/sync.ts" fromKind="code" to="REQ-CMD-008" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-UI-006E" type="implements" from="extension/src/services/spec/textEdit.ts" fromKind="code" to="REQ-UI-006E" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-AGT-008" type="verifiedBy" from="REQ-AGT-008" to="extension/src/test/unit/writeGuard.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-CMD-007" type="verifiedBy" from="REQ-CMD-007" to="extension/src/test/unit/specReports.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-CMD-008" type="verifiedBy" from="REQ-CMD-008" to="extension/src/test/unit/specReports.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-UI-006E" type="verifiedBy" from="REQ-UI-006E" to="extension/src/test/unit/textEdit.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>

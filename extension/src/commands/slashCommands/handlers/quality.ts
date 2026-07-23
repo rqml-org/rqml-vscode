@@ -1,176 +1,166 @@
-// REQ-CMD-007: Spec quality and health commands
+// REQ-CMD-007: Spec quality and health commands.
+// REQ-GATE-001/002: these report the engine's verdict, not a model's opinion.
+//
+// /status, /validate and /lint used to answer checkable questions with either a
+// re-derived view-model count or a language-model prompt. Both can contradict
+// the gate, which is the one thing this product must never do. They are now
+// computed from @rqml/core; model narration remains available behind --full,
+// beside the deterministic answer rather than instead of it.
 
-import * as vscode from 'vscode';
+import * as path from 'path';
 import type { SlashCommand, ParsedCommand, CommandContext } from '../types';
-
-/**
- * Count items recursively in an RqmlSection
- */
-function countItems(items: Array<{ children?: unknown[] }>): number {
-  let count = 0;
-  for (const item of items) {
-    count++;
-    if (item.children && Array.isArray(item.children)) {
-      count += countItems(item.children as Array<{ children?: unknown[] }>);
-    }
-  }
-  return count;
-}
+import { loadCore } from '../../../services/core';
+import { resolveStrictness } from '../../../services/strictnessService';
+import { evaluate } from '../../../services/gate/verdict';
+import {
+  renderDiagnostics,
+  renderLint,
+  renderStatus,
+  toLintStrictness,
+} from '../../../services/report/specReports';
+import { analyseActiveSpec } from '../specAnalysis';
 
 export function createQualityCommands(): SlashCommand[] {
   const statusCommand: SlashCommand = {
     name: 'status',
-    description: 'Show spec summary (or full LLM-based assessment with --full)',
+    description: 'Show spec coverage and drift (add --full for a model assessment)',
     usage: '/status [--full]',
     category: 'quality',
     requiresSpec: true,
 
     async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      const isFull = parsed.flags.has('full');
-
-      if (isFull) {
-        // LLM-streaming quality assessment
-        const llm = ctx.services.llm;
-        if (!(await llm.isReady())) {
-          ctx.reply('`--full` requires a configured LLM endpoint.');
-          return;
-        }
-        await ctx.streamPrompt(
-          '[SYSTEM] Please provide a comprehensive quality assessment of the current RQML specification. ' +
-          'Cover: completeness, traceability coverage, requirement quality (atomicity, testability, unambiguity), ' +
-          'section presence, and any structural issues. Format as a concise report.'
-        );
+      const analysis = await analyseActiveSpec();
+      if (typeof analysis === 'string') {
+        ctx.reply(analysis);
         return;
       }
 
-      // Local summary from parsed spec
-      const doc = ctx.services.spec.state.document!;
-      const lines: string[] = ['**Spec Status**', ''];
-      lines.push(`Document: \`${doc.docId}\` (v${doc.version})`);
-      lines.push(`Status: ${doc.status}`);
-      lines.push('');
+      const strictness = await resolveStrictness();
+      ctx.reply(renderStatus(analysis.document, analysis.coverage, analysis.drift, strictness));
 
-      lines.push('**Sections:**');
-      for (const [name, section] of doc.sections) {
-        if (section.present) {
-          const count = countItems(section.items);
-          lines.push(`  ${name}: ${count} item${count !== 1 ? 's' : ''}`);
-        } else {
-          lines.push(`  ${name}: _(empty)_`);
+      // The model assessment is now an addition to the figures, not a
+      // replacement for them, so the two can never be read as alternatives.
+      if (parsed.flags.has('full')) {
+        if (!(await ctx.services.llm.isReady())) {
+          ctx.reply('`--full` also needs a configured model; the figures above do not.');
+          return;
         }
+        await ctx.streamPrompt(
+          '[SYSTEM] The deterministic coverage and drift figures have already been shown to the user. ' +
+          'Do not restate them and do not contradict them. Comment only on what a number cannot capture: ' +
+          'requirement quality (atomicity, testability, unambiguity), gaps in intent, and what to do next.'
+        );
       }
-
-      lines.push('');
-      lines.push(`**Trace edges:** ${doc.traceEdges.length}`);
-
-      // Show diagnostics count if any
-      const specUri = doc.uri;
-      const diags = vscode.languages.getDiagnostics(specUri);
-      if (diags.length > 0) {
-        const errors = diags.filter(d => d.severity === vscode.DiagnosticSeverity.Error).length;
-        const warnings = diags.filter(d => d.severity === vscode.DiagnosticSeverity.Warning).length;
-        const info = diags.filter(d => d.severity === vscode.DiagnosticSeverity.Information).length;
-        lines.push(`**Diagnostics:** ${errors} error${errors !== 1 ? 's' : ''}, ${warnings} warning${warnings !== 1 ? 's' : ''}, ${info} info`);
-      } else {
-        lines.push('**Diagnostics:** clean');
-      }
-
-      ctx.reply(lines.join('\n'));
     },
   };
 
   const validateCommand: SlashCommand = {
     name: 'validate',
-    description: 'Run full validation (XML, XSD, semantic) and show results',
+    description: 'Run the gate: schema, integrity, coverage and drift',
     category: 'quality',
     requiresSpec: true,
 
     async execute(_parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      const doc = ctx.services.spec.state.document!;
-      ctx.system('Running validation...');
-
-      // Find the TextDocument for the spec URI
-      const textDoc = await vscode.workspace.openTextDocument(doc.uri);
-      await ctx.services.diagnostics.validateDocument(textDoc);
-
-      const diags = vscode.languages.getDiagnostics(doc.uri);
-
-      if (diags.length === 0) {
-        ctx.reply('Validation passed — no issues found.');
+      const analysis = await analyseActiveSpec();
+      if (typeof analysis === 'string') {
+        ctx.reply(analysis);
         return;
       }
 
-      const lines: string[] = [`**Validation Results** — ${diags.length} issue${diags.length !== 1 ? 's' : ''}`, ''];
+      ctx.system('Running the gate…');
+      const strictness = await resolveStrictness();
+      const verdict = await evaluate(analysis.xml, { baseDir: analysis.baseDir, strictness });
 
-      const bySeverity = {
-        errors: diags.filter(d => d.severity === vscode.DiagnosticSeverity.Error),
-        warnings: diags.filter(d => d.severity === vscode.DiagnosticSeverity.Warning),
-        info: diags.filter(d => d.severity === vscode.DiagnosticSeverity.Information),
-      };
+      const headline =
+        verdict.verdict === 'pass'
+          ? `✓ check pass (${verdict.strictness}) — schema ${verdict.schemaVersion ?? 'unknown'}`
+          : `✗ check fail (${verdict.strictness}) — ${verdict.diagnostics.length} finding(s)`;
 
-      for (const [label, items] of Object.entries(bySeverity)) {
-        if (items.length === 0) continue;
-        lines.push(`**${label.charAt(0).toUpperCase() + label.slice(1)}** (${items.length}):`);
-        for (const d of items.slice(0, 20)) {
-          lines.push(`  L${d.range.start.line + 1}: ${d.message}`);
-        }
-        if (items.length > 20) {
-          lines.push(`  ... and ${items.length - 20} more`);
-        }
-        lines.push('');
-      }
-
+      const lines = [`**${headline}**`];
+      lines.push(...renderDiagnostics(verdict.diagnostics));
+      lines.push(
+        '',
+        '_This is the same verdict `rqml check` produces, and the same one the status bar shows._'
+      );
       ctx.reply(lines.join('\n'));
     },
   };
 
   const lintCommand: SlashCommand = {
     name: 'lint',
-    description: 'Run semantic checks and report quality issues',
-    usage: '/lint',
+    description: 'Run the engine’s semantic lint (add --full for a model review)',
+    usage: '/lint [--full]',
     category: 'quality',
     requiresSpec: true,
-    requiresLlm: true,
 
-    async execute(_parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      await ctx.streamPrompt(
-        '[SYSTEM] Please perform a detailed semantic lint of the current RQML specification. ' +
-        'Check for: vague language (should/could without criteria), non-atomic requirements, ' +
-        'untestable acceptance criteria, missing trace edges, orphan requirements, ' +
-        'naming convention violations, and structural issues. ' +
-        'Format as a categorised list of findings with severity (error/warning/info).'
-      );
+    async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
+      const analysis = await analyseActiveSpec();
+      if (typeof analysis === 'string') {
+        ctx.reply(analysis);
+        return;
+      }
+
+      const core = await loadCore();
+      const strictness = toLintStrictness(await resolveStrictness());
+      // adrDir lets the ADR-reference rule run; without it that rule is skipped.
+      const findings = core.lint(analysis.document, {
+        strictness,
+        adrDir: path.join(analysis.baseDir, '.rqml', 'adr'),
+      });
+
+      ctx.reply(renderLint(findings, strictness));
+
+      if (parsed.flags.has('full')) {
+        if (!(await ctx.services.llm.isReady())) {
+          ctx.reply('`--full` also needs a configured model; the findings above do not.');
+          return;
+        }
+        await ctx.streamPrompt(
+          '[SYSTEM] The engine’s lint findings have already been shown to the user. ' +
+          'Do not restate them. Review what the rules cannot check: vague or non-atomic statements, ' +
+          'untestable acceptance criteria, and requirements whose wording will not survive review.'
+        );
+      }
     },
   };
 
   const scoreCommand: SlashCommand = {
     name: 'score',
-    description: 'Rate the spec quality on multiple dimensions (--full for detailed report)',
+    description: 'Rate spec quality (a model judgement, anchored to the real figures)',
     usage: '/score [--full]',
     category: 'quality',
     requiresSpec: true,
     requiresLlm: true,
 
     async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      if (parsed.flags.has('full')) {
-        await ctx.streamPrompt(
-          '[SYSTEM] Please score the current RQML specification on the following dimensions (1-10 each): ' +
-          '1. Completeness — are all relevant requirements captured? ' +
-          '2. Traceability — are all requirements properly traced to goals, tests, and code? ' +
-          '3. Quality — are requirements atomic, testable, and unambiguous? ' +
-          '4. Structure — does the document follow RQML best practices? ' +
-          '5. Consistency — are naming conventions and patterns consistent? ' +
-          'Provide a detailed justification for each score with specific examples, ' +
-          'a prioritised list of improvements, and an overall summary.'
-        );
-      } else {
-        await ctx.streamPrompt(
-          '[SYSTEM] Please give a concise quality scorecard for the current RQML specification. ' +
-          'Score each dimension 1-10 on a single line: Completeness, Traceability, Quality, Structure, Consistency. ' +
-          'Format: "Dimension: X/10 — one-sentence reason". ' +
-          'End with an overall score and one-line verdict.'
-        );
+      // Scoring is a judgement, so it stays a model task — but it is anchored
+      // to the measured figures so the score cannot silently disagree with them.
+      const analysis = await analyseActiveSpec();
+      if (typeof analysis === 'string') {
+        ctx.reply(analysis);
+        return;
       }
+
+      const c = analysis.coverage;
+      const measured =
+        `Measured: ${c.requirements.length} requirements, ` +
+        `${c.uncoveredGoals.length} uncovered goals, ` +
+        `${c.orphanRequirements.length} orphans, ` +
+        `${c.unverifiedRequirements.length} unverified, ` +
+        `${c.unimplementedApprovedRequirements.length} approved-but-unimplemented, ` +
+        `${analysis.drift.drifted.length} drifted implementations.`;
+
+      ctx.reply(`_${measured}_`);
+      await ctx.streamPrompt(
+        `[SYSTEM] ${measured} These figures come from the engine and are not in dispute — ` +
+        'use them, do not recompute or contradict them. ' +
+        (parsed.flags.has('full')
+          ? 'Score the specification 1-10 on Completeness, Traceability, Quality, Structure and Consistency, ' +
+            'justifying each against the figures and against the document’s wording, then give a prioritised ' +
+            'list of improvements.'
+          : 'Give a one-line score per dimension (Completeness, Traceability, Quality, Structure, Consistency) ' +
+            'and a one-line overall verdict.')
+      );
     },
   };
 

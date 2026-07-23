@@ -11,12 +11,71 @@ import { DocumentViewProvider } from '../webviews/DocumentViewProvider';
 import { TraceGraphViewProvider } from '../webviews/TraceGraphViewProvider';
 import { MatrixViewProvider } from '../webviews/MatrixViewProvider';
 import { ExportViewProvider } from '../webviews/ExportViewProvider';
+import { loadCore } from '../services/core';
+import { writeSpecGuarded } from '../services/specWrite';
+import {
+  deleteElement,
+  insertIntoSection,
+  renameElement,
+  type TextEditResult,
+} from '../services/spec/textEdit';
 
 // Webview providers (initialized during registration)
 let documentViewProvider: DocumentViewProvider | undefined;
 let traceGraphViewProvider: TraceGraphViewProvider | undefined;
 let matrixViewProvider: MatrixViewProvider | undefined;
 let exportViewProvider: ExportViewProvider | undefined;
+
+/**
+ * Apply a targeted text edit to the active specification.
+ *
+ * REQ-UI-006C/006E. The tree's edit commands were "coming soon" messages that
+ * told the user to edit the XML by hand. They now perform the edit, and every
+ * one goes through the same guard the agent's writes do: the result is
+ * re-parsed, re-validated and integrity-checked, and a change that would
+ * introduce an error is refused rather than written.
+ *
+ * The edit is textual rather than parse → modify → serialize because
+ * serialising reflows the document and drops its XML comments — a rename must
+ * not silently delete a user's commentary.
+ */
+async function applySpecEdit(
+  edit: (xml: string) => TextEditResult,
+  description: string,
+  note?: string
+): Promise<void> {
+  const uri = getSpecService().state.activeSpecUri;
+  if (!uri) {
+    vscode.window.showWarningMessage('RQML: no active specification.');
+    return;
+  }
+
+  const xml = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+  const result = edit(xml);
+  if (!result.ok) {
+    vscode.window.showErrorMessage(`RQML: ${result.error}`);
+    return;
+  }
+
+  const written = await writeSpecGuarded(uri, result.xml, description);
+  if (!written.ok) {
+    // The refusal explains which errors the edit would have introduced, which
+    // is more useful than "the edit failed".
+    vscode.window.showErrorMessage(`RQML: ${written.reason.split('\n')[0]}`, 'Show Details').then(
+      (choice) => {
+        if (choice === 'Show Details') {
+          vscode.window.showInformationMessage(written.reason, { modal: true });
+        }
+      }
+    );
+    return;
+  }
+
+  await getSpecService().refresh();
+  vscode.window.showInformationMessage(
+    note ? `RQML: ${description}. ${note}` : `RQML: ${description}.`
+  );
+}
 
 /**
  * Register all commands for the extension.
@@ -157,14 +216,10 @@ export function registerCommands(
         return;
       }
 
-      // TODO: Implement actual XML editing
-      // For now, show message about manual editing
-      vscode.window.showInformationMessage(
-        `Rename functionality coming soon. Please edit the title attribute manually in the RQML file.`
+      await applySpecEdit(
+        (xml) => renameElement(xml, node.item!.id, newTitle),
+        `rename ${node.item.id}`
       );
-
-      // Open the file at the item's location
-      await vscode.commands.executeCommand('rqml-vscode.gotoDefinition', node);
     })
   );
 
@@ -186,13 +241,10 @@ export function registerCommands(
         return;
       }
 
-      // TODO: Implement actual XML editing
-      vscode.window.showInformationMessage(
-        `Delete functionality coming soon. Please remove the item manually from the RQML file.`
+      await applySpecEdit(
+        (xml) => deleteElement(xml, node.item!.id),
+        `delete ${node.item.id}`
       );
-
-      // Open the file at the item's location
-      await vscode.commands.executeCommand('rqml-vscode.gotoDefinition', node);
     })
   );
 
@@ -204,18 +256,36 @@ export function registerCommands(
         return;
       }
 
-      // TODO: Implement item creation with proper XML editing
-      vscode.window.showInformationMessage(
-        `Add item functionality coming soon. Please add items manually to the RQML file.`
-      );
+      // Only the kinds core can produce a schema-valid snippet for. Offering
+      // more would mean hand-writing XML here, which is the thing this avoids.
+      const core = await loadCore();
+      const kinds = [...core.SKELETON_KINDS];
+      const kind = (await vscode.window.showQuickPick(kinds, {
+        title: 'What kind of element?',
+      })) as (typeof kinds)[number] | undefined;
+      if (!kind) {return;}
 
-      // Open the spec file
-      const specService = getSpecService();
-      const state = specService.state;
-      if (state.document?.uri) {
-        const doc = await vscode.workspace.openTextDocument(state.document.uri);
-        await vscode.window.showTextDocument(doc);
-      }
+      const id = await vscode.window.showInputBox({
+        prompt: `Id for the new ${kind}`,
+        placeHolder: kind === 'req' ? 'REQ-AREA-001' : undefined,
+        validateInput: (value) =>
+          /^[A-Za-z][A-Za-z0-9._-]{1,79}$/.test(value.trim())
+            ? null
+            : 'An id starts with a letter and uses letters, digits, dot, dash or underscore.',
+      });
+      if (!id) {return;}
+
+      const container = kind === 'edge' ? 'trace' : 'reqPackage';
+      const snippet = core.skeleton(kind, { id: id.trim() });
+
+      await applySpecEdit(
+        (xml) => insertIntoSection(xml, container, snippet),
+        `add ${kind} ${id.trim()}`,
+        kind === 'edge'
+          ? 'A new edge starts with placeholder endpoints, which do not resolve. ' +
+            'Point them at real ids before saving — the write is refused until they resolve.'
+          : undefined
+      );
     })
   );
 

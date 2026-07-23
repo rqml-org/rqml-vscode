@@ -12,6 +12,7 @@ import type { StrictnessLevel } from '../types/configuration';
 import { createCommandRegistry, type CommandRegistry, type CommandContext } from '../commands/slashCommands';
 import { loadSchema as loadSchemaCatalogue } from './core';
 import { log } from './logger';
+import { writeSpecGuarded } from './specWrite';
 import { resolveStrictness as resolveStrictnessLevel, readGoverningAgentsMd } from './strictnessService';
 import { getSkillService } from './skillService';
 import { computeLineDiff, type DiffRow } from './diffUtil';
@@ -889,8 +890,18 @@ export class AgentService {
     if (!state.document?.uri) {return;}
 
     try {
-      const content = Buffer.from(change.newContent, 'utf-8');
-      await vscode.workspace.fs.writeFile(state.document.uri, content);
+      // The proposal is a model-authored replacement for the whole document,
+      // extracted from the response by regex, and auto-approve can apply it
+      // with no confirmation at all. Guarded for the same reason updateSpec is:
+      // an unparseable result would destroy the specification, and this write
+      // reaches neither the undo stack nor a backup.
+      const result = await writeSpecGuarded(state.document.uri, change.newContent, 'changeProposal');
+      if (!result.ok) {
+        this._onDidReceiveMessage.fire({
+          type: 'agentResponse',
+          payload: { id: crypto.randomUUID(), content: result.reason },
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this._onDidReceiveMessage.fire({
