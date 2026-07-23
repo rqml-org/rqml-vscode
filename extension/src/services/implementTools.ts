@@ -4,6 +4,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import * as vscode from 'vscode';
+import * as nodePath from 'path';
 import type { AgentService } from './agentService';
 import { getSpecService } from './specService';
 import { getConfigurationService } from './configurationService';
@@ -31,17 +32,28 @@ export function createImplementTools(
   return {
     readFile: tool({
       description:
-        'Read the contents of a file in the workspace. Use this to understand existing code before making changes.',
+        'Read the contents of a file in the workspace. Use this to understand existing code before making changes. ' +
+        'Accepts a path relative to the workspace root, or the absolute path of a skill file listed in the prompt.',
       inputSchema: z.object({
-        path: z.string().describe('Relative path from workspace root (e.g. "src/index.ts")'),
+        path: z
+          .string()
+          .describe('Relative path from workspace root (e.g. "src/index.ts"), or an absolute skill path'),
       }),
-      execute: async ({ path }) => {
+      execute: async ({ path: requested }) => {
+        // `Uri.joinPath` joins rather than resolves, so an absolute path was
+        // being appended to the workspace root — producing
+        // "<workspace>/Users/…/SKILL.md", which cannot exist. Skills are
+        // advertised to the agent by absolute path, so every skill the prompt
+        // named was unreadable. Reading is a safe operation, so an absolute
+        // path is allowed here; writes stay confined to the workspace.
+        const uri = nodePath.isAbsolute(requested)
+          ? vscode.Uri.file(requested)
+          : vscode.Uri.joinPath(vscode.Uri.file(workspaceRoot), requested);
         try {
-          const uri = vscode.Uri.joinPath(vscode.Uri.file(workspaceRoot), path);
           const bytes = await vscode.workspace.fs.readFile(uri);
           return Buffer.from(bytes).toString('utf-8');
         } catch {
-          return `Error: file "${path}" not found or unreadable.`;
+          return `Error: file "${requested}" not found or unreadable.`;
         }
       },
     }),
@@ -174,7 +186,7 @@ export function createImplementTools(
             const rel = f.path.slice(rootUri.path.length + 1);
             return rel;
           });
-          if (paths.length === 0) return 'No files found matching the pattern.';
+          if (paths.length === 0) {return 'No files found matching the pattern.';}
           return paths.join('\n');
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -190,7 +202,7 @@ export function createImplementTools(
       execute: async () => {
         const specService = getSpecService();
         const state = specService.state;
-        if (!state.document?.uri) return 'No RQML spec file is currently loaded.';
+        if (!state.document?.uri) {return 'No RQML spec file is currently loaded.';}
         try {
           const bytes = await vscode.workspace.fs.readFile(state.document.uri);
           return Buffer.from(bytes).toString('utf-8');
@@ -240,7 +252,7 @@ export function createImplementTools(
 
         const specService = getSpecService();
         const state = specService.state;
-        if (!state.document?.uri) return 'No RQML spec file is currently loaded.';
+        if (!state.document?.uri) {return 'No RQML spec file is currently loaded.';}
 
         try {
           await vscode.workspace.fs.writeFile(state.document.uri, Buffer.from(content, 'utf-8'));

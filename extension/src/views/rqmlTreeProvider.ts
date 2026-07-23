@@ -217,6 +217,17 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
     if (element.type === 'message') {
       item.iconPath = new vscode.ThemeIcon('info', new vscode.ThemeColor('editorInfo.foreground'));
       item.contextValue = 'rqmlMessage';
+      // REQ-UI-012: the ambiguity notice is an error the user can act on, so it
+      // reads as a warning and opens the remedies when clicked.
+      if (element.id === 'ambiguous-warning') {
+        item.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('editorWarning.foreground'));
+        item.command = {
+          command: 'rqml-vscode.resolveAmbiguousSpec',
+          title: 'Resolve ambiguous specification directory',
+        };
+        item.tooltip =
+          'A directory contains several .rqml files and no requirements.rqml, so no single specification governs it. Click to rename one or choose a primary.';
+      }
       return item;
     }
 
@@ -275,6 +286,19 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
           type: 'message',
           label: `Unknown schema version ${this.specState.xsdVersion} — validation off`,
           id: 'xsd-warning',
+        });
+      }
+      // REQ-UI-012 AC-01: an ambiguous directory is an error state, not
+      // something to drop silently as the previous discovery did.
+      const ambiguous = this.specState?.ambiguous ?? [];
+      if (ambiguous.length > 0) {
+        children.push({
+          type: 'message',
+          label:
+            ambiguous.length === 1
+              ? `Ambiguous: ${ambiguous.length} directory has no requirements.rqml`
+              : `Ambiguous: ${ambiguous.length} directories have no requirements.rqml`,
+          id: 'ambiguous-warning',
         });
       }
       children.push(...this.createSectionNodes());
@@ -459,9 +483,9 @@ export class RqmlTreeDataProvider implements vscode.TreeDataProvider<TreeNode> {
     if (node.type === 'item' && node.item) {
       const parts: string[] = [];
       parts.push(`ID: ${node.item.id}`);
-      if (node.item.type) parts.push(`Type: ${node.item.type}`);
-      if (node.item.status) parts.push(`Status: ${node.item.status}`);
-      if (node.item.priority) parts.push(`Priority: ${node.item.priority}`);
+      if (node.item.type) {parts.push(`Type: ${node.item.type}`);}
+      if (node.item.status) {parts.push(`Status: ${node.item.status}`);}
+      if (node.item.priority) {parts.push(`Priority: ${node.item.priority}`);}
       return parts.join('\n');
     }
 

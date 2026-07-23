@@ -59,6 +59,14 @@ export function registerCommands(
     })
   );
 
+  // REQ-UI-012: resolve a directory holding several .rqml files and no
+  // requirements.rqml. Discovery reports these rather than skipping them.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('rqml-vscode.resolveAmbiguousSpec', async () => {
+      await getSpecService().resolveAmbiguity();
+    })
+  );
+
   // Select tree node (internal command for details view update)
   context.subscriptions.push(
     vscode.commands.registerCommand('rqml-vscode.selectTreeNode', (node: TreeNode) => {

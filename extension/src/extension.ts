@@ -184,7 +184,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   // Initialize spec service with extension path for XSD resolution
-  specService.initialize(context.extensionPath, context);
+  specService.initialize(context);
 
   // Update status bar and context key on spec changes
   specService.onDidChangeSpec((state) => {

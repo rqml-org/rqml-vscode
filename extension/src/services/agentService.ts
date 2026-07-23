@@ -12,6 +12,7 @@ import type { StrictnessLevel } from '../types/configuration';
 import { createCommandRegistry, type CommandRegistry, type CommandContext } from '../commands/slashCommands';
 import { loadSchema as loadSchemaCatalogue } from './core';
 import { log } from './logger';
+import { resolveStrictness as resolveStrictnessLevel, readGoverningAgentsMd } from './strictnessService';
 import { getSkillService } from './skillService';
 import { computeLineDiff, type DiffRow } from './diffUtil';
 import { getModelCatalogService } from './modelCatalogService';
@@ -118,7 +119,7 @@ export class AgentService {
    */
   private async loadSchema(): Promise<void> {
     const version = getSpecService().state.document?.version;
-    if (!version) return;
+    if (!version) {return;}
 
     // The XSD text is inlined in @rqml/schema, so there is no file to read and
     // nothing to resolve against the extension's install path.
@@ -159,7 +160,7 @@ export class AgentService {
    * REQ-AGT-004: React to RQML file changes
    */
   private onRqmlFileChanged(): void {
-    if (this.rqmlChangeTimer) clearTimeout(this.rqmlChangeTimer);
+    if (this.rqmlChangeTimer) {clearTimeout(this.rqmlChangeTimer);}
     this.rqmlChangeTimer = setTimeout(async () => {
       if (this.toolStreamActive) { return; } // Suppress during /implement
       await this.backgroundAnalysis(
@@ -172,7 +173,7 @@ export class AgentService {
    * REQ-AGT-005: React to codebase changes
    */
   private onCodeFileChanged(): void {
-    if (this.codeChangeTimer) clearTimeout(this.codeChangeTimer);
+    if (this.codeChangeTimer) {clearTimeout(this.codeChangeTimer);}
     this.codeChangeTimer = setTimeout(async () => {
       if (this.toolStreamActive) { return; } // Suppress during /implement
       await this.backgroundAnalysis(
@@ -452,9 +453,9 @@ export class AgentService {
   private getStreamProviderOptions(): import('ai').ProviderMetadata | undefined {
     const config = getConfigurationService();
     const active = config.getActiveModel();
-    if (!active) return undefined;
+    if (!active) {return undefined;}
     const entry = getModelCatalogService().findModel(active.modelId, active.providerId);
-    if (!entry) return undefined;
+    if (!entry) {return undefined;}
     return buildReasoningProviderOptions(entry, config.getReasoningBudgetTokens());
   }
 
@@ -683,26 +684,10 @@ export class AgentService {
    * REQ-AGT-014: Resolve the effective strictness level
    */
   private async resolveStrictness(): Promise<StrictnessLevel> {
-    const configService = getConfigurationService();
-    const settingsLevel = configService.getStrictnessSetting();
-
-    // Settings override takes precedence
-    if (settingsLevel) return settingsLevel;
-
-    // Fall back to AGENTS.md
-    const agentsMd = await this.getAgentsMd();
-    if (agentsMd) {
-      const match = agentsMd.match(/Strictness:\s*`(\w+)`/i);
-      if (match) {
-        const level = match[1].toLowerCase();
-        if (['relaxed', 'standard', 'strict', 'certified'].includes(level)) {
-          return level as StrictnessLevel;
-        }
-      }
-    }
-
-    // Default to standard
-    return 'standard';
+    // Shared with the gate, which previously read only the VS Code setting and
+    // could therefore run at a different level than the agent — and strictness
+    // decides whether coverage findings fail the gate.
+    return resolveStrictnessLevel();
   }
 
   /**
@@ -711,7 +696,7 @@ export class AgentService {
   private async getSpecContent(): Promise<string | undefined> {
     const specService = getSpecService();
     const state = specService.state;
-    if (!state.document?.uri) return undefined;
+    if (!state.document?.uri) {return undefined;}
 
     try {
       const bytes = await vscode.workspace.fs.readFile(state.document.uri);
@@ -722,19 +707,15 @@ export class AgentService {
   }
 
   /**
-   * REQ-AGT-014: Read AGENTS.md from workspace root
+   * REQ-AGT-014: the AGENTS.md governing the active specification.
+   *
+   * Previously read `workspaceFolders[0]/AGENTS.md` only, so a monorepo unit
+   * with its own guidelines could never be reached and a multi-root workspace
+   * silently used the first folder's. It now walks parent directories from the
+   * specification's own directory, stopping at the workspace folder.
    */
   private async getAgentsMd(): Promise<string | undefined> {
-    const folders = vscode.workspace.workspaceFolders;
-    if (!folders?.length) return undefined;
-
-    const agentsMdUri = vscode.Uri.joinPath(folders[0].uri, 'AGENTS.md');
-    try {
-      const bytes = await vscode.workspace.fs.readFile(agentsMdUri);
-      return Buffer.from(bytes).toString('utf-8');
-    } catch {
-      return undefined;
-    }
+    return readGoverningAgentsMd();
   }
 
   /**
@@ -747,7 +728,7 @@ export class AgentService {
     const endMarker = ':::END_PROPOSAL:::';
 
     const startIdx = content.indexOf(startMarker);
-    if (startIdx === -1) return content;
+    if (startIdx === -1) {return content;}
 
     const before = content.substring(0, startIdx).trimEnd();
     const endIdx = content.indexOf(endMarker);
@@ -778,7 +759,7 @@ export class AgentService {
     let searchFrom = 0;
     while (true) {
       const idx = result.indexOf(marker, searchFrom);
-      if (idx === -1) break;
+      if (idx === -1) {break;}
 
       // Walk back to find the opening {
       let braceStart = idx - 1;
@@ -853,7 +834,7 @@ export class AgentService {
     const startIdx = content.indexOf(startMarker);
     const endIdx = content.indexOf(endMarker);
 
-    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return undefined;
+    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {return undefined;}
 
     const proposalBlock = content.substring(startIdx + startMarker.length, endIdx).trim();
 
@@ -861,7 +842,7 @@ export class AgentService {
     const diffMatch = proposalBlock.match(/DIFF:\s*([\s\S]*?)(?=NEW_CONTENT:)/);
     const contentMatch = proposalBlock.match(/NEW_CONTENT:\s*([\s\S]*)/);
 
-    if (!contentMatch) return undefined;
+    if (!contentMatch) {return undefined;}
 
     const newContent = contentMatch[1].trim();
     const oldContent = (await this.getSpecContent()) || '';
@@ -905,7 +886,7 @@ export class AgentService {
   private async applyChangeInternal(change: ProposedChange): Promise<void> {
     const specService = getSpecService();
     const state = specService.state;
-    if (!state.document?.uri) return;
+    if (!state.document?.uri) {return;}
 
     try {
       const content = Buffer.from(change.newContent, 'utf-8');
@@ -1599,7 +1580,7 @@ export class AgentService {
   /** Read the persistent implementation plan from .rqml/plan.md */
   async readPlanFile(): Promise<string | null> {
     const folders = vscode.workspace.workspaceFolders;
-    if (!folders?.length) return null;
+    if (!folders?.length) {return null;}
     try {
       const uri = vscode.Uri.joinPath(folders[0].uri, '.rqml/plan.md');
       const bytes = await vscode.workspace.fs.readFile(uri);
@@ -1612,14 +1593,14 @@ export class AgentService {
   /** Read ADR summaries from .rqml/adr/ for system prompt context */
   async readAdrSummary(): Promise<string | null> {
     const folders = vscode.workspace.workspaceFolders;
-    if (!folders?.length) return null;
+    if (!folders?.length) {return null;}
     try {
       const dirUri = vscode.Uri.joinPath(folders[0].uri, '.rqml/adr');
       const entries = await vscode.workspace.fs.readDirectory(dirUri);
       const mdFiles = entries
         .filter(([name, type]) => type === vscode.FileType.File && name.endsWith('.md'))
         .sort(([a], [b]) => a.localeCompare(b));
-      if (mdFiles.length === 0) return null;
+      if (mdFiles.length === 0) {return null;}
 
       const summaries: string[] = [];
       for (const [name] of mdFiles) {
@@ -1647,8 +1628,8 @@ export class AgentService {
 
   dispose(): void {
     this._onDidReceiveMessage.dispose();
-    if (this.rqmlChangeTimer) clearTimeout(this.rqmlChangeTimer);
-    if (this.codeChangeTimer) clearTimeout(this.codeChangeTimer);
+    if (this.rqmlChangeTimer) {clearTimeout(this.rqmlChangeTimer);}
+    if (this.codeChangeTimer) {clearTimeout(this.codeChangeTimer);}
     this.disposables.forEach(d => d.dispose());
   }
 }

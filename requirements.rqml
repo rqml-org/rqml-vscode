@@ -367,7 +367,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-016" type="FR" title="Automatic project context switching" status="draft" priority="must">
+      <req id="REQ-UI-016" type="FR" title="Automatic project context switching" status="approved" priority="must">
         <statement>When the user switches the active editor to a file belonging to a different RQML project unit, the extension SHALL automatically switch the project context. All sidebar views (tree, details, traces), the status bar indicator, the agent panel, and validation diagnostics SHALL update to reflect the newly resolved project.</statement>
         <acceptance>
           <criterion id="AC-UI-016-01">
@@ -383,6 +383,16 @@
       </req>
       <req id="REQ-UI-017" type="IR" title="Project resolution caching" status="draft" priority="should">
         <statement>The extension SHOULD cache the resolved project root per file path for performance. The cache SHALL be invalidated on: file open/close events, active editor changes, and file system events affecting requirements.rqml or any *.rqml file in ancestor directories.</statement>
+        <notes>
+          Deliberately left unimplemented, 2026-07-23, on measurement rather than
+          judgement: resolving the governing specification through @rqml/core
+          takes 0.575 ms per call on this repository, so resolving on every
+          active-editor change costs nothing worth caching. A cache would add an
+          invalidation rule — this requirement names three triggers — whose only
+          failure mode is serving a stale project root, which is materially
+          worse than the cost it removes. Revisit if resolution is ever measured
+          above roughly 20 ms, or if it moves onto a path that runs per keystroke.
+        </notes>
         <acceptance>
           <criterion id="AC-UI-017-01">
             <given>The user has previously opened a file and the project was resolved.</given>
@@ -395,7 +405,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-UI-018" type="FR" title="Multi-root workspace support" status="draft" priority="must">
+      <req id="REQ-UI-018" type="FR" title="Multi-root workspace support" status="approved" priority="must">
         <statement>In VS Code multi-root workspaces, the extension SHALL treat each workspace folder as an independent boundary for the parent-directory search in the project resolution algorithm. The search SHALL NOT cross workspace folder boundaries.</statement>
         <acceptance>
           <criterion id="AC-UI-018-01">
@@ -1028,7 +1038,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AGT-014" type="FR" title="AGENTS.md fallback" status="draft" priority="must">
+      <req id="REQ-AGT-014" type="FR" title="AGENTS.md fallback" status="approved" priority="must">
         <statement>When present, the extension settings strictness level SHALL override the strictness level declared in the project's AGENTS.md file. When no settings override is configured, the agent SHALL observe the strictness level and guidelines specified in AGENTS.md.</statement>
         <acceptance>
           <criterion id="AC-AGT-014-01">
@@ -2646,5 +2656,13 @@
     <edge id="E-VER-GATE-004" type="verifiedBy" from="REQ-GATE-004" to="extension/src/test/unit/gateRules.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-IMPL-GATE-005" type="implements" from="extension/src/services/gate/writeGate.ts" fromKind="code" to="REQ-GATE-005" status="draft" createdBy="rqml"/>
     <edge id="E-VER-GATE-005" type="verifiedBy" from="REQ-GATE-005" to="extension/src/test/unit/writeGate.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-UI-015" type="implements" from="extension/src/services/specService.ts" fromKind="code" to="REQ-UI-015" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-UI-012" type="implements" from="extension/src/services/specService.ts" fromKind="code" to="REQ-UI-012" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-UI-016" type="implements" from="extension/src/services/specService.ts" fromKind="code" to="REQ-UI-016" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-UI-018" type="implements" from="extension/src/services/specService.ts" fromKind="code" to="REQ-UI-018" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-AGT-013" type="implements" from="extension/src/services/strictnessService.ts" fromKind="code" to="REQ-AGT-013" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-AGT-014" type="implements" from="extension/src/services/strictnessService.ts" fromKind="code" to="REQ-AGT-014" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-AGT-013" type="verifiedBy" from="REQ-AGT-013" to="extension/src/test/unit/strictness.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-AGT-014" type="verifiedBy" from="REQ-AGT-014" to="extension/src/test/unit/strictness.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>
