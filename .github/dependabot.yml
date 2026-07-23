@@ -9,6 +9,20 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # ADR-0005 defers the AI SDK v6 → v7 upgrade: it needs code changes — ten
+    # import sites, four of them real refactors — and it targets the agent the
+    # ADR froze. Dependabot offered the whole group as one correctly-formed
+    # major bump, it was merged, and main stopped compiling with exactly the ten
+    # errors the ADR's compile spike had recorded in advance.
+    #
+    # Majors are therefore ignored here. Minor and patch updates still flow, so
+    # security fixes are not blocked. Taking v7 is a deliberate act: do the
+    # refactor, then supersede ADR-0005 — do not merge a bot's pull request.
+    ignore:
+      - dependency-name: 'ai'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@ai-sdk/*'
+        update-types: ['version-update:semver-major']
     groups:
       ai-sdk:
         # The `ai` package and its providers move in lockstep — a provider major
