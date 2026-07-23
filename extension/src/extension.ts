@@ -20,6 +20,8 @@ import { DEFAULT_CATALOG } from './models/catalog';
 import type { ProviderId } from './types/configuration';
 import { log } from './services/logger';
 import { registerCommands } from './commands';
+import { registerGateCommands } from './commands/gateCommands';
+import { getGateService } from './services/gateService';
 import { registerSettingsCommands } from './commands/settingsCommands';
 import { registerAgentCommands } from './commands/agentCommands';
 import { registerSlashPaletteCommands } from './commands/slashPaletteCommands';
@@ -110,6 +112,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // REQ-CFG-001: Register settings commands
   registerSettingsCommands(context);
+
+  // REQ-GATE-001/003/004: the deterministic verdict surface. Started before the
+  // agent so the verdict is available even when no model is configured — it has
+  // no dependency on one, and must not appear to.
+  const gateService = getGateService();
+  gateService.start();
+  context.subscriptions.push(gateService);
+  registerGateCommands(context);
 
   // REQ-CFG-008 through REQ-CFG-012: Register agent/endpoint commands
   registerAgentCommands(context);

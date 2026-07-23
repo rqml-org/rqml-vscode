@@ -1355,7 +1355,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-AGT-032" type="UXR" title="Actionable LLM error surfacing" status="draft" priority="must">
+      <req id="REQ-AGT-032" type="UXR" title="Actionable LLM error surfacing" status="approved" priority="must">
         <statement>When an LLM call fails (provider error, stream error, missing or invalid API key, rate limit, or refusal), the extension SHALL surface a concise, actionable message to the user — including the HTTP status or error code, the provider's own error message, an actionable hint, and the active provider and model — and SHALL log the full error detail (stack and response body) to the RQML Output channel. Error parts emitted on the AI SDK fullStream SHALL be captured and reported in preference to the generic downstream "no output generated" failure that would otherwise mask them.</statement>
         <notes>Centralised in a single formatting service so the agent, implement, background-agent, and export paths produce consistent messages. Hints map common statuses: 401/403 to key configuration, 429 to rate limits, 404 to model id, 400 to unsupported parameters, 5xx to provider outage.</notes>
         <acceptance>
@@ -2077,7 +2077,7 @@
         perform. Specified per ADR-0005 (the extension is an oversight surface)
         and ADR-0006 (the enforcement boundary).
       </description>
-      <req id="REQ-GATE-001" type="FR" title="Deterministic verdict" status="draft" priority="must">
+      <req id="REQ-GATE-001" type="FR" title="Deterministic verdict" status="approved" priority="must">
         <statement>The extension SHALL compute the specification's verdict using @rqml/core alone, composed identically to the `rqml check` command — schema validation and referential integrity, coverage, and drift against the recorded baseline — so that the editor and the command-line tool never disagree about whether a repository passes.</statement>
         <rationale>The product exists to make specification and code disagree visibly. An editor that reports a different verdict than the build would defeat that. Composing the verdict from the same engine, in the same order, with the same blocking policy, makes agreement structural rather than something that has to be maintained.</rationale>
         <notes>
@@ -2100,7 +2100,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-GATE-002" type="CR" title="No language model in the verdict path" status="draft" priority="must">
+      <req id="REQ-GATE-002" type="CR" title="No language model in the verdict path" status="approved" priority="must">
         <statement>The extension SHALL NOT use a language model to produce, alter, or summarise any part of the verdict defined by REQ-GATE-001. Narration of a verdict by a language model MAY be offered, but only as an explicitly requested addition to a verdict already computed deterministically.</statement>
         <rationale>A verdict is only useful if it is reproducible. The same inputs must yield the same answer for every user, on every machine, with no model configured and no network available. This mirrors the constraint the command-line tool holds itself to.</rationale>
         <acceptance>
@@ -2111,7 +2111,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-GATE-003" type="UXR" title="Verdict surfacing" status="draft" priority="must">
+      <req id="REQ-GATE-003" type="UXR" title="Verdict surfacing" status="approved" priority="must">
         <statement>The extension SHALL surface the verdict as editor diagnostics in a dedicated collection, and as a status-bar indicator summarising the current state. Each finding SHALL be anchored to the most specific source location that can be determined for it.</statement>
         <acceptance>
           <criterion id="AC-GATE-003-01">
@@ -2126,7 +2126,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-GATE-004" type="UXR" title="Drift re-pin affordance" status="draft" priority="should">
+      <req id="REQ-GATE-004" type="UXR" title="Drift re-pin affordance" status="approved" priority="should">
         <statement>Where a finding reports that an implementation has changed since its trace edge was recorded, the extension SHOULD offer an action that re-records the baseline for that edge. Where several edges have drifted, the extension SHALL require an explicit per-edge selection rather than re-recording them together in one action.</statement>
         <rationale>Re-recording a baseline asserts that the implementation still satisfies the requirement — a judgement only a person can make. An action that blesses many edges at once invites blessing drift that was never reviewed.</rationale>
         <acceptance>
@@ -2153,7 +2153,7 @@
           </criterion>
         </acceptance>
       </req>
-      <req id="REQ-GATE-006" type="CR" title="Enforcement boundary is stated, not implied" status="draft" priority="must">
+      <req id="REQ-GATE-006" type="CR" title="Enforcement boundary is stated, not implied" status="approved" priority="must">
         <statement>The extension SHALL NOT present itself as preventing changes it cannot prevent. Its user-facing documentation and settings SHALL state that edits made by the user directly, by another extension, or by an agent running outside the extension are reported but not blocked, and that the authoritative gate is the `rqml check` command in continuous integration.</statement>
         <rationale>No stable editor API allows an extension to veto a file save, a file-system operation, or another agent's tool call. A product that implied otherwise would give the user a false assurance about the one thing they rely on it for, which is worse than offering no gate at all.</rationale>
         <acceptance>
@@ -2636,5 +2636,13 @@
     <edge id="E-MAT-DELEGATE-SE" type="satisfies" from="REQ-MAT-DELEGATE" to="GOAL-SE-PRINCIPLES" confidence="0.85">
       <notes>Deriving the matrix from one engine keeps the editor's spec-health view consistent with the CLI and MCP verdicts, preserving software-engineering rigor.</notes>
     </edge>
+    <edge id="E-IMPL-GATE-001" type="implements" from="extension/src/services/gate/verdict.ts" fromKind="code" to="REQ-GATE-001" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-002" type="implements" from="extension/src/services/gate/verdict.ts" fromKind="code" to="REQ-GATE-002" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-003" type="implements" from="extension/src/services/gateService.ts" fromKind="code" to="REQ-GATE-003" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-004" type="implements" from="extension/src/services/gate/codeActions.ts" fromKind="code" to="REQ-GATE-004" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-006" type="implements" from="extension/README.md" fromKind="code" to="REQ-GATE-006" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-001" type="verifiedBy" from="REQ-GATE-001" to="extension/src/test/unit/gateVerdict.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-002" type="verifiedBy" from="REQ-GATE-002" to="extension/src/test/unit/gateVerdict.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-004" type="verifiedBy" from="REQ-GATE-004" to="extension/src/test/unit/gateRules.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>

@@ -24,5 +24,7 @@
 	// ESM-only, so compiling those files here fails with TS1479. They are
 	// type-checked by tsconfig.test.json instead, and run by vitest, which does
 	// its own transform — they are never emitted to out/.
-	"exclude": ["node_modules", "webview-ui", "dist", "src/test/unit"]
+	// src/test/fixtures holds sample documents and a stub implementation file
+	// that trace edges point at; none of it is extension code.
+	"exclude": ["node_modules", "webview-ui", "dist", "src/test/unit", "src/test/fixtures"]
 }

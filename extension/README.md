@@ -38,6 +38,32 @@ Because it is a file in version control, it diffs, it reviews, and it can be che
 
 ## What you get
 
+### 🛡 The gate, and exactly what it covers
+
+The status bar carries a verdict for the active specification: schema validation
+and referential integrity, trace coverage, and whether any implementation has
+changed since its trace edge was recorded. Findings appear in the Problems
+panel, and a drifted edge offers a one-click re-pin once you have reviewed the
+change.
+
+That verdict is computed by the same engine as `rqml check`, composed the same
+way, with no language model involved — so the editor and your build cannot
+disagree, and the verdict works offline with nothing configured.
+
+**What is blocked, and what is not.** Be clear on this before you rely on it:
+
+| | |
+|---|---|
+| Writes by this extension's built-in agent | **Blocked** when they target a non-approved requirement, if you enable `rqml.gate.blockAgentEdits` (off by default) |
+| Your own edits, another extension's edits, an agent in the terminal | **Reported, not blocked** |
+| `rqml check` in continuous integration | **Authoritative** — the layer nothing bypasses |
+
+No VS Code extension can veto a file save, a file-system operation, or another
+extension's tool call; the editor offers no interception point for any of them.
+So this extension tells you the truth about your repository rather than
+pretending to police it. Put `npx @rqml/cli check` in CI — that is the gate that
+actually holds.
+
 ### 🧭 Structured specification browser
 
 Navigate large specifications without losing your place. The sidebar shows every RQML section — goals, requirements, scenarios, verification, traceability — with inline details and trace links for any selected item.

@@ -44,6 +44,18 @@ export type DocumentOutline = RqmlCore.DocumentOutline;
 export type OutlineNode = RqmlCore.OutlineNode;
 export type MarkdownOptions = RqmlCore.MarkdownOptions;
 
+// Gate surface (REQ-GATE-001). Widened deliberately rather than wholesale: each
+// of these has a consumer, so an unused re-export here means something was
+// removed and this list was not updated.
+export type CoverageReport = RqmlCore.CoverageReport;
+export type DriftFinding = RqmlCore.DriftFinding;
+export type DriftReport = RqmlCore.DriftReport;
+export type DriftBaseline = RqmlCore.DriftBaseline;
+export type ImplementsLink = RqmlCore.ImplementsLink;
+export type PrematureImplementation = RqmlCore.PrematureImplementation;
+export type GateVerdict = RqmlCore.GateVerdict;
+export type GateFinding = RqmlCore.GateFinding;
+
 /** A schema version with a bundled XSD — currently "2.0.1" | "2.1.0" | "2.2.0". */
 export type SchemaVersion = RqmlSchema.SchemaVersion;
 

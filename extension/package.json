@@ -244,6 +244,19 @@
       {
         "command": "rqml-vscode.slashElicit",
         "title": "RQML: Elicit Requirements"
+      },
+      {
+        "command": "rqml-vscode.gateCheck",
+        "title": "RQML: Check (run the gate)",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "rqml-vscode.gateRepinEdge",
+        "title": "RQML: Re-pin Trace Baseline..."
+      },
+      {
+        "command": "rqml-vscode.gateApproveRequirement",
+        "title": "RQML: Approve Requirement"
       }
     ],
     "viewsContainers": {
@@ -575,6 +588,11 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "rqml.gate.blockAgentEdits": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Refuse writes by the built-in RQML agent to files that a trace edge links to a requirement which is not yet approved.\n\n**This governs the built-in agent only.** Edits you make yourself, edits by another extension, and edits by an agent running outside this extension are reported in the Problems panel but are not blocked — no editor API can prevent them. The authoritative gate is `rqml check` in continuous integration."
         }
       }
     }
