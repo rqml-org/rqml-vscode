@@ -17,9 +17,14 @@ that supersedes it, and mark the older one `Superseded by ADR-NNNN`.
 |---|-------|----------------|--------|
 | [0001](0001-delegate-engine-to-rqml-core.md) | Delegate parsing, validation, and integrity to rqml-core | discretionary_design_choice | Accepted |
 | [0002](0002-esm-cjs-boundary-in-one-bridge-module.md) | Cross the ESM/CJS boundary in a single bridge module | implementation_detail | Accepted |
-| [0003](0003-migrate-trace-to-canonical-edge-form.md) | Migrate trace links to the canonical nested `<edge>` form | required_by_spec | Accepted |
+| [0003](0003-migrate-trace-to-canonical-edge-form.md) | Migrate trace links to the canonical nested `<edge>` form | required_by_spec | Superseded by [0010](0010-adopt-2.2.0-compact-trace-edges.md) |
 | [0004](0004-full-delegation-and-outline-export.md) | Full delegation — drop fast-xml-parser and export from the core outline | discretionary_design_choice | Accepted |
 | [0005](0005-oversight-surface-and-agent-freeze.md) | The extension is an oversight surface; the bespoke agent is frozen | discretionary_design_choice | Accepted |
+| [0006](0006-enforcement-boundary-in-the-editor.md) | What the editor can enforce, and what it must only report | required_by_spec | Accepted |
+| [0007](0007-nearest-enclosing-spec-discovery.md) | Resolve the governing spec by nearest enclosing directory, on Node | required_by_spec | Accepted |
+| [0008](0008-engine-dependency-boundary.md) | Depend on the engine as a library; never shell out to the CLI | discretionary_design_choice | Accepted |
+| [0009](0009-retire-subscription-and-backend-api.md) | Retire the subscription tiers and the external backend API | required_by_spec | Accepted |
+| [0010](0010-adopt-2.2.0-compact-trace-edges.md) | Adopt the RQML 2.2.0 compact trace-edge form | required_by_spec | Accepted |
 
 ## A note on "rqml-core"
 
