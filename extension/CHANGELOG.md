@@ -2,7 +2,33 @@
 
 All notable changes to the RQML for VS Code extension are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Per VS Code marketplace convention, odd MINOR versions (`0.1.x`) are pre-release and even MINOR versions (`0.2.x`, `0.4.x`, ...) are stable.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Per VS Code marketplace convention, odd MINOR versions (`1.1.x`) are pre-release and even MINOR versions (`1.2.x`, `1.4.x`, ...) are stable.
+
+> **Release channel.** The extension ships on the *pre-release* channel by
+> deliberate choice, and every version to date has carried an odd minor
+> accordingly. It stays there until quality, presentation, and the value
+> proposition are judged ready for a stable release; only then does an even
+> minor (`1.2.0`) get published without `--pre-release`. Note the consequence
+> while that holds: VS Code does not install pre-release builds by default, so
+> Marketplace install counts measure opt-in users and are not a demand signal.
+
+## [Unreleased]
+
+### Added
+- **All nine language-model providers now work in a packaged install.** `@ai-sdk/xai`, `@ai-sdk/mistral`, `@ai-sdk/groq`, `@ai-sdk/deepseek` and `@ai-sdk/perplexity` were declared in the repository-root `package.json` rather than the extension's own. A development checkout resolved them through Node's parent-directory lookup, so the problem was invisible locally — but a packaged extension installs standalone, so selecting any of those five providers failed with `MODULE_NOT_FOUND`. Provider SDKs are now loaded through a static, exhaustive map (`src/models/providerModules.ts`), so a missing provider is a compile error rather than a runtime failure in front of a user.
+
+### Changed
+- **Install size reduced from 54.8 MB to 14.7 MB.** The package included the entire `webview-ui` directory — a build input whose sources esbuild already bundles into `dist/` — together with its `node_modules`, at 4,201 files. It also carried seven 1024×1024 PNGs used as 16- and 20-pixel status icons, and the README screenshots that the Marketplace already serves from GitHub. Total file count dropped from 8,080 to 3,816.
+- **Marketplace description and README** now lead with what the extension does for a repository under specification governance, rather than with the agent panel.
+
+### Fixed
+- **The agent view no longer fails to activate on demand.** The `onView:rqmlAgent` activation event named a view that does not exist; the view's real identifier is `rqmlAgentView`.
+- **Extension activation is now scoped to relevant workspaces.** It previously activated on `onStartupFinished` in every window, and now activates on `workspaceContains:**/*.rqml`.
+- **Pressing F5 in a fresh clone now renders the webviews.** The default build task watched only `tsc`, leaving `dist/` empty; it is now a compound task that also runs the esbuild watcher.
+- **Security.** Resolved both high-severity advisories in the extension's production dependencies (`tmp` path traversal, `brace-expansion` denial of service). Updated mermaid to 11.16.0, which pulls in a patched DOMPurify — relevant because the agent panel renders model-authored mermaid diagrams.
+
+### Removed
+- **The "Open RQML Ideas" command.** It only ever displayed a "coming soon" message. Its acceptance criterion (`AC-UI-006I-04`) has been withdrawn from the specification rather than left standing as an unmet obligation.
 
 ## [1.1.8] — 2026-06-06
 
