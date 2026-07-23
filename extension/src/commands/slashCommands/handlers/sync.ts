@@ -1,145 +1,134 @@
-// REQ-CMD-008: Sync and traceability commands
+// REQ-CMD-008: Sync and traceability commands.
+// REQ-GATE-001/002: the figures here are the engine's, so they agree with the gate.
+//
+// Two defects motivated the rewrite, both measured on this repository:
+//
+//  * /sync counted a requirement as "traced" if ANY edge touched it, so 114 of
+//    172 edges — every dependsOn and refines — counted as coverage while
+//    contributing nothing to implementation or verification. It reported 37
+//    untraced where the engine reports 142 orphans and 148 unverified. Two
+//    answers to the same question, from the same document, in the same window.
+//
+//  * /trace read the view model, whose TraceEdge flattens endpoints to strings
+//    and sets them to '' for anything that is not a local id. That erased all 19
+//    external endpoints — including every implements edge, which is exactly what
+//    a trace query is usually asked about.
 
 import type { SlashCommand, ParsedCommand, CommandContext } from '../types';
+import { loadCore } from '../../../services/core';
+import { describeLocator, renderSync, renderTrace } from '../../../services/report/specReports';
+import { analyseActiveSpec } from '../specAnalysis';
 
 export function createSyncCommands(): SlashCommand[] {
   const syncCommand: SlashCommand = {
     name: 'sync',
-    description: 'Check spec-code synchronisation status',
+    description: 'Show spec-code divergence: unimplemented, unverified, drifted',
     usage: '/sync [status|scan]',
     category: 'sync',
     requiresSpec: true,
     subcommands: [
-      { name: 'status', description: 'Quick sync status summary' },
-      { name: 'scan', description: 'Deep LLM-based sync scan' },
+      { name: 'status', description: 'Coverage and drift, computed by the engine' },
+      { name: 'scan', description: 'Model review of code the spec does not cover' },
     ],
 
     async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      if (parsed.subcommand === 'scan') {
-        if (!(await ctx.services.llm.isReady())) {
-          ctx.reply('`/sync scan` requires a configured LLM endpoint.');
-          return;
-        }
-        await ctx.streamPrompt(
-          '[SYSTEM] Please perform a comprehensive spec-code synchronisation scan. ' +
-          'Identify: requirements without implementation traces, code without corresponding specs, ' +
-          'outdated traces, and any ghost features. Provide a structured report.'
-        );
+      const analysis = await analyseActiveSpec();
+      if (typeof analysis === 'string') {
+        ctx.reply(analysis);
         return;
       }
 
-      // Default: /sync or /sync status — local trace summary
-      const doc = ctx.services.spec.state.document!;
-      const edges = doc.traceEdges;
+      // The deterministic answer is always shown, including before a scan, so a
+      // model's narrative can never stand in for the measurement.
+      ctx.reply(renderSync(analysis.coverage, analysis.drift));
 
-      // Collect all traced IDs
-      const tracedFroms = new Set(edges.map(e => e.from));
-      const tracedTos = new Set(edges.map(e => e.to));
-
-      // Collect all requirement IDs
-      const reqSection = doc.sections.get('requirements');
-      const allReqIds: string[] = [];
-      if (reqSection) {
-        const collect = (items: Array<{ id: string; children?: unknown[] }>) => {
-          for (const item of items) {
-            allReqIds.push(item.id);
-            if (item.children && Array.isArray(item.children)) {
-              collect(item.children as Array<{ id: string; children?: unknown[] }>);
-            }
-          }
-        };
-        collect(reqSection.items);
-      }
-
-      const untraced = allReqIds.filter(id => !tracedFroms.has(id) && !tracedTos.has(id));
-      const traceTypes = new Map<string, number>();
-      for (const e of edges) {
-        traceTypes.set(e.type, (traceTypes.get(e.type) || 0) + 1);
-      }
-
-      const lines: string[] = ['**Sync Status**', ''];
-      lines.push(`Trace edges: ${edges.length}`);
-      if (traceTypes.size > 0) {
-        lines.push('By type:');
-        for (const [type, count] of traceTypes) {
-          lines.push(`  ${type}: ${count}`);
+      if (parsed.subcommand === 'scan') {
+        if (!(await ctx.services.llm.isReady())) {
+          ctx.reply('`/sync scan` also needs a configured model; the figures above do not.');
+          return;
         }
+        await ctx.streamPrompt(
+          '[SYSTEM] The engine has already reported which requirements lack implementation or ' +
+          'verification links, and which implementations have drifted. Those figures are shown to ' +
+          'the user and are not in dispute — do not restate or contradict them. ' +
+          'Look instead for what the trace graph cannot see: behaviour in the code that no ' +
+          'requirement describes.'
+        );
       }
-      lines.push('');
-      lines.push(`Requirements: ${allReqIds.length} total`);
-      if (untraced.length > 0) {
-        lines.push(`Untraced: ${untraced.length} — ${untraced.slice(0, 10).map(id => `\`${id}\``).join(', ')}${untraced.length > 10 ? ` ... and ${untraced.length - 10} more` : ''}`);
-      } else {
-        lines.push('All requirements have trace edges.');
-      }
-      ctx.reply(lines.join('\n'));
     },
   };
 
   const traceCommand: SlashCommand = {
     name: 'trace',
-    description: 'Show trace edges for a specific requirement ID',
-    usage: '/trace <REQ-ID>',
+    description: 'Show the trace neighbourhood of an artifact',
+    usage: '/trace <ID>',
     category: 'sync',
     requiresSpec: true,
 
     async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
       if (parsed.args.length === 0) {
-        ctx.reply('Usage: `/trace <REQ-ID>` — e.g. `/trace REQ-UI-001`');
+        ctx.reply('Usage: `/trace <ID>` — e.g. `/trace REQ-UI-001`');
         return;
       }
 
-      const targetId = parsed.args[0].toUpperCase();
-      const doc = ctx.services.spec.state.document!;
-      const edges = doc.traceEdges;
-
-      const outgoing = edges.filter(e => e.from === targetId);
-      const incoming = edges.filter(e => e.to === targetId);
-
-      if (outgoing.length === 0 && incoming.length === 0) {
-        ctx.reply(`No trace edges found for \`${targetId}\`.`);
+      const analysis = await analyseActiveSpec();
+      if (typeof analysis === 'string') {
+        ctx.reply(analysis);
         return;
       }
 
-      const lines: string[] = [`**Trace: ${targetId}**`, ''];
-      if (outgoing.length > 0) {
-        lines.push('**Outgoing:**');
-        for (const e of outgoing) {
-          lines.push(`  \`${e.id}\`: ${targetId} → \`${e.to}\` (${e.type})${e.notes ? ` — ${e.notes}` : ''}`);
-        }
-      }
-      if (incoming.length > 0) {
-        lines.push('**Incoming:**');
-        for (const e of incoming) {
-          lines.push(`  \`${e.id}\`: \`${e.from}\` → ${targetId} (${e.type})${e.notes ? ` — ${e.notes}` : ''}`);
-        }
-      }
-      ctx.reply(lines.join('\n'));
+      const targetId = parsed.args[0];
+      const core = await loadCore();
+      // resolveTrace keeps each endpoint's locator intact, so an external
+      // artifact renders as its path rather than as an empty string.
+      const resolution = core.resolveTrace(analysis.document);
+
+      ctx.reply(renderTrace(targetId, resolution.edges, describeLocator));
     },
   };
 
   const diffCommand: SlashCommand = {
     name: 'diff',
-    description: 'Compare spec vs implementation (--full for detailed report)',
+    description: 'Show implementations that changed since their baseline',
     usage: '/diff [--full]',
     category: 'sync',
     requiresSpec: true,
-    requiresLlm: true,
 
     async execute(parsed: ParsedCommand, ctx: CommandContext): Promise<void> {
-      if (parsed.flags.has('full')) {
-        await ctx.streamPrompt(
-          '[SYSTEM] Compare the current RQML specification with the implementation. ' +
-          'Identify: gaps where the spec describes features not yet implemented, ' +
-          'ghost features in code not covered by the spec, and any mismatches in behaviour. ' +
-          'Format as a structured diff report.'
+      const analysis = await analyseActiveSpec();
+      if (typeof analysis === 'string') {
+        ctx.reply(analysis);
+        return;
+      }
+
+      const { drifted, links } = analysis.drift;
+      if (drifted.length === 0) {
+        ctx.reply(
+          `**No drift** — all ${links.length} implementation link(s) match their recorded baseline.`
         );
       } else {
+        const lines = [`**${drifted.length} implementation(s) changed since baseline**`, ''];
+        for (const d of drifted) {
+          lines.push(`  - \`${d.edgeId}\` → \`${d.uri}\` (${d.status})`);
+        }
+        lines.push(
+          '',
+          '_Re-pin a change you have reviewed with the quick fix on its diagnostic, ' +
+          'or `rqml link --refresh <edge-id>`._'
+        );
+        ctx.reply(lines.join('\n'));
+      }
+
+      if (parsed.flags.has('full')) {
+        if (!(await ctx.services.llm.isReady())) {
+          ctx.reply('`--full` also needs a configured model; the figures above do not.');
+          return;
+        }
         await ctx.streamPrompt(
-          '[SYSTEM] Give a brief summary of spec vs implementation status. ' +
-          'For each package or feature area, state whether it is: fully implemented, ' +
-          'partially implemented, or not started. Keep it concise — one line per area. ' +
-          'End with a short overall coverage assessment.'
+          '[SYSTEM] The engine has already reported which implementations drifted from their ' +
+          'baseline; those are shown to the user and are not in dispute. Explain what the changes ' +
+          'likely mean for the requirements they implement, and whether each looks like a ' +
+          'reviewed change to re-pin or a genuine divergence to fix.'
         );
       }
     },

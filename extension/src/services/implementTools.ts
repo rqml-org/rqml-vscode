@@ -10,6 +10,7 @@ import { getSpecService } from './specService';
 import { getConfigurationService } from './configurationService';
 import { computeLineDiff } from './diffUtil';
 import { loadCore } from './core';
+import { writeSpecGuarded } from './specWrite';
 import { log } from './logger';
 import {
   blockedWrite,
@@ -255,8 +256,16 @@ export function createImplementTools(
         if (!state.document?.uri) {return 'No RQML spec file is currently loaded.';}
 
         try {
-          await vscode.workspace.fs.writeFile(state.document.uri, Buffer.from(content, 'utf-8'));
-          return `Spec updated: ${description}`;
+          // Never write model output to the specification unchecked. This tool
+          // replaces the entire document, so an unparseable or truncated result
+          // would destroy it: the write does not enter VS Code's undo stack and
+          // no backup is taken.
+          const result = await writeSpecGuarded(state.document.uri, content, 'updateSpec');
+          if (!result.ok) {return result.reason;}
+          return result.remaining.length > 0
+            ? `Spec updated: ${description}. Note the document still has ` +
+              `${result.remaining.length} pre-existing error(s).`
+            : `Spec updated: ${description}`;
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           return `Error updating spec: ${message}`;
