@@ -22,6 +22,8 @@ import { log } from './services/logger';
 import { registerCommands } from './commands';
 import { registerGateCommands } from './commands/gateCommands';
 import { getGateService } from './services/gateService';
+import { registerMcpProvider } from './services/mcpProvider';
+import { registerLanguageModelTools } from './services/lmTools';
 import { registerSettingsCommands } from './commands/settingsCommands';
 import { registerAgentCommands } from './commands/agentCommands';
 import { registerSlashPaletteCommands } from './commands/slashPaletteCommands';
@@ -120,6 +122,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   gateService.start();
   context.subscriptions.push(gateService);
   registerGateCommands(context);
+
+  // Hand the toolchain to the user's own agent (ADR-0011). The MCP server
+  // carries the engine; the two contributed tools cover only what a separate
+  // process cannot see — which specification governs the open file, and the
+  // verdict for unsaved changes.
+  registerMcpProvider(context);
+  registerLanguageModelTools(context);
 
   // REQ-CFG-008 through REQ-CFG-012: Register agent/endpoint commands
   registerAgentCommands(context);

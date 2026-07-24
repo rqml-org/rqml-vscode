@@ -91,4 +91,56 @@ suite('Extension', () => {
     });
     assert.strictEqual(doc.languageId, 'rqml');
   });
+
+  test('registers every language model tool it contributes', async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    await ext.activate();
+
+    const contributed: string[] = (ext.packageJSON.contributes?.languageModelTools ?? []).map(
+      (t: { name: string }) => t.name
+    );
+    assert.ok(contributed.length > 0, 'no language model tools contributed');
+
+    // Same failure mode as an unregistered command: the manifest advertises a
+    // tool to the agent, and invoking it finds nothing behind it.
+    const registered = new Set(vscode.lm.tools.map((t) => t.name));
+    const missing = contributed.filter((name) => !registered.has(name));
+    assert.deepStrictEqual(missing, [], `contributed but not registered: ${missing.join(', ')}`);
+  });
+
+  test('every contributed tool carries the fields agent mode requires', () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    const tools: {
+      name: string;
+      displayName?: string;
+      modelDescription?: string;
+      canBeReferencedInPrompt?: boolean;
+      toolReferenceName?: string;
+    }[] = ext.packageJSON.contributes?.languageModelTools ?? [];
+
+    for (const tool of tools) {
+      // name / displayName / modelDescription are required by the contribution
+      // schema; a tool missing them fails to load with no obvious symptom.
+      assert.ok(tool.displayName, `${tool.name} has no displayName`);
+      assert.ok(tool.modelDescription, `${tool.name} has no modelDescription`);
+      // A tool without both of these is invisible to agent mode entirely, which
+      // is the whole point of contributing it.
+      assert.strictEqual(tool.canBeReferencedInPrompt, true, `${tool.name} is not agent-visible`);
+      assert.ok(tool.toolReferenceName, `${tool.name} has no toolReferenceName`);
+    }
+  });
+
+  test('contributes an MCP server provider whose id matches the registration', () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    const providers: { id: string }[] =
+      ext.packageJSON.contributes?.mcpServerDefinitionProviders ?? [];
+
+    assert.strictEqual(providers.length, 1, 'expected exactly one MCP server provider');
+    // The manifest id and the id passed to registerMcpServerDefinitionProvider
+    // must match, or the server silently never appears.
+    assert.strictEqual(providers[0].id, 'rqml');
+  });
 });

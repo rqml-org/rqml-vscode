@@ -2179,6 +2179,33 @@
           </criterion>
         </acceptance>
       </req>
+      <req id="REQ-GATE-007" type="FR" title="Toolchain available to the user's own agent" status="approved" priority="must">
+        <statement>The extension SHALL make the RQML toolchain available to coding agents other than its own, by registering the RQML MCP server scoped to the governing specification's unit root. It SHALL additionally contribute language-model tools only for operations that require editor state a separate process cannot observe, and SHALL NOT duplicate operations the MCP server already exposes.</statement>
+        <rationale>ADR-0005 freezes this extension's own agent because it competes with tools users already have; the corollary is that the engine must reach the agent they do use. The MCP server exposes the whole engine, so registering it costs little and delivers the entire loop. Contributed tools are not free — each invocation shows a confirmation the extension cannot suppress — so duplicating an MCP tool makes the same question more expensive to ask rather than easier.</rationale>
+        <notes>
+          Neither surface can block an edit. ADR-0006 is unchanged: the language
+          model tools interface offers no hook that fires before another agent's
+          tool runs, so this makes the extension's knowledge reachable without
+          making it a gate over another agent. See ADR-0011.
+        </notes>
+        <acceptance>
+          <criterion id="AC-GATE-007-01">
+            <given>A workspace whose governing specification has been resolved</given>
+            <when>The extension activates</when>
+            <then>An MCP server definition is offered whose working directory is that specification's own unit root, so its answers are scoped to the same unit as the editor's verdict.</then>
+          </criterion>
+          <criterion id="AC-GATE-007-02">
+            <given>The specification is open with unsaved changes</given>
+            <when>An agent asks the extension for the gate verdict</when>
+            <then>The verdict reflects the unsaved buffer rather than the file on disk.</then>
+          </criterion>
+          <criterion id="AC-GATE-007-03">
+            <given>The set of contributed language-model tools</given>
+            <when>It is compared with the operations the MCP server exposes</when>
+            <then>No operation appears in both.</then>
+          </criterion>
+        </acceptance>
+      </req>
     </reqPackage>
   </requirements>
   <trace>
@@ -2664,5 +2691,7 @@
     <edge id="E-VER-UI-006E" type="verifiedBy" from="REQ-UI-006E" to="extension/src/test/unit/textEdit.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-IMPL-EXP-013" type="implements" from="extension/src/export/deterministicExport.ts" fromKind="code" to="REQ-EXP-013" status="draft" createdBy="rqml"/>
     <edge id="E-VER-EXP-013" type="verifiedBy" from="REQ-EXP-013" to="extension/src/test/unit/deterministicExport.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-GATE-007" type="implements" from="extension/src/services/mcpProvider.ts" fromKind="code" to="REQ-GATE-007" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-GATE-007" type="verifiedBy" from="REQ-GATE-007" to="extension/src/test/integration/extension.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>
