@@ -26,6 +26,7 @@ that supersedes it, and mark the older one `Superseded by ADR-NNNN`.
 | [0009](0009-retire-subscription-and-backend-api.md) | Retire the subscription tiers and the external backend API | required_by_spec | Accepted |
 | [0010](0010-adopt-2.2.0-compact-trace-edges.md) | Adopt the RQML 2.2.0 compact trace-edge form | required_by_spec | Accepted |
 | [0011](0011-reach-the-users-own-agent.md) | Reach the user's own agent through MCP and a minimal tool set | discretionary_design_choice | Accepted |
+| [0012](0012-ai-gateway-as-one-optional-provider.md) | The AI Gateway is one optional provider, never a default | discretionary_design_choice | Accepted |
 
 ## A note on "rqml-core"
 

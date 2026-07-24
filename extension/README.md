@@ -127,7 +127,19 @@ The extension also ships an integrated agent panel that can draft requirements, 
 
 If you already work with GitHub Copilot, Claude Code, or another coding agent, you can ignore the panel and use this extension purely as the oversight surface for what those agents do.
 
-Supported providers: Anthropic, OpenAI, Azure OpenAI, Google, xAI, Mistral, Groq, DeepSeek, and Perplexity.
+Supported providers: Anthropic, OpenAI, Azure OpenAI, Google, xAI, Mistral, Groq,
+DeepSeek, and Perplexity — each with your own key, talking to that vendor directly.
+
+You can also select the **Vercel AI Gateway**, which reaches many models through
+a single key. It is never the default and never selected for you. Choosing it
+means your prompts — including specification content — are routed through
+Vercel, so it is offered as a deliberate choice rather than a recommendation.
+Vercel's zero-retention guarantee is plan-gated on their side and is not the
+default routing behaviour, so if retention matters to you, check your account
+before selecting it.
+
+Nothing else changes if you ignore it: the specification browser, traceability,
+matrix, gate and export never contact a model or a network at all.
 
 ---
 

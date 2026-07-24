@@ -16,7 +16,15 @@ export type ProviderId =
   | 'mistral'
   | 'groq'
   | 'deepseek'
-  | 'perplexity';
+  | 'perplexity'
+  /**
+   * The Vercel AI Gateway: one key reaching many upstream providers.
+   *
+   * Deliberately last, and never a default. It routes prompts through a third
+   * party, which is a choice a user should make rather than inherit — see
+   * ADR-0012.
+   */
+  | 'vercel-gateway';
 
 /**
  * REQ-AGT-013: Strictness levels for agent behaviour

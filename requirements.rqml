@@ -2693,5 +2693,7 @@
     <edge id="E-VER-EXP-013" type="verifiedBy" from="REQ-EXP-013" to="extension/src/test/unit/deterministicExport.test.ts" toKind="test" status="draft" createdBy="rqml"/>
     <edge id="E-IMPL-GATE-007" type="implements" from="extension/src/services/mcpProvider.ts" fromKind="code" to="REQ-GATE-007" status="draft" createdBy="rqml"/>
     <edge id="E-VER-GATE-007" type="verifiedBy" from="REQ-GATE-007" to="extension/src/test/integration/extension.test.ts" toKind="test" status="draft" createdBy="rqml"/>
+    <edge id="E-IMPL-MDL-005" type="implements" from="extension/src/models/gatewayCatalog.ts" fromKind="code" to="REQ-MDL-005" status="draft" createdBy="rqml"/>
+    <edge id="E-VER-MDL-005" type="verifiedBy" from="REQ-MDL-005" to="extension/src/test/unit/gatewayCatalog.test.ts" toKind="test" status="draft" createdBy="rqml"/>
   </trace>
 </rqml>
