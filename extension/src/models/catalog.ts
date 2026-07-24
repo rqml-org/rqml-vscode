@@ -20,6 +20,18 @@ export type ModelCapability = 'chat' | 'code' | 'vision' | 'function-calling' | 
 export interface ProviderEntry {
   /** Internal identifier (stable, used as key in settings and secret storage) */
   id: ProviderId;
+  /**
+   * How a model is constructed for this provider.
+   *
+   *   - `'direct'`: an `@ai-sdk/*` package talking to the vendor's own API.
+   *   - `'gateway'`: the Vercel AI Gateway, reached through `createGateway`
+   *     from the `ai` package. It has no `@ai-sdk/*` module of its own in this
+   *     extension's dependency set, and its model ids are namespaced
+   *     (`anthropic/claude-…`), so it cannot share the direct path.
+   *
+   * Defaults to `'direct'` when omitted.
+   */
+  kind?: 'direct' | 'gateway';
   /** User-visible name */
   displayName: string;
   /** Env vars checked (in order) when no stored key exists. First match wins. */
@@ -175,6 +187,27 @@ export const PROVIDERS: readonly ProviderEntry[] = [
     docsUrl: 'https://docs.perplexity.ai/',
     sdkModule: '@ai-sdk/perplexity',
     sdkFactory: 'createPerplexity',
+    reasoning: 'native',
+  },
+  {
+    // One key reaching many upstream providers. Listed last and never a
+    // default: prompts and specification content transit Vercel, which is a
+    // choice to make rather than inherit (ADR-0012).
+    //
+    // `sdkModule`/`sdkFactory` name the `ai` package rather than an
+    // `@ai-sdk/*` one, because `createGateway` lives there. They are recorded
+    // for symmetry and diagnostics; the gateway branch in createModel does not
+    // route through the provider-module map.
+    id: 'vercel-gateway',
+    kind: 'gateway',
+    displayName: 'Vercel AI Gateway',
+    envVars: ['AI_GATEWAY_API_KEY'],
+    keyPlaceholder: 'vck_...',
+    docsUrl: 'https://vercel.com/docs/ai-gateway',
+    sdkModule: 'ai',
+    sdkFactory: 'createGateway',
+    // Reasoning depends on the upstream model the gateway routes to, so it
+    // cannot be declared per-provider here.
     reasoning: 'native',
   },
 ];

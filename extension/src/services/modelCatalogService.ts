@@ -16,6 +16,7 @@ import {
 } from '../models/catalog';
 import { loadProviderModule } from '../models/providerModules';
 import { getConfigurationService } from './configurationService';
+import { getGatewayModels } from './gatewayCatalogService';
 import type { ProviderId } from '../types/configuration';
 
 type LanguageModel = import('ai').LanguageModel;
@@ -45,7 +46,32 @@ export class ModelCatalogService {
   async getAvailableModels(): Promise<ModelCatalogEntry[]> {
     const config = getConfigurationService();
     const configured = new Set(await config.getConfiguredProviders());
-    return DEFAULT_CATALOG.filter(m => configured.has(m.provider));
+    const models = DEFAULT_CATALOG.filter(m => configured.has(m.provider));
+
+    // The gateway's models are fetched rather than curated: it offers 200+ and
+    // the list changes without this extension shipping, so hard-coding them
+    // would be stale within weeks. Appended only when the gateway is actually
+    // configured — otherwise the picker gains hundreds of entries a user has no
+    // key for.
+    if (configured.has('vercel-gateway')) {
+      const gatewayModels = await getGatewayModels();
+      for (const entry of gatewayModels) {
+        models.push({
+          modelId: entry.modelId,
+          displayName: `${entry.displayName} (via gateway)`,
+          provider: 'vercel-gateway',
+          capabilities: entry.reasoning
+            ? ['chat', 'code', 'function-calling', 'reasoning']
+            : ['chat', 'code', 'function-calling'],
+          contextWindow: entry.contextWindow ?? 0,
+          // Nothing here is "recommended": the gateway's catalogue is the
+          // vendors' own, and picking a favourite among 200 would be arbitrary.
+          recommended: false,
+        });
+      }
+    }
+
+    return models;
   }
 
   /** Recommended model for a provider (or the first one if no flag). */
@@ -88,6 +114,27 @@ export class ModelCatalogService {
     // rather than `import(provider.sdkModule)`: a computed specifier is
     // invisible to packaging tools, which is how five providers shipped broken.
     const mod = await loadProviderModule(providerId, provider.displayName, provider.sdkModule);
+
+    if (provider.kind === 'gateway') {
+      // The gateway is constructed differently from every direct provider: its
+      // factory returns a callable that takes a namespaced model id
+      // ("anthropic/claude-…") and routes upstream. No baseURL is passed —
+      // the SDK's default has moved between major versions, so hard-coding one
+      // would pin this to whichever version happened to be installed.
+      const createGateway = mod.createGateway;
+      if (typeof createGateway !== 'function') {
+        throw new Error(
+          'createGateway was not found in the "ai" package. ' +
+          'The AI SDK may have changed its export surface.',
+        );
+      }
+      const gateway = (createGateway as (o: { apiKey: string }) => (id: string) => LanguageModel)({
+        apiKey,
+      });
+      return gateway(modelId);
+    }
+
+
     const factory = mod[provider.sdkFactory];
     if (typeof factory !== 'function') {
       throw new Error(

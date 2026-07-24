@@ -62,8 +62,59 @@ function unwrapCause(error: unknown): unknown {
   return error;
 }
 
+/**
+ * Gateway-specific failures, which the generic branches would report unhelpfully.
+ *
+ * The gateway sits between the user and an upstream provider, so its errors
+ * describe two different systems and the remedies differ. Reported as
+ * "HTTP 402" the user cannot tell a spent credit balance from a bad key.
+ *
+ * Loaded lazily and by name so this module keeps working if the gateway
+ * package is ever absent — these branches simply do not fire.
+ */
+function describeGatewayError(cause: unknown): string | undefined {
+  const err = cause as { name?: string; message?: string; modelId?: string };
+  if (typeof err?.name !== 'string' || !err.name.startsWith('Gateway')) return undefined;
+
+  switch (err.name) {
+    case 'GatewayAuthenticationError':
+      return (
+        'The AI Gateway rejected the API key. ' +
+        "Run 'RQML: Add LLM Provider' to set a valid key, or select a different provider."
+      );
+    case 'GatewayForbiddenError':
+      return (
+        'The AI Gateway refused this request. This usually means the account lacks ' +
+        'access to the model, or its credit balance is exhausted — check the Vercel dashboard.'
+      );
+    case 'GatewayModelNotFoundError':
+      return (
+        `The AI Gateway does not offer "${err.modelId ?? 'that model'}". ` +
+        "Run 'RQML: Select Model' to pick from the current catalogue — the gateway's model list changes."
+      );
+    case 'GatewayRateLimitError':
+      return 'The AI Gateway rate-limited this request. Wait a moment and retry.';
+    case 'GatewayFailedDependencyError':
+      return (
+        'The AI Gateway reached the upstream provider and the provider failed. ' +
+        'This is an outage upstream of Vercel, not a problem with your configuration.'
+      );
+    case 'GatewayInternalServerError':
+      return 'The AI Gateway itself failed. This is a service-side problem; retry shortly.';
+    case 'GatewayInvalidRequestError':
+      return `The AI Gateway rejected the request as invalid: ${err.message ?? 'no detail given'}.`;
+    default:
+      return `AI Gateway error (${err.name}): ${err.message ?? 'no detail given'}.`;
+  }
+}
+
 /** Build the concise, user-facing description for a cause. */
 function describe(cause: unknown): string {
+  // Checked before APICallError, which some gateway errors also satisfy — the
+  // generic branch would then report a bare HTTP status and lose the remedy.
+  const gateway = describeGatewayError(cause);
+  if (gateway) {return gateway;}
+
   if (APICallError.isInstance(cause)) {
     const status = cause.statusCode;
     const providerMessage = parseProviderMessage(cause.responseBody) ?? cause.message;

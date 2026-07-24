@@ -42,6 +42,11 @@ export const PROVIDER_MODULE_LOADERS: Record<ProviderId, () => Promise<unknown>>
   'groq': () => import('@ai-sdk/groq'),
   'deepseek': () => import('@ai-sdk/deepseek'),
   'perplexity': () => import('@ai-sdk/perplexity'),
+  // The gateway's factory is `createGateway` from the `ai` package, not an
+  // `@ai-sdk/*` provider. Listed here so the map stays exhaustive over
+  // ProviderId — that exhaustiveness is what made adding the gateway a compile
+  // error until this line existed, which is the point of it.
+  'vercel-gateway': () => import('ai'),
 };
 
 /** True when a loader is registered for `id`. */
