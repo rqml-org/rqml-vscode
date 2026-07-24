@@ -12,23 +12,103 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 > while that holds: VS Code does not install pre-release builds by default, so
 > Marketplace install counts measure opt-in users and are not a demand signal.
 
-## [Unreleased]
+## [1.1.9] — 2026-07-24
+
+The largest release so far. The extension can now read the RQML version the
+toolchain actually produces, it renders the same verdict your build renders, and
+it hands the whole toolchain to whichever coding agent you already use.
+
+### Fixed — things that prevented the extension working
+
+- **The extension could not open a current specification.** It was pinned to an
+  engine eight minor versions old, behind a dependency range that could never
+  advance, so a document produced by a current `rqml init` — schema 2.2.0 — could
+  not be validated at all. It now reads and validates 2.2.0, 2.1.0 and 2.0.1, and
+  creates new specifications at 2.2.0. Schema knowledge comes from the engine
+  rather than from copies shipped alongside it, so the editor and the
+  command-line tool can no longer disagree about what is valid.
+- **Five of nine language-model providers failed in every real install.** xAI,
+  Mistral, Groq, DeepSeek and Perplexity were declared in the wrong package, so
+  selecting any of them threw `MODULE_NOT_FOUND`. A development checkout resolved
+  them anyway, which is why it went unnoticed. All ten providers now work.
+- **A specification could be destroyed by an agent edit.** The agent could write
+  a whole new specification file with no validation at all — an empty response,
+  prose, or a document truncated mid-element would replace your work, without
+  entering the undo stack and without a backup. Every write is now checked
+  first, and refused if it would introduce errors the document does not already
+  have. An unparseable result is never written.
+- **The extension could adopt a specification from outside your workspace.** The
+  search for a governing specification had no boundary and could climb out of the
+  repository entirely, offering an unrelated document as the active one. It now
+  resolves the nearest enclosing specification and never crosses a workspace
+  folder.
+- **Trace views silently lost every link to code.** Non-local endpoints were
+  discarded when building the view model, so `implements` edges — the links from
+  requirements to source — rendered blank.
+- **The agent panel could not activate on demand**, and the extension activated
+  in every window rather than only where a `.rqml` file exists.
 
 ### Added
-- **All nine language-model providers now work in a packaged install.** `@ai-sdk/xai`, `@ai-sdk/mistral`, `@ai-sdk/groq`, `@ai-sdk/deepseek` and `@ai-sdk/perplexity` were declared in the repository-root `package.json` rather than the extension's own. A development checkout resolved them through Node's parent-directory lookup, so the problem was invisible locally — but a packaged extension installs standalone, so selecting any of those five providers failed with `MODULE_NOT_FOUND`. Provider SDKs are now loaded through a static, exhaustive map (`src/models/providerModules.ts`), so a missing provider is a compile error rather than a runtime failure in front of a user.
+
+- **The gate.** A deterministic verdict for the active specification — schema,
+  referential integrity, coverage and drift — in the status bar and the Problems
+  panel. It is computed by the same engine as `rqml check`, composed the same
+  way, so the editor and your build cannot disagree. It needs no model and no
+  network. A drifted implementation offers a one-click re-pin, per edge, once you
+  have reviewed the change.
+- **Reproducible offline export.** Exports render from the engine, so the same
+  specification produces the same document for any reviewer, later, with no model
+  configured and no network. Previously every format required a language model,
+  which meant no reproducible export existed at all.
+- **Your own coding agent gets the toolchain.** The RQML MCP server is registered
+  for you, so GitHub Copilot's agent mode — or anything speaking MCP — can call
+  `rqml_check`, `rqml_show`, `rqml_impact`, `rqml_link` and nine more, scoped
+  automatically to the specification governing your work. Two further tools cover
+  what a separate process cannot see: which specification governs the open file,
+  and the verdict for unsaved changes.
+- **Optional approval gate on agent writes.** Off by default. When enabled, the
+  built-in agent refuses to write code implementing a requirement that is not yet
+  approved. The README states plainly what this does and does not cover: edits
+  you make yourself, or that another agent makes, are reported and not blocked.
+- **The Vercel AI Gateway** as one optional provider — one key reaching many
+  models. Never a default, never selected for you, and absent from every path
+  that works offline.
+- **Working tree commands.** Add, rename and delete in the specification tree
+  perform the edit instead of showing a "coming soon" message. Edits preserve
+  your file's formatting and comments, and go through the same write guard.
 
 ### Changed
-- **Install size reduced from 54.8 MB to 14.7 MB.** The package included the entire `webview-ui` directory — a build input whose sources esbuild already bundles into `dist/` — together with its `node_modules`, at 4,201 files. It also carried seven 1024×1024 PNGs used as 16- and 20-pixel status icons, and the README screenshots that the Marketplace already serves from GitHub. Total file count dropped from 8,080 to 3,816.
-- **Marketplace description and README** now lead with what the extension does for a repository under specification governance, rather than with the agent panel.
 
-### Fixed
-- **The agent view no longer fails to activate on demand.** The `onView:rqmlAgent` activation event named a view that does not exist; the view's real identifier is `rqmlAgentView`.
-- **Extension activation is now scoped to relevant workspaces.** It previously activated on `onStartupFinished` in every window, and now activates on `workspaceContains:**/*.rqml`.
-- **Pressing F5 in a fresh clone now renders the webviews.** The default build task watched only `tsc`, leaving `dist/` empty; it is now a compound task that also runs the esbuild watcher.
-- **Security.** Resolved both high-severity advisories in the extension's production dependencies (`tmp` path traversal, `brace-expansion` denial of service). Updated mermaid to 11.16.0, which pulls in a patched DOMPurify — relevant because the agent panel renders model-authored mermaid diagrams.
+- **`/status`, `/validate`, `/lint`, `/sync`, `/trace` and `/diff` now report the
+  engine's answer** rather than asking a language model. These commands answer
+  checkable questions, and a model's answer could — and did — contradict the
+  gate: `/sync` counted any trace edge as coverage and reported far fewer gaps
+  than actually existed. Model commentary is still available with `--full`,
+  alongside the real figures rather than instead of them.
+- **Install size reduced from 54.8 MB to 13.0 MB**, and from 8,080 files to
+  3,785. The package included an entire build input directory with its
+  dependencies, seven 1024×1024 images used as 16-pixel icons, and screenshots
+  already served from GitHub.
+- **Strictness is resolved once.** The gate and the agent previously read it from
+  different places and could disagree — which mattered, because strictness
+  decides whether coverage findings fail the verdict. The `AGENTS.md` lookup now
+  finds the one governing your specification rather than only the workspace root.
+- **The Marketplace listing and README** lead with what the extension does for a
+  repository under specification governance rather than with the agent panel.
+
+### Security
+
+- Resolved both high-severity advisories in production dependencies (`tmp` path
+  traversal, `brace-expansion` denial of service), and updated mermaid to a
+  release carrying a patched DOMPurify — relevant because the agent panel renders
+  model-authored mermaid diagrams.
 
 ### Removed
-- **The "Open RQML Ideas" command.** It only ever displayed a "coming soon" message. Its acceptance criterion (`AC-UI-006I-04`) has been withdrawn from the specification rather than left standing as an unmet obligation.
+
+- **The "Open RQML Ideas" command**, which only ever displayed a "coming soon"
+  message. Its acceptance criterion has been withdrawn from the specification
+  rather than left standing as an unmet obligation.
+- Six configuration settings that nothing read.
 
 ## [1.1.8] — 2026-06-06
 

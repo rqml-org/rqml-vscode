@@ -2,7 +2,7 @@
   "name": "rqml-vscode",
   "displayName": "RQML for VS Code",
   "description": "Requirements that live in your repository. Browse, trace, and validate RQML specifications, see coverage and traceability at a glance, and keep intent under version control alongside the code your agents write.",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "publisher": "rqml",
   "license": "MIT",
   "icon": "resources/RQML_logo_purple_128x128.png",
