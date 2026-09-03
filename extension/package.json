@@ -552,7 +552,7 @@
     "jszip": "^3.10.1",
     "pdfkit": "^0.19.1",
     "pptxgenjs": "^4.0.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "scripts": {
     "vscode:prepublish": "npm run compile && npm run build:webview",
